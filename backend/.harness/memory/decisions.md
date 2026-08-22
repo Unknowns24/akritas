@@ -20,3 +20,11 @@ Record durable project decisions here.
 - GitHub.com connections support write-only Personal Access Tokens and GitHub App registration via the official Manifest flow.
 - `github_account_type` (`personal|organization`) and `authentication_method` (`personal_access_token|github_app`) are independent concepts.
 - Private keys, PATs, webhook secrets and installation tokens never appear in response DTOs.
+
+## 2026-08-22 — Backend foundation
+
+- The backend Go module is `github.com/Unknowns24/akritas/backend` and declares Go 1.26.
+- The MVP domain starts as one flat `internal/core/domain` package with one file per cohesive concept.
+- Akritas-owned identities use `github.com/google/uuid`; provider identifiers remain strings.
+- Domain entities do not contain JSON/GORM tags or integration/authentication secrets.
+- Domain error components reserve `0x401` through `0x406` for auth, integrations, project, incidents, investigations and remediation respectively.

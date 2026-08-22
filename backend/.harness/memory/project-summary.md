@@ -17,6 +17,7 @@ Architecture guidance:
 - API contract: OpenAPI is authoritative for frontend/backend integration.
 - Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.0.0 under `/api/v1`.
 - Persistence: GORM repositories + gormigrate/v2 migrations.
+- Backend foundation: Go 1.26 module with a transport/persistence-independent MVP domain under `internal/core/domain`.
 - QVAC inference must remain local for the hackathon requirements.
 - GitHub, Dokploy, QVAC, Git and filesystem access are infrastructure adapters behind output ports.
 - Integration credentials are backend-only and must never reach browser code.

@@ -21,6 +21,8 @@ const (
 	listenAddr             = ":8080"
 	setupRateLimitAttempts = 5
 	setupRateLimitWindow   = 15 * time.Minute
+	loginRateLimitAttempts = 5
+	loginRateLimitWindow   = 15 * time.Minute
 )
 
 func main() {
@@ -51,10 +53,11 @@ func main() {
 	passwordHasher := security.NewPasswordHasher()
 	bootstrapTokens := security.NewBootstrapTokenVerifier(cfg.BootstrapToken)
 	// Independent budgets per operation (ADR-008): a user's setup attempts
-	// must not consume the budget verify needs for its own retries, and
-	// vice versa.
+	// must not consume the budget verify or login need for their own
+	// retries, and vice versa.
 	setupRateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
 	verifyRateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
+	loginRateLimiter := security.NewRateLimiter(loginRateLimitAttempts, loginRateLimitWindow)
 	sessionTokens := security.NewSessionTokenGenerator()
 	clock := security.NewClock()
 
@@ -68,9 +71,21 @@ func main() {
 		administrators, sessionTokens, administratorSessions, transactor, clock,
 		cfg.SessionIdleTTL, cfg.SessionAbsoluteTTL,
 	)
+	loginAdministrator := authusecase.NewLoginAdministratorUseCase(
+		loginRateLimiter, administrators, passwordHasher, credentialStore, totpVerifier,
+		sessionTokens, administratorSessions, transactor, clock,
+		cfg.SessionIdleTTL, cfg.SessionAbsoluteTTL,
+	)
+	authenticateSession := authusecase.NewAuthenticateSessionUseCase(administratorSessions, sessionTokens, clock, cfg.SessionIdleTTL)
+	getCurrentSession := authusecase.NewGetCurrentSessionUseCase(administrators)
+	logoutAdministrator := authusecase.NewLogoutAdministratorUseCase(administratorSessions, clock)
 
 	handler := router.New(router.Dependencies{
-		Auth: authhandler.NewHandler(getSetupStatus, startAdministratorSetup, verifyAdministratorSetup, cfg.SessionCookieSecure),
+		Auth: authhandler.NewHandler(
+			getSetupStatus, startAdministratorSetup, verifyAdministratorSetup,
+			loginAdministrator, getCurrentSession, logoutAdministrator, cfg.SessionCookieSecure,
+		),
+		Authenticate: authenticateSession,
 	})
 
 	log.Printf("akritas backend listening on %s", listenAddr)

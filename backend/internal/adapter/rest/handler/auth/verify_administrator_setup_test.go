@@ -48,7 +48,7 @@ func TestVerifyAdministratorSetupHappyPath(t *testing.T) {
 		IdleExpiresAt:     now.Add(12 * time.Hour),
 		AbsoluteExpiresAt: now.Add(168 * time.Hour),
 	}}
-	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, true)
+	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 	rec := httptest.NewRecorder()
 	handler.VerifyAdministratorSetup(rec, newVerifyRequest(t, validVerifyBody()))
@@ -117,7 +117,7 @@ func TestVerifyAdministratorSetupCookieNotSecureWhenConfigured(t *testing.T) {
 	t.Parallel()
 
 	verify := &fakeVerifyAdministratorSetupUseCase{}
-	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, false)
+	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, false)
 
 	rec := httptest.NewRecorder()
 	handler.VerifyAdministratorSetup(rec, newVerifyRequest(t, validVerifyBody()))
@@ -131,7 +131,7 @@ func TestVerifyAdministratorSetupCookieNotSecureWhenConfigured(t *testing.T) {
 func TestVerifyAdministratorSetupMalformedJSON(t *testing.T) {
 	t.Parallel()
 
-	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, true)
+	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/setup/verify", strings.NewReader("{not json"))
 	rec := httptest.NewRecorder()
@@ -157,7 +157,7 @@ func TestVerifyAdministratorSetupFieldValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			verify := &fakeVerifyAdministratorSetupUseCase{}
-			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, true)
+			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 			rec := httptest.NewRecorder()
 			handler.VerifyAdministratorSetup(rec, newVerifyRequest(t, body))
@@ -192,7 +192,7 @@ func TestVerifyAdministratorSetupUsecaseErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			verify := &fakeVerifyAdministratorSetupUseCase{err: tc.err}
-			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, true)
+			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, &fakeStartAdministratorSetupUseCase{}, verify, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 			body := validVerifyBody()
 			rec := httptest.NewRecorder()

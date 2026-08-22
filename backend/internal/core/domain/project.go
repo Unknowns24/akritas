@@ -122,6 +122,9 @@ func (p *Project) ReplaceMonitoringConfiguration(configuration MonitoringConfigu
 	if p == nil {
 		return ErrInvalidProject.Wrap(validationCause("project"))
 	}
+	if err := configuration.Validate(); err != nil {
+		return err
+	}
 	configuration.ErrorPatterns = cloneStrings(configuration.ErrorPatterns)
 	configuration.IgnoredPatterns = cloneStrings(configuration.IgnoredPatterns)
 	p.MonitoringConfiguration = configuration

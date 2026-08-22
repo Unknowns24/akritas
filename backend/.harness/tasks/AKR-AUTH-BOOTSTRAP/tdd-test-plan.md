@@ -104,9 +104,12 @@ Los tests se escribirán después de la aprobación de este plan y deberán fall
 - Los errores nuevos cumplen `0x4XXNNNT` y están documentados.
 - Los tres scripts del harness pasan sin modificar `docs/openapi.yaml`.
 
-## Open questions / human approval notes
+## Open questions / human approval notes — resueltas
 
-- Tests de repositorio Postgres: ¿correr contra una instancia real (requiere Postgres disponible en CI/local) o usar `sqlmock`/`go-sqlmock` para no depender de infraestructura externa en esta etapa? Propongo Postgres real vía una instancia local/Docker que el desarrollador levanta manualmente, documentando el comando en el propio test file, ya que el proyecto no tiene todavía convención de test containers — se ajusta si preferís `sqlmock`.
-- El tiempo de expiración del pending enrollment (10 minutos, constante en el usecase) y el límite exacto del rate limiter (número de intentos / ventana) no están fijados por ningún ADR ni doc — quedan como valores propuestos, ajustables en esta aprobación si no son los esperados.
-- El upsert de `PendingEnrollment` (reemplazar el anterior en vez de coexistir o rechazar) es una interpretación razonable del flujo de ADR-008, no una regla escrita explícitamente — se señala para que la apruebes o la corrijas antes de implementar.
-- Se requiere aprobación humana explícita de este archivo antes de crear tests o implementar código.
+Aprobado por el usuario el 2026-08-22 con los siguientes ajustes:
+
+1. Tests de repositorio: **Postgres real (local)**, no `sqlmock`.
+2. Rate limiter: **5 intentos cada 15 minutos por IP** para `/auth/setup` (reemplaza el placeholder sin número de la sección 6).
+3. Upsert del pending enrollment: **confirmado** tal como se propuso — un nuevo `POST /auth/setup` reemplaza cualquier enrollment pendiente anterior.
+
+No quedan decisiones abiertas. Se procede a tests + implementación.

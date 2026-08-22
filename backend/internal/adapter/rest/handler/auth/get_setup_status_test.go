@@ -14,7 +14,7 @@ func TestGetSetupStatusReturnsOK(t *testing.T) {
 	t.Parallel()
 
 	getStatus := &fakeGetSetupStatusUseCase{status: in.SetupStatus{SetupRequired: true, RegistrationOpen: true}}
-	handler := handlerauth.NewHandler(getStatus, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, true)
+	handler := handlerauth.NewHandler(getStatus, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/setup-status", nil)
 	rec := httptest.NewRecorder()
@@ -43,7 +43,7 @@ func TestGetSetupStatusReturnsInternalErrorOnFailure(t *testing.T) {
 	t.Parallel()
 
 	getStatus := &fakeGetSetupStatusUseCase{err: errUnexpected}
-	handler := handlerauth.NewHandler(getStatus, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, true)
+	handler := handlerauth.NewHandler(getStatus, &fakeStartAdministratorSetupUseCase{}, &fakeVerifyAdministratorSetupUseCase{}, &fakeLoginAdministratorUseCase{}, &fakeGetCurrentSessionUseCase{}, &fakeLogoutAdministratorUseCase{}, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/setup-status", nil)
 	rec := httptest.NewRecorder()

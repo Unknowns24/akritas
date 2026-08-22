@@ -15,6 +15,7 @@ func Run(db *gorm.DB) error {
 		schema.Migration20260822_02_CreatePendingEnrollments(),
 		schema.Migration20260822_03_AddTotpSecretToAdministrators(),
 		schema.Migration20260822_04_CreateAdministratorSessions(),
+		schema.Migration20260822_05_AddLastAcceptedTotpPeriodToAdministrators(),
 	})
 	return m.Migrate()
 }

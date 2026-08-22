@@ -53,3 +53,17 @@ func (s *AdministratorSession) Revoke(at time.Time) error {
 	s.RevokedAt = &at
 	return nil
 }
+
+// ExtendIdle slides the idle expiration forward on an active session,
+// capped so it never exceeds AbsoluteExpiresAt.
+func (s *AdministratorSession) ExtendIdle(now time.Time, idleTTL time.Duration) error {
+	if s == nil || !s.IsActive(now) {
+		return ErrAdministratorSessionTransition.Wrap(validationCause("idle extension"))
+	}
+	newIdle := now.Add(idleTTL)
+	if newIdle.After(s.AbsoluteExpiresAt) {
+		newIdle = s.AbsoluteExpiresAt
+	}
+	s.IdleExpiresAt = newIdle
+	return nil
+}

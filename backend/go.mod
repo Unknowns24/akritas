@@ -3,6 +3,7 @@ module github.com/Unknowns24/akritas/backend
 go 1.26
 
 require (
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-gormigrate/gormigrate/v2 v2.1.6
 	github.com/google/uuid v1.6.0
 	github.com/pquerna/otp v1.5.0

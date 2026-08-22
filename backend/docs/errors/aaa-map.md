@@ -51,3 +51,16 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidPullRequestReference` | `0x40600AV` | Remediation | Validation | La referencia a la Pull Request no es válida. |
 
 Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401 y `C` a 409.
+
+## Códigos de capa REST (`0x1...`)
+
+Fallos de transporte que no representan una regla de negocio (body malformado,
+error interno inesperado) usan el componente de capa `1` (REST) en vez de `4`
+(dominio), y no forman parte del catálogo `internal/core/domain` ni de su test
+de contrato — viven en `internal/adapter/rest/response`.
+
+| Código | Componente | Tipo | Significado público |
+| --- | --- | --- | --- |
+| `0x100001I` | REST | Internal | Ocurrió un error inesperado. Intentá nuevamente más tarde. |
+| `0x100002V` | REST | Validation | La solicitud contiene datos inválidos (falla de shape/formato, no de regla de negocio). |
+| `0x100003C` | REST | Rate limit | Alcanzaste el límite de intentos. Probá nuevamente más tarde. Sin letra propia en el pattern de `ErrorCode` (no cubre 429); el status 429 lo fija el handler explícitamente, no este código. |

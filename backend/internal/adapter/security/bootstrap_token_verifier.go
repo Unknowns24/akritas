@@ -15,5 +15,8 @@ func NewBootstrapTokenVerifier(token string) out.BootstrapTokenVerifier {
 }
 
 func (v *constantTimeBootstrapTokenVerifier) Verify(candidate string) bool {
+	if len(v.token) == 0 || len(candidate) == 0 {
+		return false
+	}
 	return subtle.ConstantTimeCompare(v.token, []byte(candidate)) == 1
 }

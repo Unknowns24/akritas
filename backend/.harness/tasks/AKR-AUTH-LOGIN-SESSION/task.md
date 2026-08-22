@@ -2,7 +2,7 @@
 
 ## Estado
 
-pending
+complete
 
 ## Tipo de tarea
 

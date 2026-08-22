@@ -16,21 +16,22 @@ Definir mediante tests el contrato de `POST /auth/setup/verify`: dominio (nuevo 
 - `CredentialStore` gana `Decrypt(ctx, ciphertext []byte) ([]byte, error)`.
 - `AdministratorRepository` gana `Create(ctx, *domain.Administrator, passwordHash string, encryptedTOTPSecret []byte) error`.
 - `PendingEnrollmentRepository` gana `FindByID(ctx, uuid.UUID) (*domain.PendingEnrollment, error)` (nil, nil = no encontrado) y `Delete(ctx, uuid.UUID) error` (idempotente: borrar un id inexistente no es error).
-- Nuevos: `TOTPVerifier{ Verify(secret, code string, at time.Time) (bool, error) }`, `AdministratorSessionRepository{ Save(ctx, *domain.AdministratorSession, tokenHash string) error }`, `SessionTokenGenerator{ Generate() (token, hash string, err error) }`.
+- Nuevos: `TOTPVerifier{ Verify(secret, code string, at time.Time) (bool, error) }`, `AdministratorSessionRepository{ Save(ctx, *domain.AdministratorSession, tokenHash string) error }`, `SessionTokenGenerator{ Generate() (token, hash string, err error) }`, `Transactor{ WithinTransaction(ctx, func(ctx context.Context) error) error }` (ajuste post-aprobación: envuelve `Administrator.Create` + `AdministratorSession.Save`).
 - `VerifyAdministratorSetupUseCase` en `ports/in`, con `Input{EnrollmentID, TOTPCode, RateLimitKey string}` y `Output{Administrator domain.Administrator, SessionToken string, AuthenticatedAt, IdleExpiresAt, AbsoluteExpiresAt time.Time}`.
 
 ### 3. Usecase — `VerifyAdministratorSetup`
 
-Con fakes de los 7 out ports (rate limiter, pending enrollment repo, credential store, totp verifier, administrator repo, session token generator, clock, administrator session repo — 8 en total):
+Con fakes de los 8 out ports (rate limiter, pending enrollment repo, credential store, totp verifier, administrator repo, session token generator, clock, administrator session repo) más un fake de `Transactor` que ejecuta `fn(ctx)` directamente (sin DB real) y permite inspeccionar qué se llamó dentro:
 
-- Camino feliz: rate limit ok → `FindByID` devuelve un enrollment válido y no expirado → `Decrypt` se llama con `enrollment.EncryptedTOTPSecret` → `TOTPVerifier.Verify` se llama con el secreto descifrado y el código recibido → `ExistsActive` false → se construye `domain.NewAdministrator` con el email/display_name del enrollment → `AdministratorRepository.Create` se llama con `enrollment.PasswordHash` y **el mismo `enrollment.EncryptedTOTPSecret`** (no un nuevo cifrado) → `SessionTokenGenerator.Generate` → `NewAdministratorSession` con `IdleTTL`/`AbsoluteTTL` inyectados al usecase → `AdministratorSessionRepository.Save` se llama con el `tokenHash` devuelto por el generador → `PendingEnrollmentRepository.Delete` se llama con el id del enrollment consumido. El `Output` expone el token en claro (nunca el hash) y los tres timestamps de sesión.
-- Rate limited → error de rate limit; ningún otro port se llama.
+- Camino feliz: rate limit ok → `FindByID` devuelve un enrollment válido y no expirado → `Decrypt` se llama con `enrollment.EncryptedTOTPSecret` → `TOTPVerifier.Verify` se llama con el secreto descifrado y el código recibido → `ExistsActive` false (fuera de la transacción) → se construye `domain.NewAdministrator` con el email/display_name del enrollment → **dentro de `Transactor.WithinTransaction`**: `AdministratorRepository.Create` se llama con `enrollment.PasswordHash` y **el mismo `enrollment.EncryptedTOTPSecret`** (no un nuevo cifrado), luego `SessionTokenGenerator.Generate` → `NewAdministratorSession` con `IdleTTL`/`AbsoluteTTL` inyectados al usecase → `AdministratorSessionRepository.Save` se llama con el `tokenHash` devuelto por el generador — → fuera de la transacción, `PendingEnrollmentRepository.Delete` se llama con el id del enrollment consumido. El `Output` expone el token en claro (nunca el hash) y los tres timestamps de sesión.
+- Rate limited → error de rate limit; ningún otro port se llama, `Transactor.WithinTransaction` tampoco.
 - `EnrollmentID` no parseable como UUID → `ErrInvalidTotpEnrollmentVerification`; `FindByID` no se llama.
 - `FindByID` devuelve `(nil, nil)` (no encontrado) → `ErrInvalidTotpEnrollmentVerification`; no se llama `Decrypt` ni `TOTPVerifier`.
 - Enrollment encontrado pero `IsExpired(now)` → `ErrInvalidTotpEnrollmentVerification`; no se llama `Decrypt` ni `TOTPVerifier`.
 - `TOTPVerifier.Verify` devuelve `false` → `ErrInvalidTotpEnrollmentVerification`; no se llama `ExistsActive` ni ningún port posterior.
-- `ExistsActive` devuelve `true` (carrera) → `ErrAdministratorAlreadyExists`; no se llama `Create`, `SessionTokenGenerator`, `Save` ni `Delete`.
-- Errores de infraestructura en cualquier port (`Decrypt`, `Create`, `Save`, `Delete`, etc.) se propagan tal cual, sin envolver en un sentinel de dominio, y detienen los pasos siguientes.
+- `ExistsActive` devuelve `true` (carrera detectada temprano) → `ErrAdministratorAlreadyExists`; `Transactor.WithinTransaction` no se llama.
+- Dentro de la transacción, `AdministratorRepository.Create` devuelve `ErrAdministratorAlreadyExists` (carrera detectada tarde, vía constraint único — ver sección 5) → el usecase lo propaga tal cual (ya es el sentinel correcto, no se re-envuelve); `SessionTokenGenerator`/`Save` no se llaman; `Delete` tampoco (no hay enrollment que consumir si la activación falló).
+- Errores de infraestructura en cualquier port (`Decrypt`, `Save`, `Delete`, o el propio `Transactor`, etc.) se propagan tal cual, sin envolver en un sentinel de dominio, y detienen los pasos siguientes.
 
 ### 4. Adapters de seguridad
 
@@ -40,10 +41,11 @@ Con fakes de los 7 out ports (rate limiter, pending enrollment repo, credential 
 
 ### 5. Adapters de persistencia (Postgres, real, local)
 
-- `AdministratorRepository.Create`: persiste un `Administrator` con `password_hash` y `encrypted_totp_secret`; un segundo `Create` con el mismo email falla (constraint único), sin dejar una fila parcial.
+- `AdministratorRepository.Create`: persiste un `Administrator` con `password_hash` y `encrypted_totp_secret`; un segundo `Create` con el mismo email devuelve **`domain.ErrAdministratorAlreadyExists`** (no un error de driver crudo), sin dejar una fila parcial — cubre el ajuste post-aprobación de mapear la violación del índice único.
 - `PendingEnrollmentRepository.FindByID`: devuelve el enrollment guardado por `Save`; devuelve `(nil, nil)` para un id inexistente.
 - `PendingEnrollmentRepository.Delete`: borra la fila; llamarlo de nuevo sobre el mismo id (ya borrado) no devuelve error.
 - `AdministratorSessionRepository.Save`: persiste la sesión con su `token_hash`; el `administrator_id` referencia al `Administrator` recién creado.
+- `Transactor.WithinTransaction`: si `fn` devuelve error, ningún cambio hecho dentro (p. ej. un `Create` exitoso seguido de un `Save` que falla) queda persistido — se verifica creando un `Administrator` real y forzando el fallo del `Save` posterior dentro de la misma transacción, y confirmando que `ExistsActive` sigue devolviendo `false` después.
 - Migraciones `20260822_03`/`20260822_04`: la columna `encrypted_totp_secret` existe en `administrators` tras migrar; la tabla `administrator_sessions` existe con sus columnas; ambas migraciones no tocan ni redefinen `20260822_01`/`20260822_02`.
 
 ### 6. REST — DTOs, handler y router
@@ -78,7 +80,7 @@ Con fakes de los 7 out ports (rate limiter, pending enrollment repo, credential 
 
 - No existe `ErrInvalidTotpEnrollmentVerification`.
 - `CredentialStore` no tiene `Decrypt`; `AdministratorRepository` no tiene `Create`; `PendingEnrollmentRepository` no tiene `FindByID`/`Delete`.
-- No existen `TOTPVerifier`, `AdministratorSessionRepository`, `SessionTokenGenerator` ni `VerifyAdministratorSetupUseCase`.
+- No existen `TOTPVerifier`, `AdministratorSessionRepository`, `SessionTokenGenerator`, `Transactor` ni `VerifyAdministratorSetupUseCase`.
 - No existe `internal/usecase/auth/verify_administrator_setup.go`.
 - No existen `model.AdministratorSession`, las migraciones `20260822_03`/`04`, ni sus repositorios.
 - No existen los adapters `totp_verifier.go`/`session_token_generator.go`, ni `Decrypt` en `credential_store.go`.
@@ -99,8 +101,12 @@ Los tests se escribirán después de la aprobación de este plan y deberán fall
 
 ## Open questions / human approval notes — resueltas
 
-- Representación del token de sesión: **token aleatorio + hash SHA-256 en DB**, confirmado explícitamente por el usuario antes de este plan.
-- Ausencia de "último período TOTP aceptado" persistido: decisión de esta tarea (documentada en `implementation-brief.md`, sección Risks) — el consumo del pending enrollment ya protege contra reutilización del mismo `enrollment_id`; si hace falta contra logins repetidos, se agrega en PB-063.
-- Ausencia de transacción cruzando `Create`+`Save`+`Delete`: riesgo aceptado y documentado (huérfano inofensivo en el peor caso), no se introduce una capa de Unit of Work nueva para esta tarea.
+Aprobado por el usuario con los siguientes ajustes sobre la primera versión de este plan:
+
+1. Representación del token de sesión: **token aleatorio + hash SHA-256 en DB**, confirmado explícitamente antes de este plan. Sin cambios.
+2. Ausencia de "último período TOTP aceptado" persistido: **aprobado tal cual** — el consumo del pending enrollment ya protege contra reutilización del mismo `enrollment_id`; si hace falta contra logins repetidos, se agrega en PB-063.
+3. En vez de aceptar el riesgo de carrera (500 genérico / huérfano silencioso), se ajusta el diseño:
+   - `AdministratorRepository.Create` mapea la violación del índice único de `email` (constraint de Postgres) a `domain.ErrAdministratorAlreadyExists` en vez de propagar el error crudo del driver.
+   - `AdministratorRepository.Create` + `AdministratorSessionRepository.Save` corren dentro de una única transacción GORM, coordinada por un nuevo port `out.Transactor`. `PendingEnrollmentRepository.Delete` queda fuera de esa transacción (aceptado: el peor caso sigue siendo un huérfano inofensivo, no una activación parcial).
 
 No quedan decisiones abiertas. Se requiere aprobación humana explícita de este archivo antes de crear tests o implementar código.

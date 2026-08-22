@@ -129,7 +129,7 @@ func TestProjectHTTPContract(t *testing.T) {
 		"enabled":true,
 		"error_patterns":["panic"],
 		"ignored_patterns":["healthcheck"],
-		"grouping_window":"PT30M",
+		"grouping_window":"PT15M",
 		"context_before":5,
 		"context_after":5
 	}`
@@ -137,9 +137,69 @@ func TestProjectHTTPContract(t *testing.T) {
 	if putRec.Code != http.StatusOK {
 		t.Fatalf("put monitoring: %d %s", putRec.Code, putRec.Body.Bytes())
 	}
+	var putBody struct {
+		Data struct {
+			Enabled         bool     `json:"enabled"`
+			ErrorPatterns   []string `json:"error_patterns"`
+			IgnoredPatterns []string `json:"ignored_patterns"`
+			GroupingWindow  string   `json:"grouping_window"`
+			ContextBefore   int      `json:"context_before"`
+			ContextAfter    int      `json:"context_after"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(putRec.Body.Bytes(), &putBody); err != nil {
+		t.Fatal(err)
+	}
+	if !putBody.Data.Enabled || putBody.Data.GroupingWindow != "PT15M" ||
+		putBody.Data.ContextBefore != 5 || putBody.Data.ContextAfter != 5 ||
+		len(putBody.Data.ErrorPatterns) != 1 || putBody.Data.ErrorPatterns[0] != "panic" ||
+		len(putBody.Data.IgnoredPatterns) != 1 || putBody.Data.IgnoredPatterns[0] != "healthcheck" {
+		t.Fatalf("put envelope: %+v", putBody.Data)
+	}
+
+	getConfig := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", "", true)
+	if getConfig.Code != http.StatusOK {
+		t.Fatalf("get monitoring: %d %s", getConfig.Code, getConfig.Body.Bytes())
+	}
+	if err := json.Unmarshal(getConfig.Body.Bytes(), &putBody); err != nil {
+		t.Fatal(err)
+	}
+	if !putBody.Data.Enabled || putBody.Data.GroupingWindow != "PT15M" ||
+		putBody.Data.ContextBefore != 5 || putBody.Data.ContextAfter != 5 {
+		t.Fatalf("get monitoring envelope: %+v", putBody.Data)
+	}
+
 	after := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID, "", true)
 	if !bytes.Contains(after.Body.Bytes(), []byte(`"monitoring_status":"starting"`)) {
 		t.Fatalf("expected starting: %s", after.Body.Bytes())
+	}
+
+	badRegex := `{
+		"enabled":false,
+		"error_patterns":["["],
+		"ignored_patterns":[],
+		"grouping_window":"PT30M",
+		"context_before":20,
+		"context_after":20
+	}`
+	badRegexRec := doJSON(t, handler, http.MethodPut, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", badRegex, true)
+	if badRegexRec.Code != http.StatusBadRequest || !bytes.Contains(badRegexRec.Body.Bytes(), []byte(`"0x403004V"`)) {
+		t.Fatalf("invalid regex: %d %s", badRegexRec.Code, badRegexRec.Body.Bytes())
+	}
+
+	badDuration := strings.ReplaceAll(enable, `"PT15M"`, `"nope"`)
+	badDurationRec := doJSON(t, handler, http.MethodPut, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", badDuration, true)
+	if badDurationRec.Code != http.StatusBadRequest || !bytes.Contains(badDurationRec.Body.Bytes(), []byte(`"0x403004V"`)) {
+		t.Fatalf("invalid duration: %d %s", badDurationRec.Code, badDurationRec.Body.Bytes())
+	}
+
+	missingConfig := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+uuid.NewString()+"/monitoring-configuration", "", true)
+	if missingConfig.Code != http.StatusNotFound {
+		t.Fatalf("missing project config: %d %s", missingConfig.Code, missingConfig.Body.Bytes())
+	}
+	unauthConfig := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", "", false)
+	if unauthConfig.Code != http.StatusUnauthorized {
+		t.Fatalf("unauth config: %d %s", unauthConfig.Code, unauthConfig.Body.Bytes())
 	}
 
 	notFound := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+uuid.NewString(), "", true)

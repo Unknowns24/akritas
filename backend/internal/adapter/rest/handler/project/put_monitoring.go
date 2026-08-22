@@ -27,7 +27,7 @@ func (h *Handler) PutMonitoring(w http.ResponseWriter, r *http.Request) {
 	}
 	configuration, err := request.Domain()
 	if err != nil {
-		httperr.Write(w, apperr.ErrInvalidProjectCommand.Wrap(err), middleware.RequestID(r))
+		httperr.Write(w, err, middleware.RequestID(r))
 		return
 	}
 	saved, err := h.monitoringPutter.PutMonitoring(r.Context(), inproject.MonitoringCommand{ProjectID: id, MonitoringConfiguration: configuration})

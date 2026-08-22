@@ -2043,7 +2043,8 @@ components:
     Session:
       type: object
       additionalProperties: false
-      required: [administrator, authenticated_at, idle_expires_at, absolute_expires_at]
+      required:
+        [administrator, authenticated_at, idle_expires_at, absolute_expires_at]
       properties:
         administrator:
           $ref: "#/components/schemas/Administrator"
@@ -2149,7 +2150,8 @@ components:
     CreateGitHubPatAccountRequest:
       type: object
       additionalProperties: false
-      required: [display_name, account_type, account_identifier, personal_access_token]
+      required:
+        [display_name, account_type, account_identifier, personal_access_token]
       properties:
         display_name:
           type: string
@@ -2229,7 +2231,17 @@ components:
     GitHubRepository:
       type: object
       additionalProperties: false
-      required: [github_account_id, repository_identifier, owner, name, full_name, default_branch, private, html_url]
+      required:
+        [
+          github_account_id,
+          repository_identifier,
+          owner,
+          name,
+          full_name,
+          default_branch,
+          private,
+          html_url,
+        ]
       properties:
         github_account_id:
           type: string
@@ -2365,7 +2377,13 @@ components:
     DokployApplication:
       type: object
       additionalProperties: false
-      required: [dokploy_server_id, application_identifier, instance_identifier, display_name]
+      required:
+        [
+          dokploy_server_id,
+          application_identifier,
+          instance_identifier,
+          display_name,
+        ]
       properties:
         dokploy_server_id:
           type: string
@@ -2478,7 +2496,14 @@ components:
     QvacConfiguration:
       type: object
       additionalProperties: false
-      required: [endpoint_url, connection_timeout_seconds, authentication_type, credential_configured, updated_at]
+      required:
+        [
+          endpoint_url,
+          connection_timeout_seconds,
+          authentication_type,
+          credential_configured,
+          updated_at,
+        ]
       properties:
         endpoint_url:
           type: string
@@ -2532,7 +2557,15 @@ components:
     MonitoringConfiguration:
       type: object
       additionalProperties: false
-      required: [enabled, error_patterns, ignored_patterns, grouping_window, context_before, context_after]
+      required:
+        [
+          enabled,
+          error_patterns,
+          ignored_patterns,
+          grouping_window,
+          context_before,
+          context_after,
+        ]
       examples:
         - enabled: true
           error_patterns:
@@ -2599,7 +2632,16 @@ components:
       properties:
         code:
           type: string
-          enum: [error_level, fatal_level, panic, stack_trace, http_5xx, process_crash, container_restart]
+          enum:
+            [
+              error_level,
+              fatal_level,
+              panic,
+              stack_trace,
+              http_5xx,
+              process_crash,
+              container_restart,
+            ]
         display_name:
           type: string
         enabled:
@@ -2746,7 +2788,8 @@ components:
     AutomationPolicy:
       type: object
       additionalProperties: false
-      required: [automatic_investigation, automatic_remediation, automatic_pull_request]
+      required:
+        [automatic_investigation, automatic_remediation, automatic_pull_request]
       allOf:
         - if:
             properties:
@@ -2797,10 +2840,25 @@ components:
       enum: [fixable, requires_human]
     IncidentPhase:
       type: string
-      enum: [detected, investigating, publishing_issue, remediating, completed, failed]
+      enum:
+        [
+          detected,
+          investigating,
+          publishing_issue,
+          remediating,
+          completed,
+          failed,
+        ]
     TerminalOutcome:
       type: string
-      enum: [pull_request_created, requires_human, remediation_failed, investigation_failed, issue_publication_failed]
+      enum:
+        [
+          pull_request_created,
+          requires_human,
+          remediation_failed,
+          investigation_failed,
+          issue_publication_failed,
+        ]
     InvestigationStatus:
       type: string
       enum: [pending, running, completed, failed]
@@ -2994,7 +3052,17 @@ components:
     LogEvent:
       type: object
       additionalProperties: false
-      required: [id, project_id, timestamp, severity, message, fingerprint, detection_rules, raw_context_redacted]
+      required:
+        [
+          id,
+          project_id,
+          timestamp,
+          severity,
+          message,
+          fingerprint,
+          detection_rules,
+          raw_context_redacted,
+        ]
       properties:
         id:
           type: string
@@ -3042,7 +3110,16 @@ components:
 
     EvidenceType:
       type: string
-      enum: [log_excerpt, stack_trace, code_location, commit, diff, validation_result, deployment_metadata]
+      enum:
+        [
+          log_excerpt,
+          stack_trace,
+          code_location,
+          commit,
+          diff,
+          validation_result,
+          deployment_metadata,
+        ]
     Evidence:
       type: object
       additionalProperties: false
@@ -3091,7 +3168,17 @@ components:
     Investigation:
       type: object
       additionalProperties: false
-      required: [id, incident_id, status, started_at, hypotheses, relevant_files, relevant_commits, recommended_actions]
+      required:
+        [
+          id,
+          incident_id,
+          status,
+          started_at,
+          hypotheses,
+          relevant_files,
+          relevant_commits,
+          recommended_actions,
+        ]
       properties:
         id:
           type: string
@@ -3235,7 +3322,8 @@ components:
     ValidationResult:
       type: object
       additionalProperties: false
-      required: [id, remediation_id, type, name, status, started_at, output_redacted]
+      required:
+        [id, remediation_id, type, name, status, started_at, output_redacted]
       properties:
         id:
           type: string
@@ -3287,7 +3375,8 @@ components:
     Remediation:
       type: object
       additionalProperties: false
-      required: [id, incident_id, status, created_at, changes, validation_summary]
+      required:
+        [id, incident_id, status, created_at, changes, validation_summary]
       properties:
         id:
           type: string
@@ -3472,7 +3561,17 @@ components:
 
     ActivityType:
       type: string
-      enum: [monitoring, incident, investigation, issue, remediation, pull_request, integration, system]
+      enum:
+        [
+          monitoring,
+          incident,
+          investigation,
+          issue,
+          remediation,
+          pull_request,
+          integration,
+          system,
+        ]
     ActivityEvent:
       type: object
       additionalProperties: false

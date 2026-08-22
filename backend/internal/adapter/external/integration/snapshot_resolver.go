@@ -16,6 +16,11 @@ import (
 // visibility is unknown without the GitHub API. html_url is synthesized as
 // https://github.com/{owner}/{name}. No PAT, token, or private key is stored
 // on the GitHubRepository value object.
+//
+// Dokploy: instance_identifier and display_name default to application_identifier.
+// environment is empty and status is unknown because those are unknown without
+// the Dokploy API. No API key or credential is stored on the DokployApplication
+// value object. An empty identifier is 0x503005N (ErrApplicationNotResolvable).
 type SnapshotResolver struct{}
 
 func NewSnapshotResolver() SnapshotResolver {

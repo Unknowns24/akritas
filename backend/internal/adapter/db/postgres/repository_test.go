@@ -47,6 +47,18 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 		got.GitHubRepository.HTMLURL != "https://github.com/Unknowns24/akritas" {
 		t.Fatalf("github snapshot round trip mismatch: %+v", got.GitHubRepository)
 	}
+	if got.DokployApplication.DokployServerID != server.ID ||
+		got.DokployApplication.ApplicationIdentifier != "app-1" ||
+		got.DokployApplication.InstanceIdentifier != "app-1" ||
+		got.DokployApplication.DisplayName != "app-1" ||
+		got.DokployApplication.Environment != "production" ||
+		got.DokployApplication.Status != domain.DokployApplicationUnknown {
+		t.Fatalf("dokploy snapshot round trip mismatch: %+v", got.DokployApplication)
+	}
+	byApp, err := projects.GetByDokployApplication(ctx, server.ID, "app-1")
+	if err != nil || byApp.ID != created.ID {
+		t.Fatalf("get by dokploy application: %+v err=%v", byApp, err)
+	}
 
 	count, err := projects.CountByGitHubAccountID(ctx, account.ID)
 	if err != nil || count != 1 {
@@ -72,7 +84,22 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 		t.Fatal("expected FK violation for unknown github_account_id")
 	}
 
-		listed, total, err := projects.List(ctx, paging.ListQuery{Limit: 10, NameLike: "sentinel", Offset: 0})
+	serverCount, err := projects.CountByDokployServerID(ctx, server.ID)
+	if err != nil || serverCount != 2 {
+		t.Fatalf("count by dokploy server: count=%d err=%v", serverCount, err)
+	}
+	emptyServerCount, err := projects.CountByDokployServerID(ctx, uuid.New())
+	if err != nil || emptyServerCount != 0 {
+		t.Fatalf("count missing server: count=%d err=%v", emptyServerCount, err)
+	}
+
+	orphanServer := newPersistedProject(t, account, server, "orphan-server", "app-orphan-server", now)
+	orphanServer.DokployApplication.DokployServerID = uuid.New()
+	if err := projects.Create(ctx, orphanServer); err == nil {
+		t.Fatal("expected FK violation for unknown dokploy_server_id")
+	}
+
+	listed, total, err := projects.List(ctx, paging.ListQuery{Limit: 10, NameLike: "sentinel", Offset: 0})
 	if err != nil || total != 2 || len(listed) != 2 {
 		t.Fatalf("list: total=%d n=%d err=%v", total, len(listed), err)
 	}
@@ -100,6 +127,7 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 
 	assertSchemaHasNoSecrets(t, db)
 	assertNoGitHubRepositoriesTable(t, db)
+	assertNoDokployApplicationsTable(t, db)
 	if _, err := projects.GetByID(ctx, uuid.New()); !errors.Is(err, apperr.ErrProjectNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
@@ -151,6 +179,13 @@ func assertNoGitHubRepositoriesTable(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	if db.Migrator().HasTable("github_repositories") {
 		t.Fatal("github_repositories table must not exist; repository is an embedded value object on projects")
+	}
+}
+
+func assertNoDokployApplicationsTable(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if db.Migrator().HasTable("dokploy_applications") {
+		t.Fatal("dokploy_applications table must not exist; application is an embedded value object on projects")
 	}
 }
 

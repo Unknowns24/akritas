@@ -75,7 +75,13 @@ func TestSnapshotResolverParsesIdentifiers(t *testing.T) {
 	if application.InstanceIdentifier != "app-1" || application.DisplayName != "app-1" || application.Status != domain.DokployApplicationUnknown {
 		t.Fatalf("unexpected application: %+v", application)
 	}
+	if application.DokployServerID != server.ID || application.ApplicationIdentifier != "app-1" || application.Environment != "" {
+		t.Fatalf("dokploy identity/projection mismatch: %+v", application)
+	}
 	if _, err := resolver.ResolveDokployApplication(server, "  "); !errors.Is(err, apperr.ErrApplicationNotResolvable) {
 		t.Fatalf("expected unresolvable application, got %v", err)
+	}
+	if _, err := resolver.ResolveDokployApplication(nil, "app-1"); !errors.Is(err, apperr.ErrDokployServerNotFound) {
+		t.Fatalf("expected missing server, got %v", err)
 	}
 }

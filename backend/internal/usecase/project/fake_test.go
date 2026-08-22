@@ -97,6 +97,16 @@ func (m *memoryProjects) CountByGitHubAccountID(_ context.Context, accountID uui
 	return total, nil
 }
 
+func (m *memoryProjects) CountByDokployServerID(_ context.Context, serverID uuid.UUID) (int64, error) {
+	var total int64
+	for _, project := range m.byID {
+		if project.DokployApplication.DokployServerID == serverID {
+			total++
+		}
+	}
+	return total, nil
+}
+
 func containsStatus(allowed []domain.MonitoringStatus, status domain.MonitoringStatus) bool {
 	for _, candidate := range allowed {
 		if candidate == status {
@@ -158,6 +168,12 @@ func (memorySnapshots) ResolveGitHubRepository(account *domain.GitHubAccount, re
 }
 
 func (memorySnapshots) ResolveDokployApplication(server *domain.DokployServer, applicationIdentifier string) (domain.DokployApplication, error) {
+	if server == nil {
+		return domain.DokployApplication{}, apperr.ErrDokployServerNotFound
+	}
 	identifier := strings.TrimSpace(applicationIdentifier)
+	if identifier == "" {
+		return domain.DokployApplication{}, apperr.ErrApplicationNotResolvable
+	}
 	return domain.NewDokployApplication(server.ID, identifier, identifier, identifier, "", domain.DokployApplicationUnknown)
 }

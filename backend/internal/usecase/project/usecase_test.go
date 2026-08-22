@@ -33,6 +33,13 @@ func TestCreateGetListUpdateAndMonitoring(t *testing.T) {
 	if created.Project.GitHubRepository.Owner != "Unknowns24" || created.Project.GitHubRepository.Name != "akritas" {
 		t.Fatalf("owner/name snapshot: %+v", created.Project.GitHubRepository)
 	}
+	app := created.Project.DokployApplication
+	if app.DokployServerID != server.ID || app.ApplicationIdentifier != "app-1" {
+		t.Fatalf("dokploy identity: %+v", app)
+	}
+	if app.InstanceIdentifier != "app-1" || app.DisplayName != "app-1" || app.Environment != "" || app.Status != domain.DokployApplicationUnknown {
+		t.Fatalf("dokploy snapshot: %+v", app)
+	}
 	if created.Project.MonitoringStatus != domain.MonitoringStatusDisabled {
 		t.Fatalf("monitoring should start disabled, got %s", created.Project.MonitoringStatus)
 	}
@@ -162,12 +169,25 @@ func TestCreateRejectsUnresolvableRepositoryIdentifier(t *testing.T) {
 	}
 }
 
+func TestCreateRejectsUnresolvableApplicationIdentifier(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	ctx := context.Background()
+	if _, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "broken", GitHubAccountID: account.ID, RepositoryIdentifier: "Unknowns24/akritas", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "   ", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	}); !errors.Is(err, apperr.ErrApplicationNotResolvable) {
+		t.Fatalf("expected unresolvable application, got %v", err)
+	}
+}
+
 func TestUpdatePersistsNewGitHubSnapshot(t *testing.T) {
 	t.Parallel()
 
 	uc, account, server := newTestUseCase(t)
 	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)
-		other, err := domain.NewGitHubAccount(uuid.New(), "Other", domain.GitHubAccountPersonal, domain.GitHubAuthenticationGitHubApp, "other-org", domain.IntegrationStatusConnected, now)
+	other, err := domain.NewGitHubAccount(uuid.New(), "Other", domain.GitHubAccountPersonal, domain.GitHubAuthenticationGitHubApp, "other-org", domain.IntegrationStatusConnected, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,6 +237,68 @@ func TestUpdatePersistsNewGitHubSnapshot(t *testing.T) {
 	oldCount, err := uc.projects.CountByGitHubAccountID(ctx, account.ID)
 	if err != nil || oldCount != 0 {
 		t.Fatalf("count original account: count=%d err=%v", oldCount, err)
+	}
+}
+
+func TestUpdatePersistsNewDokploySnapshot(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)
+	other, err := domain.NewDokployServer(uuid.New(), "staging", "https://dokploy-staging.example.com", "server-2", domain.IntegrationStatusConnected, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uc.servers.(*memoryServers).byID[other.ID] = other
+
+	ctx := context.Background()
+	created, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "sentinel-api", GitHubAccountID: account.ID, RepositoryIdentifier: "Unknowns24/akritas", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "app-1", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := "app-staging"
+	updated, err := uc.Update(ctx, inproject.UpdateCommand{
+		ID: created.Project.ID, DokployServerID: &other.ID, ApplicationIdentifier: &identifier,
+	})
+	if err != nil {
+		t.Fatalf("update dokploy: %v", err)
+	}
+	app := updated.Project.DokployApplication
+	if app.DokployServerID != other.ID || app.ApplicationIdentifier != identifier {
+		t.Fatalf("identity not updated: %+v", app)
+	}
+	if app.InstanceIdentifier != identifier || app.DisplayName != identifier || app.Environment != "" || app.Status != domain.DokployApplicationUnknown {
+		t.Fatalf("snapshot not rebuilt: %+v", app)
+	}
+
+	got, err := uc.Get(ctx, created.Project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Project.DokployApplication != app {
+		t.Fatalf("persisted snapshot mismatch: %+v", got.Project.DokployApplication)
+	}
+	assertNoSecrets(t, got.Project)
+
+	found, err := uc.projects.GetByDokployApplication(ctx, other.ID, identifier)
+	if err != nil || found.ID != created.Project.ID {
+		t.Fatalf("lookup by new application: found=%v err=%v", found, err)
+	}
+	if _, err := uc.projects.GetByDokployApplication(ctx, server.ID, "app-1"); !errors.Is(err, apperr.ErrProjectNotFound) {
+		t.Fatalf("old application should be free, got %v", err)
+	}
+
+	count, err := uc.projects.CountByDokployServerID(ctx, other.ID)
+	if err != nil || count != 1 {
+		t.Fatalf("count other server: count=%d err=%v", count, err)
+	}
+	oldCount, err := uc.projects.CountByDokployServerID(ctx, server.ID)
+	if err != nil || oldCount != 0 {
+		t.Fatalf("count original server: count=%d err=%v", oldCount, err)
 	}
 }
 

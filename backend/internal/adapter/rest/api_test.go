@@ -208,6 +208,167 @@ func TestProjectHTTPContract(t *testing.T) {
 	}
 }
 
+func TestProjectHTTPEnableDisableSnapshot(t *testing.T) {
+	handler, accountID, serverID := newAPI(t)
+
+	body := fmt.Sprintf(`{
+		"name":"sentinel-api",
+		"github_account_id":%q,
+		"repository_identifier":"Unknowns24/akritas",
+		"default_branch":"main",
+		"dokploy_server_id":%q,
+		"application_identifier":"app-1",
+		"monitoring_configuration":{
+			"enabled":false,
+			"error_patterns":[],
+			"ignored_patterns":[],
+			"grouping_window":"PT30M",
+			"context_before":20,
+			"context_after":20
+		}
+	}`, accountID, serverID)
+	createRec := doJSON(t, handler, http.MethodPost, "/api/v1/projects", body, true)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", createRec.Code, createRec.Body.Bytes())
+	}
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	unauth := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID, "", false)
+	if unauth.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without cookie, got %d %s", unauth.Code, unauth.Body.Bytes())
+	}
+
+	enable := `{
+		"enabled":true,
+		"error_patterns":["panic"],
+		"ignored_patterns":["healthcheck"],
+		"grouping_window":"PT15M",
+		"context_before":8,
+		"context_after":12
+	}`
+	putRec := doJSON(t, handler, http.MethodPut, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", enable, true)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("enable: %d %s", putRec.Code, putRec.Body.Bytes())
+	}
+
+	enabledRec := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID, "", true)
+	if enabledRec.Code != http.StatusOK {
+		t.Fatalf("get enabled: %d %s", enabledRec.Code, enabledRec.Body.Bytes())
+	}
+	assertNoSecretFields(t, enabledRec.Body.Bytes())
+	got := decodeProjectEnvelope(t, enabledRec.Body.Bytes())
+	if got.MonitoringStatus != "starting" {
+		t.Fatalf("expected starting, got %s", got.MonitoringStatus)
+	}
+	repo := got.GitHubRepository
+	if repo.GitHubAccountID != accountID.String() || repo.RepositoryIdentifier != "Unknowns24/akritas" {
+		t.Fatalf("github identity: %+v", repo)
+	}
+	if repo.Owner != "Unknowns24" || repo.Name != "akritas" || repo.FullName != "Unknowns24/akritas" {
+		t.Fatalf("github names: %+v", repo)
+	}
+	if repo.DefaultBranch != "main" || repo.Private || repo.HTMLURL != "https://github.com/Unknowns24/akritas" {
+		t.Fatalf("github snapshot: %+v", repo)
+	}
+	app := got.DokployApplication
+	if app.DokployServerID != serverID.String() || app.ApplicationIdentifier != "app-1" {
+		t.Fatalf("dokploy identity: %+v", app)
+	}
+	if app.InstanceIdentifier != "app-1" || app.DisplayName != "app-1" || app.Status != "unknown" {
+		t.Fatalf("dokploy snapshot: %+v", app)
+	}
+	cfg := got.MonitoringConfiguration
+	if !cfg.Enabled || cfg.GroupingWindow != "PT15M" || cfg.ContextBefore != 8 || cfg.ContextAfter != 12 {
+		t.Fatalf("enabled config: %+v", cfg)
+	}
+	if len(cfg.ErrorPatterns) != 1 || cfg.ErrorPatterns[0] != "panic" ||
+		len(cfg.IgnoredPatterns) != 1 || cfg.IgnoredPatterns[0] != "healthcheck" {
+		t.Fatalf("enabled patterns: %+v", cfg)
+	}
+
+	disable := `{
+		"enabled":false,
+		"error_patterns":["panic"],
+		"ignored_patterns":["healthcheck"],
+		"grouping_window":"PT15M",
+		"context_before":8,
+		"context_after":12
+	}`
+	disableRec := doJSON(t, handler, http.MethodPut, "/api/v1/projects/"+created.Data.ID+"/monitoring-configuration", disable, true)
+	if disableRec.Code != http.StatusOK {
+		t.Fatalf("disable: %d %s", disableRec.Code, disableRec.Body.Bytes())
+	}
+
+	disabledRec := doJSON(t, handler, http.MethodGet, "/api/v1/projects/"+created.Data.ID, "", true)
+	if disabledRec.Code != http.StatusOK {
+		t.Fatalf("get disabled: %d %s", disabledRec.Code, disabledRec.Body.Bytes())
+	}
+	assertNoSecretFields(t, disabledRec.Body.Bytes())
+	off := decodeProjectEnvelope(t, disabledRec.Body.Bytes())
+	if off.MonitoringStatus != "disabled" {
+		t.Fatalf("expected disabled, got %s", off.MonitoringStatus)
+	}
+	if off.GitHubRepository != repo || off.DokployApplication != app {
+		t.Fatalf("disable must keep snapshots: github=%+v dokploy=%+v", off.GitHubRepository, off.DokployApplication)
+	}
+	if off.MonitoringConfiguration.Enabled || off.MonitoringConfiguration.GroupingWindow != "PT15M" ||
+		off.MonitoringConfiguration.ContextBefore != 8 || off.MonitoringConfiguration.ContextAfter != 12 {
+		t.Fatalf("disable must keep config: %+v", off.MonitoringConfiguration)
+	}
+	if len(off.MonitoringConfiguration.ErrorPatterns) != 1 || off.MonitoringConfiguration.ErrorPatterns[0] != "panic" ||
+		len(off.MonitoringConfiguration.IgnoredPatterns) != 1 || off.MonitoringConfiguration.IgnoredPatterns[0] != "healthcheck" {
+		t.Fatalf("disable must keep patterns: %+v", off.MonitoringConfiguration)
+	}
+}
+
+type projectHTTPEnvelope struct {
+	MonitoringStatus string `json:"monitoring_status"`
+	GitHubRepository struct {
+		GitHubAccountID      string `json:"github_account_id"`
+		RepositoryIdentifier string `json:"repository_identifier"`
+		Owner                string `json:"owner"`
+		Name                 string `json:"name"`
+		FullName             string `json:"full_name"`
+		DefaultBranch        string `json:"default_branch"`
+		Private              bool   `json:"private"`
+		HTMLURL              string `json:"html_url"`
+	} `json:"github_repository"`
+	DokployApplication struct {
+		DokployServerID       string `json:"dokploy_server_id"`
+		ApplicationIdentifier string `json:"application_identifier"`
+		InstanceIdentifier    string `json:"instance_identifier"`
+		DisplayName           string `json:"display_name"`
+		Environment           string `json:"environment"`
+		Status                string `json:"status"`
+	} `json:"dokploy_application"`
+	MonitoringConfiguration struct {
+		Enabled         bool     `json:"enabled"`
+		ErrorPatterns   []string `json:"error_patterns"`
+		IgnoredPatterns []string `json:"ignored_patterns"`
+		GroupingWindow  string   `json:"grouping_window"`
+		ContextBefore   int      `json:"context_before"`
+		ContextAfter    int      `json:"context_after"`
+	} `json:"monitoring_configuration"`
+}
+
+func decodeProjectEnvelope(t *testing.T, payload []byte) projectHTTPEnvelope {
+	t.Helper()
+	var envelope struct {
+		Data projectHTTPEnvelope `json:"data"`
+	}
+	if err := json.Unmarshal(payload, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	return envelope.Data
+}
+
 func newAPI(t *testing.T) (http.Handler, uuid.UUID, uuid.UUID) {
 	t.Helper()
 	db := dbtest.OpenMigrated(t)

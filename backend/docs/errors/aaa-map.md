@@ -11,6 +11,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidBootstrapToken` | `0x401005V` | Auth | Validation | El token de instalación no es válido. |
 | `ErrInvalidPendingEnrollment` | `0x401006V` | Auth | Validation | Los datos de inscripción no son válidos. |
 | `ErrAdministratorAlreadyExists` | `0x401007C` | Auth | Conflict | El registro inicial ya no está disponible. |
+| `ErrInvalidTotpEnrollmentVerification` | `0x401008V` | Auth | Validation | El código o la inscripción no son válidos. |
 | `ErrInvalidIntegrationStatus` | `0x402001V` | Integrations | Validation | El estado de la integración no es válido. |
 | `ErrInvalidGitHubAccount` | `0x402002V` | Integrations | Validation | La cuenta de GitHub no es válida. |
 | `ErrInvalidGitHubRepository` | `0x402003V` | Integrations | Validation | El repositorio de GitHub no es válido. |

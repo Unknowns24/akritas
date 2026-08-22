@@ -181,6 +181,92 @@ func TestPutMonitoringPersistsAllFieldsAndRejectsInvalidPatterns(t *testing.T) {
 	}
 }
 
+func TestPutMonitoringEnableExposesNonSecretSnapshot(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	ctx := context.Background()
+	created, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "sentinel-api", GitHubAccountID: account.ID, RepositoryIdentifier: "Unknowns24/akritas", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "app-1", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enabled, err := domain.NewMonitoringConfiguration(true, []string{`panic`}, []string{`healthcheck`}, 15*time.Minute, 8, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: created.Project.ID, MonitoringConfiguration: enabled}); err != nil {
+		t.Fatalf("enable: %v", err)
+	}
+
+	got, err := uc.Get(ctx, created.Project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertNoSecrets(t, got.Project)
+	if err := got.Project.ReadyForMonitoringEngine(); err != nil {
+		t.Fatalf("activated project must be ready for the engine: %v", err)
+	}
+	if got.Project.MonitoringStatus != domain.MonitoringStatusStarting {
+		t.Fatalf("expected starting, got %s", got.Project.MonitoringStatus)
+	}
+	repo := got.Project.GitHubRepository
+	if repo.GitHubAccountID != account.ID || repo.RepositoryIdentifier != "Unknowns24/akritas" {
+		t.Fatalf("github identity: %+v", repo)
+	}
+	if repo.Owner != "Unknowns24" || repo.Name != "akritas" || repo.FullName != "Unknowns24/akritas" {
+		t.Fatalf("github names: %+v", repo)
+	}
+	if repo.DefaultBranch != "main" || repo.Private || repo.HTMLURL != "https://github.com/Unknowns24/akritas" {
+		t.Fatalf("github snapshot: %+v", repo)
+	}
+	app := got.Project.DokployApplication
+	if app.DokployServerID != server.ID || app.ApplicationIdentifier != "app-1" {
+		t.Fatalf("dokploy identity: %+v", app)
+	}
+	if app.InstanceIdentifier != "app-1" || app.DisplayName != "app-1" || app.Environment != "" || app.Status != domain.DokployApplicationUnknown {
+		t.Fatalf("dokploy snapshot: %+v", app)
+	}
+	cfg := got.Project.MonitoringConfiguration
+	if !cfg.Enabled || cfg.GroupingWindow != 15*time.Minute || cfg.ContextBefore != 8 || cfg.ContextAfter != 12 {
+		t.Fatalf("config fields: %+v", cfg)
+	}
+	if len(cfg.ErrorPatterns) != 1 || cfg.ErrorPatterns[0] != `panic` ||
+		len(cfg.IgnoredPatterns) != 1 || cfg.IgnoredPatterns[0] != `healthcheck` {
+		t.Fatalf("config patterns: %+v", cfg)
+	}
+
+	disabled, err := domain.NewMonitoringConfiguration(false, []string{`panic`}, []string{`healthcheck`}, 15*time.Minute, 8, 12)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: created.Project.ID, MonitoringConfiguration: disabled}); err != nil {
+		t.Fatalf("disable: %v", err)
+	}
+	afterDisable, err := uc.Get(ctx, created.Project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterDisable.Project.MonitoringStatus != domain.MonitoringStatusDisabled {
+		t.Fatalf("expected disabled, got %s", afterDisable.Project.MonitoringStatus)
+	}
+	if afterDisable.Project.GitHubRepository != repo || afterDisable.Project.DokployApplication != app {
+		t.Fatalf("disable must keep integration snapshots: github=%+v dokploy=%+v", afterDisable.Project.GitHubRepository, afterDisable.Project.DokployApplication)
+	}
+	off := afterDisable.Project.MonitoringConfiguration
+	if off.Enabled || off.GroupingWindow != 15*time.Minute || off.ContextBefore != 8 || off.ContextAfter != 12 {
+		t.Fatalf("disable must keep config fields: %+v", off)
+	}
+	if len(off.ErrorPatterns) != 1 || off.ErrorPatterns[0] != `panic` ||
+		len(off.IgnoredPatterns) != 1 || off.IgnoredPatterns[0] != `healthcheck` {
+		t.Fatalf("disable must keep patterns: %+v", off)
+	}
+	assertNoSecrets(t, afterDisable.Project)
+}
+
 func TestCreateRejectsMissingIntegrationsDuplicatesAndSecrets(t *testing.T) {
 	t.Parallel()
 

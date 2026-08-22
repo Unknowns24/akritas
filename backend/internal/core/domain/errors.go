@@ -48,6 +48,9 @@ var (
 	ErrInvalidAdministratorSession    = newDomainError("0x401002V", "invalid administrator session", "La sesión no es válida.")
 	ErrInactiveAdministratorSession   = newDomainError("0x401003U", "inactive administrator session", "La sesión no está activa.")
 	ErrAdministratorSessionTransition = newDomainError("0x401004C", "invalid administrator session transition", "No se pudo actualizar la sesión.")
+	ErrInvalidBootstrapToken          = newDomainError("0x401005V", "invalid bootstrap token", "El token de instalación no es válido.")
+	ErrInvalidPendingEnrollment       = newDomainError("0x401006V", "invalid pending enrollment", "Los datos de inscripción no son válidos.")
+	ErrAdministratorAlreadyExists     = newDomainError("0x401007C", "administrator already exists", "El registro inicial ya no está disponible.")
 	ErrInvalidIntegrationStatus       = newDomainError("0x402001V", "invalid integration status", "El estado de la integración no es válido.")
 	ErrInvalidGitHubAccount           = newDomainError("0x402002V", "invalid GitHub account", "La cuenta de GitHub no es válida.")
 	ErrInvalidGitHubRepository        = newDomainError("0x402003V", "invalid GitHub repository", "El repositorio de GitHub no es válido.")
@@ -95,6 +98,9 @@ func DomainErrors() map[string]*Error {
 		"ErrInvalidAdministratorSession":    ErrInvalidAdministratorSession,
 		"ErrInactiveAdministratorSession":   ErrInactiveAdministratorSession,
 		"ErrAdministratorSessionTransition": ErrAdministratorSessionTransition,
+		"ErrInvalidBootstrapToken":          ErrInvalidBootstrapToken,
+		"ErrInvalidPendingEnrollment":       ErrInvalidPendingEnrollment,
+		"ErrAdministratorAlreadyExists":     ErrAdministratorAlreadyExists,
 		"ErrInvalidIntegrationStatus":       ErrInvalidIntegrationStatus,
 		"ErrInvalidGitHubAccount":           ErrInvalidGitHubAccount,
 		"ErrInvalidGitHubRepository":        ErrInvalidGitHubRepository,

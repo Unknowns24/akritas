@@ -8,6 +8,9 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidAdministratorSession` | `0x401002V` | Auth | Validation | La sesión no es válida. |
 | `ErrInactiveAdministratorSession` | `0x401003U` | Auth | Unauthorized | La sesión no está activa. |
 | `ErrAdministratorSessionTransition` | `0x401004C` | Auth | Conflict | No se pudo actualizar la sesión. |
+| `ErrInvalidBootstrapToken` | `0x401005V` | Auth | Validation | El token de instalación no es válido. |
+| `ErrInvalidPendingEnrollment` | `0x401006V` | Auth | Validation | Los datos de inscripción no son válidos. |
+| `ErrAdministratorAlreadyExists` | `0x401007C` | Auth | Conflict | El registro inicial ya no está disponible. |
 | `ErrInvalidIntegrationStatus` | `0x402001V` | Integrations | Validation | El estado de la integración no es válido. |
 | `ErrInvalidGitHubAccount` | `0x402002V` | Integrations | Validation | La cuenta de GitHub no es válida. |
 | `ErrInvalidGitHubRepository` | `0x402003V` | Integrations | Validation | El repositorio de GitHub no es válido. |

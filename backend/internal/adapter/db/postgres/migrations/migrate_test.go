@@ -8,7 +8,7 @@ import (
 )
 
 // dbtest.Connect already runs migrations.Run; this test only asserts the
-// resulting schema is queryable for both tables.
+// resulting schema is queryable for every table/column it manages.
 func TestMigrationsCreateExpectedTables(t *testing.T) {
 	db := dbtest.Connect(t)
 
@@ -17,5 +17,11 @@ func TestMigrationsCreateExpectedTables(t *testing.T) {
 	}
 	if !db.Migrator().HasTable(&model.PendingEnrollment{}) {
 		t.Fatal("pending_enrollments table was not created")
+	}
+	if !db.Migrator().HasColumn(&model.Administrator{}, "EncryptedTOTPSecret") {
+		t.Fatal("administrators.encrypted_totp_secret column was not created")
+	}
+	if !db.Migrator().HasTable(&model.AdministratorSession{}) {
+		t.Fatal("administrator_sessions table was not created")
 	}
 }

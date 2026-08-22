@@ -47,4 +47,19 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidCodeChange` | `0x406009V` | Remediation | Validation | El cambio de código no es válido. |
 | `ErrInvalidPullRequestReference` | `0x40600AV` | Remediation | Validation | La referencia a la Pull Request no es válida. |
 
-Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401 y `C` a 409.
+Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401, `N` a 404 y `C` a 409.
+
+## Application / use case (`0x5`)
+
+| Sentinel | Código | Componente | Tipo | Significado público |
+| --- | --- | --- | --- | --- |
+| `ErrUnauthenticated` | `0x501001U` | Auth | Unauthorized | La sesión no es válida o está ausente. |
+| `ErrProjectNotFound` | `0x503001N` | Project | Not found | El proyecto no existe. |
+| `ErrGitHubAccountNotFound` | `0x503002N` | Project | Not found | La cuenta de GitHub no existe. |
+| `ErrDokployServerNotFound` | `0x503003N` | Project | Not found | El servidor Dokploy no existe. |
+| `ErrRepositoryNotResolvable` | `0x503004N` | Project | Not found | No se pudo resolver el repositorio de GitHub. |
+| `ErrApplicationNotResolvable` | `0x503005N` | Project | Not found | No se pudo resolver la aplicación Dokploy. |
+| `ErrProjectNameConflict` | `0x503006C` | Project | Conflict | Ya existe un proyecto con ese nombre. |
+| `ErrProjectApplicationConflict` | `0x503007C` | Project | Conflict | La aplicación Dokploy ya está asignada a otro proyecto. |
+| `ErrInvalidProjectCommand` | `0x503008V` | Project | Validation | La solicitud del proyecto no es válida. |
+

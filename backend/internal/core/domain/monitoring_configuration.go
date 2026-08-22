@@ -15,12 +15,12 @@ const (
 )
 
 type MonitoringConfiguration struct {
-	Enabled         bool
-	ErrorPatterns   []string
-	IgnoredPatterns []string
-	GroupingWindow  time.Duration
-	ContextBefore   int
-	ContextAfter    int
+	Enabled         bool          `gorm:"not null;column:monitoring_enabled"`
+	ErrorPatterns   []string      `gorm:"serializer:json;type:text;not null;column:error_patterns_json"`
+	IgnoredPatterns []string      `gorm:"serializer:json;type:text;not null;column:ignored_patterns_json"`
+	GroupingWindow  time.Duration `gorm:"not null;column:grouping_window_ns"`
+	ContextBefore   int           `gorm:"not null;column:context_before"`
+	ContextAfter    int           `gorm:"not null;column:context_after"`
 }
 
 func DefaultMonitoringConfiguration() MonitoringConfiguration {

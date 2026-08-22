@@ -45,17 +45,17 @@ func (s ProjectHealthStatus) Validate() error {
 }
 
 type Project struct {
-	ID                      uuid.UUID
-	Name                    string
+	ID                      uuid.UUID               `gorm:"type:uuid;primaryKey"`
+	Name                    string                  `gorm:"not null"`
 	Description             string
-	MonitoringStatus        MonitoringStatus
-	HealthStatus            ProjectHealthStatus
-	GitHubRepository        GitHubRepository
-	DokployApplication      DokployApplication
-	MonitoringConfiguration MonitoringConfiguration
+	MonitoringStatus        MonitoringStatus        `gorm:"not null"`
+	HealthStatus            ProjectHealthStatus     `gorm:"not null"`
+	GitHubRepository        GitHubRepository        `gorm:"embedded"`
+	DokployApplication      DokployApplication      `gorm:"embedded"`
+	MonitoringConfiguration MonitoringConfiguration `gorm:"embedded"`
 	LastObservedAt          *time.Time
-	CreatedAt               time.Time
-	UpdatedAt               time.Time
+	CreatedAt               time.Time `gorm:"not null"`
+	UpdatedAt               time.Time `gorm:"not null"`
 }
 
 func NewProject(
@@ -96,4 +96,40 @@ func (p Project) Validate() error {
 		return ErrInvalidProject.Wrap(validationCause("last observed time"))
 	}
 	return nil
+}
+
+func (p *Project) Rename(name, description string, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject.Wrap(validationCause("project"))
+	}
+	p.Name = strings.TrimSpace(name)
+	p.Description = strings.TrimSpace(description)
+	p.UpdatedAt = updatedAt
+	return p.Validate()
+}
+
+func (p *Project) ReplaceIntegrations(repository GitHubRepository, application DokployApplication, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject.Wrap(validationCause("project"))
+	}
+	p.GitHubRepository = repository
+	p.DokployApplication = application
+	p.UpdatedAt = updatedAt
+	return p.Validate()
+}
+
+func (p *Project) ReplaceMonitoringConfiguration(configuration MonitoringConfiguration, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject.Wrap(validationCause("project"))
+	}
+	configuration.ErrorPatterns = cloneStrings(configuration.ErrorPatterns)
+	configuration.IgnoredPatterns = cloneStrings(configuration.IgnoredPatterns)
+	p.MonitoringConfiguration = configuration
+	p.UpdatedAt = updatedAt
+	if !configuration.Enabled {
+		p.MonitoringStatus = MonitoringStatusDisabled
+	} else if p.MonitoringStatus == MonitoringStatusDisabled {
+		p.MonitoringStatus = MonitoringStatusStarting
+	}
+	return p.Validate()
 }

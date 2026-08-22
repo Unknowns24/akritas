@@ -75,18 +75,18 @@ func (m GitHubAuthenticationMethod) Validate() error {
 }
 
 type GitHubAccount struct {
-	ID                   uuid.UUID
-	DisplayName          string
-	AccountType          GitHubAccountType
-	AuthenticationMethod GitHubAuthenticationMethod
-	AccountIdentifier    string
-	AuthenticationStatus IntegrationStatus
-	CredentialConfigured bool
-	RepositoryCount      int
+	ID                   uuid.UUID                  `gorm:"type:uuid;primaryKey"`
+	DisplayName          string                     `gorm:"not null"`
+	AccountType          GitHubAccountType          `gorm:"not null"`
+	AuthenticationMethod GitHubAuthenticationMethod `gorm:"not null"`
+	AccountIdentifier    string                     `gorm:"not null"`
+	AuthenticationStatus IntegrationStatus          `gorm:"not null"`
+	CredentialConfigured bool                       `gorm:"not null"`
+	RepositoryCount      int                        `gorm:"not null"`
 	LastCheckedAt        *time.Time
 	ManageURL            string
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	CreatedAt            time.Time `gorm:"not null"`
+	UpdatedAt            time.Time `gorm:"not null"`
 }
 
 func NewGitHubAccount(

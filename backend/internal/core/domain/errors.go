@@ -43,6 +43,19 @@ func newDomainError(code, message, userMessage string) *Error {
 	return &Error{Code: code, Message: message, UserMessage: userMessage}
 }
 
+// NewError constructs a stable enriched error for application layers that share
+// the domain error contract.
+func NewError(code, message, userMessage string) *Error {
+	return newDomainError(code, message, userMessage)
+}
+
+func (e *Error) Type() byte {
+	if e == nil || len(e.Code) == 0 {
+		return 0
+	}
+	return e.Code[len(e.Code)-1]
+}
+
 var (
 	ErrInvalidAdministrator           = newDomainError("0x401001V", "invalid administrator", "Los datos del administrador no son válidos.")
 	ErrInvalidAdministratorSession    = newDomainError("0x401002V", "invalid administrator session", "La sesión no es válida.")

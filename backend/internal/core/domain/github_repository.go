@@ -8,14 +8,14 @@ import (
 )
 
 type GitHubRepository struct {
-	GitHubAccountID      uuid.UUID
-	RepositoryIdentifier string
-	Owner                string
-	Name                 string
-	FullName             string
-	DefaultBranch        string
-	Private              bool
-	HTMLURL              string
+	GitHubAccountID      uuid.UUID `gorm:"type:uuid;not null;index;column:github_account_id"`
+	RepositoryIdentifier string    `gorm:"not null;column:repository_identifier"`
+	Owner                string    `gorm:"not null;column:repository_owner"`
+	Name                 string    `gorm:"not null;column:repository_name"`
+	FullName             string    `gorm:"not null;column:repository_full_name"`
+	DefaultBranch        string    `gorm:"not null;column:default_branch"`
+	Private              bool      `gorm:"not null;column:repository_private"`
+	HTMLURL              string    `gorm:"not null;column:repository_html_url"`
 }
 
 func NewGitHubRepository(

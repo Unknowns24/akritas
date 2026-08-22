@@ -44,3 +44,23 @@ func (r BuiltInDetectionRule) Validate() error {
 	}
 	return nil
 }
+
+func AllBuiltInDetectionRules() []BuiltInDetectionRule {
+	return []BuiltInDetectionRule{
+		mustBuiltInDetectionRule(DetectionRuleErrorLevel, "Error level"),
+		mustBuiltInDetectionRule(DetectionRuleFatalLevel, "Fatal level"),
+		mustBuiltInDetectionRule(DetectionRulePanic, "Panic"),
+		mustBuiltInDetectionRule(DetectionRuleStackTrace, "Stack trace"),
+		mustBuiltInDetectionRule(DetectionRuleHTTP5xx, "HTTP 5xx"),
+		mustBuiltInDetectionRule(DetectionRuleProcessCrash, "Process crash"),
+		mustBuiltInDetectionRule(DetectionRuleContainerRestart, "Container restart"),
+	}
+}
+
+func mustBuiltInDetectionRule(code DetectionRuleCode, displayName string) BuiltInDetectionRule {
+	rule, err := NewBuiltInDetectionRule(code, displayName)
+	if err != nil {
+		panic(err)
+	}
+	return rule
+}

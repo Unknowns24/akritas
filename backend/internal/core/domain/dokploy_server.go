@@ -8,16 +8,16 @@ import (
 )
 
 type DokployServer struct {
-	ID                   uuid.UUID
-	Name                 string
-	BaseURL              string
-	ServerIdentifier     string
-	ConnectionStatus     IntegrationStatus
-	CredentialConfigured bool
-	ApplicationCount     int
+	ID                   uuid.UUID         `gorm:"type:uuid;primaryKey"`
+	Name                 string            `gorm:"not null"`
+	BaseURL              string            `gorm:"not null"`
+	ServerIdentifier     string            `gorm:"not null"`
+	ConnectionStatus     IntegrationStatus `gorm:"not null"`
+	CredentialConfigured bool              `gorm:"not null"`
+	ApplicationCount     int               `gorm:"not null"`
 	LastSyncedAt         *time.Time
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	CreatedAt            time.Time `gorm:"not null"`
+	UpdatedAt            time.Time `gorm:"not null"`
 }
 
 func NewDokployServer(

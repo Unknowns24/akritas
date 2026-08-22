@@ -12,6 +12,6 @@ const apiUrl = isServer && rawApiUrl.startsWith("/")
 
 export const env = {
   apiUrl,
-  isProduction: getEnv("NODE_ENV") === "production",
-  isDevelopment: getEnv("NODE_ENV") === "development",
+  isProduction: process.env.NODE_ENV === "production",
+  isDevelopment: process.env.NODE_ENV === "development",
 } as const;

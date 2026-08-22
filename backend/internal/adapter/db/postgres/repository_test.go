@@ -128,8 +128,75 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 	assertSchemaHasNoSecrets(t, db)
 	assertNoGitHubRepositoriesTable(t, db)
 	assertNoDokployApplicationsTable(t, db)
+	if db.Migrator().HasTable("monitoring_configurations") {
+		t.Fatal("monitoring_configurations table must not exist; configuration is embedded on projects")
+	}
 	if _, err := projects.GetByID(ctx, uuid.New()); !errors.Is(err, apperr.ErrProjectNotFound) {
 		t.Fatalf("expected not found, got %v", err)
+	}
+}
+
+func TestProjectRepositoryPersistsMonitoringConfiguration(t *testing.T) {
+	db := dbtest.OpenMigrated(t)
+	ctx := context.Background()
+	now := time.Date(2026, 8, 22, 16, 0, 0, 0, time.UTC)
+	accounts := githubaccount.NewRepository(db)
+	servers := dokployserver.NewRepository(db)
+	projects := project.NewRepository(db)
+	account, server := seedLookups(t, ctx, accounts, servers, now)
+
+	created := newPersistedProject(t, account, server, "sentinel-api", "app-1", now)
+	custom, err := domain.NewMonitoringConfiguration(
+		true, []string{`database .* unavailable`}, []string{`expected healthcheck failure`},
+		15*time.Minute, 8, 12,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := created.ReplaceMonitoringConfiguration(custom, now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := projects.Create(ctx, created); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := projects.GetByID(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	assertMonitoringEquals(t, got.MonitoringConfiguration, custom)
+
+	cleared := domain.DefaultMonitoringConfiguration()
+	if err := got.ReplaceMonitoringConfiguration(cleared, now.Add(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if err := projects.Update(ctx, got); err != nil {
+		t.Fatal(err)
+	}
+	updated, err := projects.GetByID(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertMonitoringEquals(t, updated.MonitoringConfiguration, cleared)
+}
+
+func assertMonitoringEquals(t *testing.T, got, want domain.MonitoringConfiguration) {
+	t.Helper()
+	if got.Enabled != want.Enabled || got.GroupingWindow != want.GroupingWindow ||
+		got.ContextBefore != want.ContextBefore || got.ContextAfter != want.ContextAfter {
+		t.Fatalf("monitoring mismatch: got=%+v want=%+v", got, want)
+	}
+	if len(got.ErrorPatterns) != len(want.ErrorPatterns) || len(got.IgnoredPatterns) != len(want.IgnoredPatterns) {
+		t.Fatalf("pattern lengths: got=%+v want=%+v", got, want)
+	}
+	for i := range want.ErrorPatterns {
+		if got.ErrorPatterns[i] != want.ErrorPatterns[i] {
+			t.Fatalf("error pattern %d: %q vs %q", i, got.ErrorPatterns[i], want.ErrorPatterns[i])
+		}
+	}
+	for i := range want.IgnoredPatterns {
+		if got.IgnoredPatterns[i] != want.IgnoredPatterns[i] {
+			t.Fatalf("ignored pattern %d: %q vs %q", i, got.IgnoredPatterns[i], want.IgnoredPatterns[i])
+		}
 	}
 }
 

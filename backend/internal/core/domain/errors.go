@@ -52,6 +52,7 @@ var (
 	ErrInvalidPendingEnrollment          = newDomainError("0x401006V", "invalid pending enrollment", "Los datos de inscripción no son válidos.")
 	ErrAdministratorAlreadyExists        = newDomainError("0x401007C", "administrator already exists", "El registro inicial ya no está disponible.")
 	ErrInvalidTotpEnrollmentVerification = newDomainError("0x401008V", "invalid totp enrollment verification", "El código o la inscripción no son válidos.")
+	ErrInvalidCredentials                = newDomainError("0x401009U", "invalid credentials", "Las credenciales no son válidas.")
 	ErrInvalidIntegrationStatus          = newDomainError("0x402001V", "invalid integration status", "El estado de la integración no es válido.")
 	ErrInvalidGitHubAccount              = newDomainError("0x402002V", "invalid GitHub account", "La cuenta de GitHub no es válida.")
 	ErrInvalidGitHubRepository           = newDomainError("0x402003V", "invalid GitHub repository", "El repositorio de GitHub no es válido.")
@@ -103,6 +104,7 @@ func DomainErrors() map[string]*Error {
 		"ErrInvalidPendingEnrollment":          ErrInvalidPendingEnrollment,
 		"ErrAdministratorAlreadyExists":        ErrAdministratorAlreadyExists,
 		"ErrInvalidTotpEnrollmentVerification": ErrInvalidTotpEnrollmentVerification,
+		"ErrInvalidCredentials":                ErrInvalidCredentials,
 		"ErrInvalidIntegrationStatus":          ErrInvalidIntegrationStatus,
 		"ErrInvalidGitHubAccount":              ErrInvalidGitHubAccount,
 		"ErrInvalidGitHubRepository":           ErrInvalidGitHubRepository,

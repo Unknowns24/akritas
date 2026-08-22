@@ -11,6 +11,7 @@ func Run(db *gorm.DB) error {
 		schema.SCHEMA_20260822_01_AddIntegrationLookups(),
 		schema.SCHEMA_20260822_02_AddProjects(),
 		schema.SCHEMA_20260822_03_AddProjectGitHubAccountFK(),
+		schema.SCHEMA_20260822_04_AddProjectDokployServerFK(),
 	})
 	return migrator.Migrate()
 }

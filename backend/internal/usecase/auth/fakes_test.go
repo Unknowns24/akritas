@@ -21,6 +21,19 @@ type fakeAdministratorRepository struct {
 	createdAdministrator       *domain.Administrator
 	createdPasswordHash        string
 	createdEncryptedTOTPSecret []byte
+
+	findByIDResult *domain.Administrator
+	findByIDErr    error
+	findByIDCalled bool
+
+	findByEmailResult *out.AdministratorCredentials
+	findByEmailErr    error
+	findByEmailCalled bool
+
+	updatePeriodErr    error
+	updatePeriodCalled bool
+	updatedPeriodID    uuid.UUID
+	updatedPeriod      int64
 }
 
 func (f *fakeAdministratorRepository) ExistsActive(ctx context.Context) (bool, error) {
@@ -42,6 +55,26 @@ func (f *fakeAdministratorRepository) Create(ctx context.Context, administrator 
 	f.createdAdministrator = administrator
 	f.createdPasswordHash = passwordHash
 	f.createdEncryptedTOTPSecret = encryptedTOTPSecret
+	return nil
+}
+
+func (f *fakeAdministratorRepository) FindByID(ctx context.Context, id uuid.UUID) (*domain.Administrator, error) {
+	f.findByIDCalled = true
+	return f.findByIDResult, f.findByIDErr
+}
+
+func (f *fakeAdministratorRepository) FindByEmail(ctx context.Context, email string) (*out.AdministratorCredentials, error) {
+	f.findByEmailCalled = true
+	return f.findByEmailResult, f.findByEmailErr
+}
+
+func (f *fakeAdministratorRepository) UpdateLastAcceptedTOTPPeriod(ctx context.Context, id uuid.UUID, period int64) error {
+	f.updatePeriodCalled = true
+	if f.updatePeriodErr != nil {
+		return f.updatePeriodErr
+	}
+	f.updatedPeriodID = id
+	f.updatedPeriod = period
 	return nil
 }
 
@@ -130,6 +163,11 @@ type fakePasswordHasher struct {
 	hash   string
 	err    error
 	called bool
+
+	verifyResult bool
+	verifyErr    error
+	verifyCalled bool
+	verifyArgs   [2]string
 }
 
 func (f *fakePasswordHasher) Hash(password string) (string, error) {
@@ -138,6 +176,12 @@ func (f *fakePasswordHasher) Hash(password string) (string, error) {
 		return "", f.err
 	}
 	return f.hash, nil
+}
+
+func (f *fakePasswordHasher) Verify(password, hash string) (bool, error) {
+	f.verifyCalled = true
+	f.verifyArgs = [2]string{password, hash}
+	return f.verifyResult, f.verifyErr
 }
 
 type fakeBootstrapTokenVerifier struct {
@@ -179,6 +223,7 @@ func (f *fakeClock) Now() time.Time {
 
 type fakeTOTPVerifier struct {
 	valid  bool
+	period int64
 	err    error
 	called bool
 
@@ -186,11 +231,11 @@ type fakeTOTPVerifier struct {
 	codeArg   string
 }
 
-func (f *fakeTOTPVerifier) Verify(secret, code string, at time.Time) (bool, error) {
+func (f *fakeTOTPVerifier) Verify(secret, code string, at time.Time) (bool, int64, error) {
 	f.called = true
 	f.secretArg = secret
 	f.codeArg = code
-	return f.valid, f.err
+	return f.valid, f.period, f.err
 }
 
 type fakeAdministratorSessionRepository struct {
@@ -199,6 +244,20 @@ type fakeAdministratorSessionRepository struct {
 
 	savedSession   *domain.AdministratorSession
 	savedTokenHash string
+
+	findByTokenHashResult *domain.AdministratorSession
+	findByTokenHashErr    error
+	findByTokenHashCalled bool
+
+	updateIdleErr        error
+	updateIdleCalled     bool
+	updatedIdleSessionID uuid.UUID
+	updatedIdleExpiresAt time.Time
+
+	revokeErr        error
+	revokeCalled     bool
+	revokedSessionID uuid.UUID
+	revokedAt        time.Time
 }
 
 func (f *fakeAdministratorSessionRepository) Save(ctx context.Context, session *domain.AdministratorSession, tokenHash string) error {
@@ -208,6 +267,31 @@ func (f *fakeAdministratorSessionRepository) Save(ctx context.Context, session *
 	}
 	f.savedSession = session
 	f.savedTokenHash = tokenHash
+	return nil
+}
+
+func (f *fakeAdministratorSessionRepository) FindByTokenHash(ctx context.Context, tokenHash string) (*domain.AdministratorSession, error) {
+	f.findByTokenHashCalled = true
+	return f.findByTokenHashResult, f.findByTokenHashErr
+}
+
+func (f *fakeAdministratorSessionRepository) UpdateIdleExpiry(ctx context.Context, id uuid.UUID, idleExpiresAt time.Time) error {
+	f.updateIdleCalled = true
+	if f.updateIdleErr != nil {
+		return f.updateIdleErr
+	}
+	f.updatedIdleSessionID = id
+	f.updatedIdleExpiresAt = idleExpiresAt
+	return nil
+}
+
+func (f *fakeAdministratorSessionRepository) Revoke(ctx context.Context, id uuid.UUID, revokedAt time.Time) error {
+	f.revokeCalled = true
+	if f.revokeErr != nil {
+		return f.revokeErr
+	}
+	f.revokedSessionID = id
+	f.revokedAt = revokedAt
 	return nil
 }
 
@@ -224,6 +308,10 @@ func (f *fakeSessionTokenGenerator) Generate() (string, string, error) {
 		return "", "", f.err
 	}
 	return f.token, f.hash, nil
+}
+
+func (f *fakeSessionTokenGenerator) Hash(token string) string {
+	return "hash-of:" + token
 }
 
 // fakeTransactor runs fn directly (no real DB), matching the semantics the

@@ -1,0 +1,21 @@
+name: flutter-hexagonal
+language: dart
+framework: flutter
+architecture: hexagonal-feature-based
+entrypoint: lib/main.dart
+design_locations:
+    - DESIGN.md
+    - design.md
+    - docs/design.md
+openapi_locations:
+    - docs/openapi.yaml
+    - openapi.yaml
+required_policies:
+    - mobile-flutter/project-structure.md
+    - mobile-flutter/data-contract.md
+    - mobile-flutter/ui-quality.md
+    - mobile-flutter/tdd.md
+    - mobile-flutter/permissions.md
+    - openapi.md
+    - testing.md
+    - security.md

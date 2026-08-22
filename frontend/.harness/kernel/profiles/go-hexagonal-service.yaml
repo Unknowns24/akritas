@@ -1,0 +1,19 @@
+name: go-hexagonal-service
+language: go
+architecture: hexagonal
+entrypoint: cmd/main.go
+required_policies:
+    - backend/project-structure.md
+    - backend/wiring.md
+    - backend/modularity-srp.md
+    - backend/domain-errors.md
+    - backend/migrations.md
+    - backend/external-adapters.md
+    - backend/background-processes.md
+    - backend/uker.md
+    - testing.md
+    - security.md
+    - architecture-decisions.md
+architecture_locations:
+    - docs/architecture/
+    - ../docs/

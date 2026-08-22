@@ -1,0 +1,177 @@
+# Consumo de paginación por cursores desde el frontend
+
+El paquete `uker/pagination` implementa paginación basada en
+cursores firmados. Este documento describe qué parámetros debe enviar el
+frontend, cómo se serializan filtros y ordenamientos, y qué funciones del
+paquete debe invocar el backend para completar el flujo.
+
+## Flujo general
+
+1. **Frontend** construye la URL con `limit`, `sort`, filtros y (cuando exista)
+   el cursor devuelto por la solicitud anterior.
+2. **Handler** en el backend llama a `pagination.ParseWithSecurity` para
+   validar la querystring y reconstruir parámetros a partir del cursor.
+3. **Repositorio** aplica los parámetros con `pagination.Apply` para obtener
+   los registros ordenados y filtrados desde la base de datos.
+4. **Respuesta HTTP** se arma con `pagination.BuildPageSigned`, que genera
+   `next_cursor` y `prev_cursor` usando los valores del último elemento de la
+   página.
+
+## Parámetros soportados en la querystring
+
+| Parámetro                                 | Ejemplo                                             | Descripción                                                                                                                                 |
+| ----------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `limit`                                   | `limit=25`                                          | Tamaño de página (el paquete impone máximos configurables).                                                                                 |
+| `sort`                                    | `sort=created_at:desc,name:asc`                     | Lista separada por comas. Cada entrada usa `campo[:asc\|desc]`. Si `id` no se indica, el paquete lo agrega para desempates.                 |
+| `cursor`                                  | `cursor=eyJ...`                                     | Cursor firmado devuelto previamente. Debe reenviarse sin cambios.                                                                           |
+| `<campo>_<op>` o `<campo1>,<campo2>_<op>` | `status_in=active,pending` o `name,surname_eq=pepe` | Filtros; `<op>` debe ser uno de `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `like`, `in`, `nin`. Los campos separados por coma se unen con `OR`. |
+
+> **Importante:** cuando la petición incluye `cursor`, no se pueden añadir ni
+> modificar `limit`, filtros u ordenamientos. `ParseWithSecurity` reconstruye
+> esos valores desde el cursor y rechazará la petición si detecta
+> inconsistencias.
+>
+> Algunos endpoints pueden además reservar filtros para uso interno del backend
+> mediante `ParseWithSecurityBlockedFilters` (por ejemplo `user_id`). En esos
+> casos, cualquier filtro reservado enviado por frontend o embebido en un cursor
+> anterior invalida la petición.
+
+### Campos con guiones bajos
+
+`parseFilters` divide el nombre del campo y el operador utilizando el último
+subrayado (`_`). Esto permite filtros como `document_number_like=46`, donde el
+campo `document_number` conserva el sufijo del operador `like`.
+
+### Agrupación por campos (OR)
+
+También se puede enviar una lista de campos separada por comas antes del
+operador, por ejemplo `name,surname_eq=pepe`. En ese caso, el backend traduce
+ese filtro como `(name = 'pepe' OR surname = 'pepe')`. Si hay otros filtros en
+la misma querystring, se combinan con `AND`.
+
+### Prefijos de tabla o alias
+
+Cuando las consultas incluyen `JOIN` es habitual necesitar el prefijo de la
+tabla o alias para evitar ambigüedades (por ejemplo, `orders.status`). El
+paquete acepta identificadores con un único punto en `sort` y en los filtros
+(`orders.status_eq=active`). La expresión completa se envía al SQL, pero para
+generar los cursores el extractor automático ignora el prefijo y busca el campo
+en la estructura de dominio usando solo el nombre de columna.
+
+## Construcción de la URL en el frontend
+
+- **Primera página:** define explícitamente `limit`, `sort` (si se requiere un
+  orden específico) y los filtros necesarios. Ejemplo genérico:
+
+    ```http
+    GET /recurso?limit=20&sort=created_at:desc&status_eq=active&name_like=juan
+    ```
+
+- **Siguientes páginas:** reutiliza el valor de `paging.next_cursor` o
+  `paging.prev_cursor` retornado por el backend. No vuelvas a enviar filtros ni
+  ordenamientos cuando se use un cursor; la firma ya codifica esos parámetros.
+
+    ```http
+    GET /recurso?cursor=eyJvZm...
+    ```
+
+El frontend no necesita conocer cómo se calcula el cursor: solo debe enviar los
+parámetros permitidos y reenviar los cursores tal como fueron recibidos.
+
+## Integración en el backend
+
+Los proyectos que usen el paquete deben invocar las mismas funciones, aunque el
+naming de handlers o repositorios varíe. El flujo recomendado es:
+
+```go
+params, err := pagination.ParseWithSecurity(r.URL.Query(), secret, ttl)
+if err != nil {
+    // responder con error 400/401 según corresponda
+}
+
+query := db.Model(&YourModel{})
+
+countParams := params
+countParams.Cursor = nil
+countParams.RawCursor = ""
+countParams.Limit = 0
+countQuery, err := pagination.Apply(query, countParams)
+if err != nil {
+    // responder con error 400 u otro según el caso
+}
+
+var total int64
+if err := countQuery.Count(&total).Error; err != nil {
+    // manejar error de base de datos
+}
+
+query, err = pagination.Apply(query, params)
+if err != nil {
+    // responder con error 400 u otro según el caso
+}
+
+var results []YourModel
+if err := query.Find(&results).Error; err != nil {
+    // manejar error de base de datos
+}
+
+page, err := pagination.BuildPageSigned(params, results, params.Limit, total, extractor, secret)
+if err != nil {
+    // manejar error al generar cursores
+}
+```
+
+Si el endpoint necesita imponer filtros propios del backend, cambia la llamada
+por:
+
+```go
+params, err := pagination.ParseWithSecurityBlockedFilters(
+    r.URL.Query(),
+    secret,
+    ttl,
+    []string{"user_id"},
+)
+```
+
+Luego aplica ese scope directamente en el query base, por ejemplo
+`db.Where("user_id = ?", currentUserID)`, en lugar de confiar en
+`params.Filters`.
+
+- `ParseWithSecurity` valida `limit`, `sort`, filtros y, si llega un cursor,
+  verifica la firma antes de reconstruir los parámetros originales.
+- `ParseWithSecurityBlockedFilters` agrega una capa adicional para rechazar
+  filtros reservados del backend tanto en la query como dentro del cursor.
+- `Apply` traduce `params.Filters` y `params.Sort` en cláusulas SQL y solicita
+  `limit+1` registros para calcular `has_more`.
+- `BuildPageSigned` genera la estructura `pagination.PagingResponse`, truncando
+  los resultados si exceden `limit`, calculando `next_cursor`/`prev_cursor`
+  con los valores provistos por la función `extractor` y exponiendo
+  `paging.total` con el total filtrado.
+
+La función `extractor` recibe cada elemento de la página y debe devolver un
+mapa `map[string]string` con los campos que participaron en `params.Sort`. Un
+extractor genérico puede usar reflexión para leer esos campos desde la
+estructura de dominio.
+
+## Estructura de la respuesta
+
+El paquete retorna una estructura JSON consistente. Un ejemplo de respuesta es:
+
+```json
+{
+	"data": [
+		/* resultados */
+	],
+	"paging": {
+		"limit": 20,
+		"total": 120,
+		"has_more": true,
+		"next_cursor": "eyJvZm...",
+		"prev_cursor": ""
+	}
+}
+```
+
+Mientras el frontend respete el cursor firmado y mantenga los filtros iniciales,
+podrá avanzar o retroceder páginas sin reimplementar la lógica de orden y
+filtrado.

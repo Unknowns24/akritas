@@ -1,0 +1,55 @@
+version: 0.9.5-akritas
+name: akritas-ai-kernel
+
+root_files:
+    - AGENTS.md
+    - CLAUDE.md
+
+kernel_path: .harness/kernel
+
+state_paths:
+    tasks: .harness/tasks
+    memory: .harness/memory
+    runtime: .harness/runtime
+
+modes:
+    - existing_project
+    - new_project
+
+profiles:
+    backend_api: .harness/kernel/profiles/go-hexagonal-api.yaml
+    backend_service: .harness/kernel/profiles/go-hexagonal-service.yaml
+    frontend: .harness/kernel/profiles/next-feature-based.yaml
+    mobile_flutter: .harness/kernel/profiles/flutter-hexagonal.yaml
+
+workflows:
+    backend_api_feature: .harness/kernel/workflows/backend-api-feature.yaml
+    backend_service_feature: .harness/kernel/workflows/backend-service-feature.yaml
+    frontend_feature: .harness/kernel/workflows/frontend-feature.yaml
+    mobile_flutter_feature: .harness/kernel/workflows/mobile-flutter-feature.yaml
+    fullstack_web_feature: .harness/kernel/workflows/fullstack-web-feature.yaml
+    fullstack_mobile_feature: .harness/kernel/workflows/fullstack-mobile-feature.yaml
+
+agents:
+    orchestrator: .harness/kernel/agents/orchestrator.md
+    context_curator: .harness/kernel/agents/context-curator.md
+    backend_tdd: .harness/kernel/agents/backend-tdd.md
+    backend_implementer: .harness/kernel/agents/backend-implementer.md
+    frontend_tdd: .harness/kernel/agents/frontend-tdd.md
+    frontend_implementer: .harness/kernel/agents/frontend-implementer.md
+    mobile_flutter_tdd: .harness/kernel/agents/mobile-flutter-tdd.md
+    mobile_flutter_implementer: .harness/kernel/agents/mobile-flutter-implementer.md
+    openapi_guardian: .harness/kernel/agents/openapi-guardian.md
+    architecture_reviewer: .harness/kernel/agents/architecture-reviewer.md
+    security_reviewer: .harness/kernel/agents/security-reviewer.md
+
+scripts:
+    backend_architecture: .harness/kernel/scripts/check-backend-architecture.sh
+    frontend_architecture: .harness/kernel/scripts/check-frontend-architecture.sh
+    flutter_architecture: .harness/kernel/scripts/check-flutter-architecture.sh
+    openapi: .harness/kernel/scripts/check-openapi.sh
+    security: .harness/kernel/scripts/check-security.sh
+
+human_gates:
+    tdd_plan_approval: required
+    fix_plan_approval: required_on_review_failure

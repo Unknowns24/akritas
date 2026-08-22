@@ -1,0 +1,11 @@
+name: fullstack-web-feature
+mode_support:
+    - existing_project
+    - new_project
+steps:
+    - id: backend_contract_first
+      workflow: backend-api-feature
+      note: Backend/OpenAPI must be defined before frontend implementation.
+    - id: frontend_from_openapi
+      workflow: frontend-feature
+      note: Frontend must consume the updated OpenAPI contract and must not invent endpoints.

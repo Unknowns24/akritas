@@ -1,0 +1,9 @@
+runtime/
+**/*.log
+**/*.tmp
+**/scratch.md
+**/raw-output.md
+**/agent-transcript.md
+**/tool-output/
+**/cache/
+**/diff.patch

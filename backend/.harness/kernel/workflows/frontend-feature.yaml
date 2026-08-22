@@ -1,0 +1,31 @@
+name: frontend-feature
+mode_support:
+  - existing_project
+  - new_project
+steps:
+  - id: analyze_task
+    agent: orchestrator
+    output: implementation-brief.md
+  - id: design_tests
+    agent: frontend-tdd
+    output: tdd-test-plan.md
+    human_gate: approval_required
+  - id: implement
+    agent: frontend-implementer
+    requires:
+      - human_approved_tdd_plan
+  - id: verify
+    commands:
+      - npm run typecheck
+      - npm run lint
+      - npm test
+      - .harness/kernel/scripts/check-frontend-architecture.sh
+  - id: architecture_review
+    agent: architecture-reviewer
+    output: architecture-review.md
+  - id: security_review
+    agent: security-reviewer
+    output: security-review.md
+  - id: summarize
+    agent: context-curator
+    output: final-summary.md

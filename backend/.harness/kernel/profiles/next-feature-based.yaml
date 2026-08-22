@@ -1,0 +1,26 @@
+name: next-feature-based
+language: typescript
+framework: nextjs
+architecture: feature-based
+design_locations:
+    - DESIGN.md
+    - design.md
+    - docs/design.md
+openapi_locations:
+    - docs/openapi.yaml
+    - openapi.yaml
+required_policies:
+    - frontend/project-structure.md
+    - frontend/design.md
+    - frontend/data-contract.md
+    - frontend/runtime-env.md
+    - frontend/rendering-boundaries.md
+    - frontend/ui-quality.md
+    - frontend/quality-bar.md
+    - frontend/modularity-srp.md
+    - frontend/uker-pagination.md
+    - frontend/files-uploads.md
+    - frontend/security.md
+    - openapi.md
+    - testing.md
+    - security.md

@@ -1,0 +1,24 @@
+name: go-hexagonal-api
+language: go
+architecture: hexagonal
+entrypoint: cmd/main.go
+openapi_locations:
+    - internal/adapter/rest/swagger/openapi.yaml
+    - internal/adapter/rest/docs/openapi.yaml
+    - docs/openapi.yaml
+required_policies:
+    - backend/project-structure.md
+    - backend/wiring.md
+    - backend/modularity-srp.md
+    - backend/domain-errors.md
+    - backend/migrations.md
+    - backend/external-adapters.md
+    - backend/background-processes.md
+    - backend/uker.md
+    - openapi.md
+    - testing.md
+    - security.md
+    - architecture-decisions.md
+architecture_locations:
+    - docs/architecture/
+    - ../docs/

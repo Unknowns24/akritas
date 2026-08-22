@@ -1,0 +1,32 @@
+name: backend-api-feature
+mode_support:
+  - existing_project
+  - new_project
+steps:
+  - id: analyze_task
+    agent: orchestrator
+    output: implementation-brief.md
+  - id: design_tests
+    agent: backend-tdd
+    output: tdd-test-plan.md
+    human_gate: approval_required
+  - id: implement
+    agent: backend-implementer
+    requires:
+      - human_approved_tdd_plan
+  - id: verify
+    commands:
+      - go test ./...
+      - go fmt ./...
+      - .harness/kernel/scripts/check-backend-architecture.sh
+      - .harness/kernel/scripts/check-openapi.sh
+      - .harness/kernel/scripts/check-security.sh
+  - id: architecture_review
+    agent: architecture-reviewer
+    output: architecture-review.md
+  - id: security_review
+    agent: security-reviewer
+    output: security-review.md
+  - id: summarize
+    agent: context-curator
+    output: final-summary.md

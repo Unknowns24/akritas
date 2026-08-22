@@ -24,4 +24,7 @@ func TestMigrationsCreateExpectedTables(t *testing.T) {
 	if !db.Migrator().HasTable(&model.AdministratorSession{}) {
 		t.Fatal("administrator_sessions table was not created")
 	}
+	if !db.Migrator().HasColumn(&model.Administrator{}, "LastAcceptedTOTPPeriod") {
+		t.Fatal("administrators.last_accepted_totp_period column was not created")
+	}
 }

@@ -50,17 +50,21 @@ func main() {
 	totpVerifier := security.NewTOTPVerifier()
 	passwordHasher := security.NewPasswordHasher()
 	bootstrapTokens := security.NewBootstrapTokenVerifier(cfg.BootstrapToken)
-	rateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
+	// Independent budgets per operation (ADR-008): a user's setup attempts
+	// must not consume the budget verify needs for its own retries, and
+	// vice versa.
+	setupRateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
+	verifyRateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
 	sessionTokens := security.NewSessionTokenGenerator()
 	clock := security.NewClock()
 
 	getSetupStatus := authusecase.NewGetSetupStatusUseCase(administrators)
 	startAdministratorSetup := authusecase.NewStartAdministratorSetupUseCase(
 		administrators, pendingEnrollments, credentialStore, totpGenerator,
-		passwordHasher, bootstrapTokens, rateLimiter, clock,
+		passwordHasher, bootstrapTokens, setupRateLimiter, clock,
 	)
 	verifyAdministratorSetup := authusecase.NewVerifyAdministratorSetupUseCase(
-		rateLimiter, pendingEnrollments, credentialStore, totpVerifier,
+		verifyRateLimiter, pendingEnrollments, credentialStore, totpVerifier,
 		administrators, sessionTokens, administratorSessions, transactor, clock,
 		cfg.SessionIdleTTL, cfg.SessionAbsoluteTTL,
 	)

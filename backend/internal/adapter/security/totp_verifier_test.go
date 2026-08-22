@@ -18,6 +18,10 @@ func codeAt(t *testing.T, at time.Time) string {
 	return code
 }
 
+func periodOf(at time.Time) int64 {
+	return at.Unix() / totpPeriodSeconds
+}
+
 func TestTOTPVerifierAcceptsCurrentAndAdjacentPeriods(t *testing.T) {
 	t.Parallel()
 
@@ -34,12 +38,15 @@ func TestTOTPVerifierAcceptsCurrentAndAdjacentPeriods(t *testing.T) {
 		codeTime := codeTime
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			ok, err := verifier.Verify(testTOTPSecret, codeAt(t, codeTime), now)
+			ok, period, err := verifier.Verify(testTOTPSecret, codeAt(t, codeTime), now)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if !ok {
 				t.Fatalf("code from %v must be accepted at %v", codeTime, now)
+			}
+			if want := periodOf(codeTime); period != want {
+				t.Fatalf("period = %d, want %d (the counter the code actually belongs to)", period, want)
 			}
 		})
 	}
@@ -53,12 +60,15 @@ func TestTOTPVerifierRejectsOutOfToleranceAndWrongCode(t *testing.T) {
 
 	t.Run("two periods away", func(t *testing.T) {
 		t.Parallel()
-		ok, err := verifier.Verify(testTOTPSecret, codeAt(t, now.Add(-90*time.Second)), now)
+		ok, period, err := verifier.Verify(testTOTPSecret, codeAt(t, now.Add(-90*time.Second)), now)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if ok {
 			t.Fatal("a code two periods away must not be accepted")
+		}
+		if period != 0 {
+			t.Fatalf("period = %d, want 0 on rejection", period)
 		}
 	})
 
@@ -69,12 +79,15 @@ func TestTOTPVerifierRejectsOutOfToleranceAndWrongCode(t *testing.T) {
 		if wrong == valid {
 			wrong = "111111"
 		}
-		ok, err := verifier.Verify(testTOTPSecret, wrong, now)
+		ok, period, err := verifier.Verify(testTOTPSecret, wrong, now)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		if ok {
 			t.Fatal("an arbitrary wrong code must not be accepted")
+		}
+		if period != 0 {
+			t.Fatalf("period = %d, want 0 on rejection", period)
 		}
 	})
 }

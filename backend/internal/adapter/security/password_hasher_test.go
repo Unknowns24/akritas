@@ -1,6 +1,7 @@
 package security
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -37,5 +38,42 @@ func TestPasswordHasherProducesDistinctHashesForSamePassword(t *testing.T) {
 	}
 	if first == second {
 		t.Fatal("two hashes of the same password must differ (random salt)")
+	}
+}
+
+func TestPasswordHasherVerify(t *testing.T) {
+	t.Parallel()
+
+	hasher := NewPasswordHasher()
+
+	hash, err := hasher.Hash("a-long-password-from-a-password-manager")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	ok, err := hasher.Verify("a-long-password-from-a-password-manager", hash)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatal("the correct password must verify")
+	}
+
+	ok, err = hasher.Verify("a-different-password-entirely", hash)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok {
+		t.Fatal("a wrong password must not verify")
+	}
+}
+
+func TestPasswordHasherVerifyRejectsMalformedHash(t *testing.T) {
+	t.Parallel()
+
+	hasher := NewPasswordHasher()
+
+	if _, err := hasher.Verify("anything", "not-a-valid-hash"); !errors.Is(err, ErrMalformedPasswordHash) {
+		t.Fatalf("expected ErrMalformedPasswordHash, got %v", err)
 	}
 }

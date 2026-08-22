@@ -23,6 +23,10 @@ func (g *sessionTokenGenerator) Generate() (string, string, error) {
 		return "", "", err
 	}
 	token := base64.RawURLEncoding.EncodeToString(raw)
+	return token, g.Hash(token), nil
+}
+
+func (g *sessionTokenGenerator) Hash(token string) string {
 	sum := sha256.Sum256([]byte(token))
-	return token, hex.EncodeToString(sum[:]), nil
+	return hex.EncodeToString(sum[:])
 }

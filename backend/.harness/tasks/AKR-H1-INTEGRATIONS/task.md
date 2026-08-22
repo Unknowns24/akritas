@@ -27,7 +27,7 @@ podrán seleccionar.
 
 - Profile: `backend_api` (`.harness/kernel/profiles/go-hexagonal-api.yaml`).
 - Workflow: `.harness/kernel/workflows/backend-api-feature.yaml`.
-- Estado: `awaiting_tdd_approval`.
+- Estado: `complete` (corrección arquitectónica aprobada y validada el 2026-08-22).
 
 ## Alcance
 
@@ -60,10 +60,18 @@ podrán seleccionar.
 - PB-010/PB-011 consumirá el discovery implementado aquí y completará el adapter
   de referencias desde Project para impedir el borrado de integraciones en uso.
 
-## Artefactos de esta etapa
+## Artefactos del workflow
 
 - `implementation-brief.md`.
 - `tdd-test-plan.md`.
+- `implementation-summary.md`.
+- `architecture-review.md`.
+- `security-review.md`.
+- `final-summary.md`.
 
-No se crearán tests ni implementación antes de la aprobación humana explícita
-del plan TDD.
+## Corrección arquitectónica aprobada
+
+La implementación se reabre para sustituir la paginación propia por Uker,
+centralizar configuración con Viper, eliminar modelos GORM duplicados, separar
+DTOs/mappers y devolver los errores REST/DB a sus adapters. El alcance funcional
+y el bloqueo runtime por PB-061..063 no cambian.

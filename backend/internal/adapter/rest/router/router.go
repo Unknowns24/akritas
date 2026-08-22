@@ -20,6 +20,7 @@ func New(deps Dependencies) http.Handler {
 	r.Route("/api/v1/auth", func(r chi.Router) {
 		r.Get("/setup-status", deps.Auth.GetSetupStatus)
 		r.Post("/setup", deps.Auth.StartAdministratorSetup)
+		r.Post("/setup/verify", deps.Auth.VerifyAdministratorSetup)
 	})
 
 	return r

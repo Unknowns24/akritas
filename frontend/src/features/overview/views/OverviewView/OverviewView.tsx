@@ -7,9 +7,18 @@ import { MetricsGrid } from "./components/MetricsGrid/MetricsGrid";
 import { ActiveIncidentsCard } from "./components/ActiveIncidentsCard/ActiveIncidentsCard";
 import { InvestigationEngineBanner } from "./components/InvestigationEngineBanner/InvestigationEngineBanner";
 import { PipelineLifecycleCard } from "./components/PipelineLifecycleCard/PipelineLifecycleCard";
+import { getOverviewService } from "../../services/get-overview.service";
 import styles from "./OverviewView.module.css";
 
-export const OverviewView: React.FC = () => {
+export const OverviewView = async () => {
+  let overview;
+  try {
+    const res = await getOverviewService();
+    overview = res.data;
+  } catch (error) {
+    throw error;
+  }
+
   return (
     <div className={styles.container}>
       {/* Header section */}
@@ -27,7 +36,12 @@ export const OverviewView: React.FC = () => {
         </Link>
       </div>
 
-      <MetricsGrid />
+      <MetricsGrid 
+        monitored_projects={overview.monitored_projects}
+        active_incidents={overview.active_incidents}
+        workflow_completed_incidents={overview.workflow_completed_incidents}
+        pull_requests_created={overview.pull_requests_created}
+      />
 
       {/* Main Content Grid */}
       <div className={styles.contentGrid}>

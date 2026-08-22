@@ -2,7 +2,19 @@ import React from "react";
 import { Activity, AlertTriangle, FolderGit2, GitPullRequest } from "lucide-react";
 import styles from "./MetricsGrid.module.css";
 
-export const MetricsGrid: React.FC = () => {
+export interface MetricsGridProps {
+  monitored_projects: number;
+  active_incidents: number;
+  workflow_completed_incidents: number;
+  pull_requests_created: number;
+}
+
+export const MetricsGrid: React.FC<MetricsGridProps> = ({
+  monitored_projects,
+  active_incidents,
+  workflow_completed_incidents,
+  pull_requests_created
+}) => {
   return (
     <div className={styles.metricsGrid}>
       <div className={styles.metricCard}>
@@ -10,7 +22,7 @@ export const MetricsGrid: React.FC = () => {
           <span className={styles.metricLabel}>Monitored Projects</span>
           <FolderGit2 size={16} />
         </div>
-        <span className={styles.metricValue}>0</span>
+        <span className={styles.metricValue}>{monitored_projects}</span>
         <span className={styles.metricFootnote}>Active Dokploy connections</span>
       </div>
 
@@ -19,7 +31,7 @@ export const MetricsGrid: React.FC = () => {
           <span className={styles.metricLabel}>Active Incidents</span>
           <AlertTriangle size={16} color="var(--status-warning)" />
         </div>
-        <span className={styles.metricValue}>0</span>
+        <span className={styles.metricValue}>{active_incidents}</span>
         <span className={styles.metricFootnote}>Under investigation</span>
       </div>
 
@@ -28,7 +40,7 @@ export const MetricsGrid: React.FC = () => {
           <span className={styles.metricLabel}>Completed Workflows</span>
           <Activity size={16} color="var(--status-success)" />
         </div>
-        <span className={styles.metricValue}>0</span>
+        <span className={styles.metricValue}>{workflow_completed_incidents}</span>
         <span className={styles.metricFootnote}>Closed incident pipelines</span>
       </div>
 
@@ -37,7 +49,7 @@ export const MetricsGrid: React.FC = () => {
           <span className={styles.metricLabel}>PRs Created</span>
           <GitPullRequest size={16} color="var(--accent-indigo-light)" />
         </div>
-        <span className={styles.metricValue}>0</span>
+        <span className={styles.metricValue}>{pull_requests_created}</span>
         <span className={styles.metricFootnote}>Validated autonomous fixes</span>
       </div>
     </div>

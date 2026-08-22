@@ -1,41 +1,56 @@
 
 import React from "react";
 import Link from "next/link";
-import { FolderGit2, Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+import { getProjectsService } from "../../services/get-projects.service";
+import { ProjectGrid } from "./components/ProjectGrid/ProjectGrid";
 import styles from "./ProjectsListView.module.css";
 
-export const ProjectsListView: React.FC = () => {
+export const ProjectsListView = async () => {
+  let projectResponse;
+  
+  try {
+    projectResponse = await getProjectsService();
+  } catch (error) {
+    throw error;
+  }
+
+  const hasProjects = projectResponse.data && projectResponse.data.length > 0;
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.titleGroup}>
-          <h1 className={styles.pageTitle}>Monitored Projects</h1>
-          <p className={styles.pageSubtitle}>
-            Dokploy application bindings, GitHub repositories, and log monitoring configuration.
-          </p>
+          <h1 className={styles.pageTitle}>Manage monitored applications and their connection to infrastructure.</h1>
         </div>
+      </div>
+
+      <div className={styles.actionBar}>
+        <div className={styles.searchWrapper}>
+          <Search size={16} className={styles.searchIcon} />
+          <input 
+            type="text" 
+            placeholder="Search projects..." 
+            className={styles.searchInput}
+          />
+        </div>
+        
         <Link href={APP_ROUTES.PROJECTS.NEW}>
-          <Button variant="primary" size="md" leftIcon={<Plus size={16} />}>
+          <Button variant="ghost" size="md" className={styles.newProjectBtn}>
             New Project
           </Button>
         </Link>
       </div>
+      
+      <div className={styles.divider} />
 
-      <div className={styles.emptyCard}>
-        <FolderGit2 size={40} className={styles.emptyIcon} />
-        <h2 className={styles.emptyTitle}>No Projects Configured</h2>
-        <p className={styles.emptyText}>
-          Create a project to bind a Dokploy application with its corresponding GitHub repository
-          and begin real-time incident monitoring.
-        </p>
-        <Link href={APP_ROUTES.PROJECTS.NEW} style={{ marginTop: "8px" }}>
-          <Button variant="secondary" size="md" leftIcon={<Plus size={16} />}>
-            Create First Project
-          </Button>
-        </Link>
-      </div>
+      {hasProjects ? (
+        <ProjectGrid projects={projectResponse.data} />
+      ) : (
+        <ProjectGrid projects={[]} />
+      )}
     </div>
   );
 };

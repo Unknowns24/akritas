@@ -9,6 +9,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/migrations"
 	administratorrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator"
+	administratorsessionrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator_session"
 	pendingenrollmentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/pending_enrollment"
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
@@ -38,15 +39,19 @@ func main() {
 
 	administrators := administratorrepo.NewRepository(db)
 	pendingEnrollments := pendingenrollmentrepo.NewRepository(db)
+	administratorSessions := administratorsessionrepo.NewRepository(db)
+	transactor := postgres.NewTransactor(db)
 
 	credentialStore, err := security.NewCredentialStore(cfg.MasterKey)
 	if err != nil {
 		log.Fatalf("initialize credential store: %v", err)
 	}
 	totpGenerator := security.NewTOTPSecretGenerator()
+	totpVerifier := security.NewTOTPVerifier()
 	passwordHasher := security.NewPasswordHasher()
 	bootstrapTokens := security.NewBootstrapTokenVerifier(cfg.BootstrapToken)
 	rateLimiter := security.NewRateLimiter(setupRateLimitAttempts, setupRateLimitWindow)
+	sessionTokens := security.NewSessionTokenGenerator()
 	clock := security.NewClock()
 
 	getSetupStatus := authusecase.NewGetSetupStatusUseCase(administrators)
@@ -54,9 +59,14 @@ func main() {
 		administrators, pendingEnrollments, credentialStore, totpGenerator,
 		passwordHasher, bootstrapTokens, rateLimiter, clock,
 	)
+	verifyAdministratorSetup := authusecase.NewVerifyAdministratorSetupUseCase(
+		rateLimiter, pendingEnrollments, credentialStore, totpVerifier,
+		administrators, sessionTokens, administratorSessions, transactor, clock,
+		cfg.SessionIdleTTL, cfg.SessionAbsoluteTTL,
+	)
 
 	handler := router.New(router.Dependencies{
-		Auth: authhandler.NewHandler(getSetupStatus, startAdministratorSetup),
+		Auth: authhandler.NewHandler(getSetupStatus, startAdministratorSetup, verifyAdministratorSetup, cfg.SessionCookieSecure),
 	})
 
 	log.Printf("akritas backend listening on %s", listenAddr)

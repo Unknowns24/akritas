@@ -47,7 +47,7 @@ func TestStartAdministratorSetupHappyPath(t *testing.T) {
 		ManualEntryKey: "JBSWY3DPEHPK3PXP",
 		ExpiresAt:      expiresAt,
 	}}
-	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup)
+	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup, &fakeVerifyAdministratorSetupUseCase{}, true)
 
 	rec := httptest.NewRecorder()
 	handler.StartAdministratorSetup(rec, newSetupRequest(t, validSetupBody()))
@@ -86,7 +86,7 @@ func TestStartAdministratorSetupMalformedJSON(t *testing.T) {
 	t.Parallel()
 
 	startSetup := &fakeStartAdministratorSetupUseCase{}
-	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup)
+	handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup, &fakeVerifyAdministratorSetupUseCase{}, true)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/setup", strings.NewReader("{not json"))
 	rec := httptest.NewRecorder()
@@ -125,7 +125,7 @@ func TestStartAdministratorSetupFieldValidation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			startSetup := &fakeStartAdministratorSetupUseCase{}
-			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup)
+			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup, &fakeVerifyAdministratorSetupUseCase{}, true)
 
 			rec := httptest.NewRecorder()
 			handler.StartAdministratorSetup(rec, newSetupRequest(t, body))
@@ -160,7 +160,7 @@ func TestStartAdministratorSetupUsecaseErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			startSetup := &fakeStartAdministratorSetupUseCase{err: tc.err}
-			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup)
+			handler := handlerauth.NewHandler(&fakeGetSetupStatusUseCase{}, startSetup, &fakeVerifyAdministratorSetupUseCase{}, true)
 
 			rec := httptest.NewRecorder()
 			handler.StartAdministratorSetup(rec, newSetupRequest(t, validSetupBody()))

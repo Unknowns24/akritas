@@ -28,3 +28,14 @@ func (f *fakeStartAdministratorSetupUseCase) Execute(ctx context.Context, input 
 	f.receivedArgs = input
 	return f.output, f.err
 }
+
+type fakeVerifyAdministratorSetupUseCase struct {
+	output       in.VerifyAdministratorSetupOutput
+	err          error
+	receivedArgs in.VerifyAdministratorSetupInput
+}
+
+func (f *fakeVerifyAdministratorSetupUseCase) Execute(ctx context.Context, input in.VerifyAdministratorSetupInput) (in.VerifyAdministratorSetupOutput, error) {
+	f.receivedArgs = input
+	return f.output, f.err
+}

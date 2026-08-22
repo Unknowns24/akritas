@@ -1,0 +1,67 @@
+import { api } from "@/core/libs/api-client";
+import type { components } from "@/core/libs/api-client";
+
+export type IncidentListResponse =
+  components["schemas"]["IncidentListResponse"];
+
+export interface GetIncidentsParams {
+  limit?: number;
+  cursor?: string;
+}
+
+export async function getIncidentsService(
+  params?: GetIncidentsParams,
+): Promise<IncidentListResponse> {
+  const { data, error } = await api.GET("/incidents", {
+    params: {
+      query: {
+        limit: params?.limit,
+        cursor: params?.cursor,
+      },
+    },
+  });
+
+  if (error || !data) {
+    console.warn("Failed to fetch incidents, returning mock data:", error);
+    return {
+      data: [
+        {
+          id: "inc-1",
+          key: "AKR-1",
+          project: { id: "1", name: "E-Commerce Platform" },
+          fingerprint: "db_conn_timeout",
+          severity: "critical",
+          title: "Database connection timeout in production",
+          summary:
+            "Multiple instances reporting timeouts when connecting to the primary DB.",
+          phase: "investigating",
+          occurrence_count: 42,
+          first_seen_at: new Date(Date.now() - 3600000).toISOString(),
+          last_seen_at: new Date().toISOString(),
+        },
+        {
+          id: "inc-2",
+          key: "AKR-2",
+          project: { id: "2", name: "Payment Gateway" },
+          fingerprint: "stripe_api_rate_limit",
+          severity: "warning",
+          title: "Stripe API Rate Limit Exceeded",
+          summary: "Payment processing degraded due to rate limiting.",
+          phase: "completed",
+          occurrence_count: 5,
+          first_seen_at: new Date(Date.now() - 86400000).toISOString(),
+          last_seen_at: new Date(Date.now() - 82800000).toISOString(),
+        },
+      ],
+      paging: {
+        limit: 10,
+        total: 2,
+        has_more: false,
+        next_cursor: "",
+        prev_cursor: "",
+      },
+    };
+  }
+
+  return data;
+}

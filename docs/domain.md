@@ -2,6 +2,38 @@
 
 Este documento define las entidades conceptuales del dominio. No prescribe tablas, ORM ni detalles de persistencia.
 
+## Administrator
+
+Representa la única identidad humana autorizada a administrar una instalación
+Akritas durante el MVP.
+
+Campos conceptuales públicos:
+
+- `id`
+- `email`
+- `display_name`
+- `created_at`
+- `updated_at`
+
+El password hash, el secreto TOTP, el bootstrap token y los identificadores de
+sesión no forman parte de esta proyección pública. Password y sesión pertenecen al
+subdominio de autenticación; el secreto TOTP se cifra mediante infraestructura.
+
+## AdministratorSession
+
+Representa una sesión opaca server-side.
+
+Campos conceptuales seguros:
+
+- `administrator_id`
+- `authenticated_at`
+- `idle_expires_at`
+- `absolute_expires_at`
+- `revoked_at` opcional
+
+El token entregado al navegador se persiste únicamente en forma no reversible y
+nunca se devuelve dentro de un DTO JSON.
+
 ## Project
 
 Representa una aplicación o sistema que Akritas debe observar.
@@ -29,6 +61,7 @@ Campos conceptuales:
 - `id`
 - `display_name`
 - `account_type`
+- `authentication_method`
 - `account_identifier`
 - `authentication_status`
 - `created_at`
@@ -38,6 +71,10 @@ Valores conceptuales posibles para `account_type`:
 
 - `personal`
 - `organization`
+
+Valores conceptuales posibles para `authentication_method`:
+
+- `personal_access_token`
 - `github_app`
 
 Las credenciales, tokens, private keys y secretos de autenticación no forman parte conceptual de esta entidad; pertenecen a la capa de integración y configuración segura.
@@ -118,7 +155,8 @@ Campos conceptuales:
 - `id`
 - `project_id`
 - `fingerprint`
-- `status`
+- `phase`
+- `terminal_outcome` opcional
 - `first_seen_at`
 - `last_seen_at`
 - `occurrence_count`
@@ -129,6 +167,18 @@ Campos conceptuales:
 - `confidence`
 - `github_issue_reference`
 - `pull_request_reference` opcional
+
+Valores conceptuales posibles para `phase`:
+
+- `detected`
+- `investigating`
+- `publishing_issue`
+- `remediating`
+- `completed`
+- `failed`
+
+`completed` significa que el workflow de Akritas alcanzó un resultado terminal;
+no afirma que el cambio fue mergeado, desplegado o resuelto en producción.
 
 ## Investigation
 
@@ -226,7 +276,10 @@ Project
 
 ## Reglas conceptuales
 
+- Una instalación MVP posee exactamente un `Administrator` activo.
+- Confirmar recovery invalida las sesiones y el enrollment TOTP anteriores.
 - Un `GitHubAccount` puede ser utilizado por múltiples `GitHubRepository`.
+- El tipo de cuenta GitHub y su método de autenticación son independientes.
 - Un `DokployServer` puede contener múltiples `DokployApplication`.
 - Múltiples Projects pueden utilizar recursos pertenecientes a la misma cuenta de GitHub o al mismo servidor Dokploy.
 - Un `Project` observa una aplicación desplegada y conoce el repositorio de código asociado.

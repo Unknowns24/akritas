@@ -17,6 +17,23 @@ Ejemplo:
 
 ## Secuencia
 
+### 0. Acceso seguro
+
+En una instalación vacía, mostrar una sola vez:
+
+```text
+bootstrap autorizado
+      ↓
+QR TOTP
+      ↓
+código confirmado
+      ↓
+Administrator activo
+```
+
+En ejecuciones posteriores, comenzar con login mediante email, password y TOTP.
+La demostración no debe mostrar el bootstrap token, seed TOTP ni session cookie.
+
 ### 1. Estado inicial
 
 Mostrar Akritas con:

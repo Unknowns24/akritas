@@ -885,7 +885,56 @@ Use this decision guide.
 
 ---
 
-## 28. Final rule
+## 28. Authentication routes and session handling
+
+The frontend has three public auth routes:
+
+```text
+/setup
+/login
+/recovery
+```
+
+All product routes are private. A centralized auth/session layer calls
+`GET /auth/setup-status` before routing an uninitialized installation and
+`GET /auth/session` before rendering private application state.
+
+The session identifier is an HttpOnly cookie and is intentionally unavailable to
+JavaScript. The shared API client sends same-origin credentials and never mirrors
+the cookie into localStorage, sessionStorage, React state, query parameters or
+logs.
+
+Setup and recovery must treat `otpauth_uri` and the manual key as one-time
+provisioning data:
+
+- render them only on the enrollment screen;
+- do not persist them in browser storage or caches;
+- clear component state after verification/navigation;
+- do not include them in analytics or error reporting.
+
+Authentication forms use the generic error envelope and must not infer which
+factor failed. A `429` state shows a generic retry message without remaining
+attempt counts.
+
+GitHub App setup leaves Akritas through a browser form POST and returns through
+backend callbacks. The frontend never receives private key, webhook secret or
+installation token; it only renders the final safe `GitHubAccount` projection.
+
+## 29. Contract-driven operational semantics
+
+- Use `workflow_completed_incidents`, never label a PR-created workflow as a
+  production incident “resolved”.
+- Poll `Operation` after a `202` response and stop on `succeeded` or `failed`.
+- Generate one UUID `Idempotency-Key` per user intent and reuse it only for retries
+  of that same command.
+- Send filters/sort/limit on the first collection request and only `cursor` on
+  subsequent requests.
+- Built-in detection rules are read-only. Custom positive/ignored regex patterns
+  are the only project-level detection rules editable in the MVP.
+- The Automation screen exposes three dependent toggles, while Issue publication
+  remains mandatory and absent from the form.
+
+## 30. Final rule
 
 When deciding whether code belongs in `core` or a feature, ask:
 

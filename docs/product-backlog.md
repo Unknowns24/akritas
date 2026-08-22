@@ -229,6 +229,13 @@ Funcionalidad que puede implementarse únicamente si el flujo completo P0 ya es 
 | PB-058 | P1        | Visualización detallada de Evidence                 | H6                 |
 | PB-059 | P1        | Relacionar deployment con commit/diff               | Post-MVP / Stretch |
 | PB-060 | P2        | Actualizar Issue automáticamente al crear PR        | Stretch            |
+| PB-061 | P0        | Bootstrap del único `Administrator`                 | H1                 |
+| PB-062 | P0        | Enrollment y verificación TOTP                      | H1                 |
+| PB-063 | P0        | Login, sesión opaca y logout                        | H1                 |
+| PB-064 | P0        | Recovery con rotación password/TOTP                 | H6                 |
+| PB-065 | P0        | Rate limiting y hardening de sesión                 | H6                 |
+| PB-066 | P0        | Conectar GitHub mediante App Manifest               | H1                 |
+| PB-067 | P0        | Publicar contrato OpenAPI v1 completo               | H1                 |
 
 ---
 
@@ -244,12 +251,20 @@ Este hito construye el plano de configuración del sistema y estabiliza las enti
 
 ## Sprint Backlog — Hito 1
 
+### Authentication y contrato
+
+- PB-061 — Bootstrap del único `Administrator`.
+- PB-062 — Enrollment y verificación TOTP.
+- PB-063 — Login, sesión opaca y logout.
+- PB-067 — Contrato OpenAPI v1 como fuente de verdad backend/frontend.
+
 ### GitHub
 
 - PB-001 — Gestionar `GitHubAccount`.
 - PB-002 — Credential Store para GitHub.
 - PB-003 — Validar autenticación GitHub.
 - PB-004 — Obtener y seleccionar repositories.
+- PB-066 — Conectar una GitHub App mediante Manifest además de soportar PAT.
 
 ### Dokploy
 
@@ -271,6 +286,8 @@ Este hito construye el plano de configuración del sistema y estabiliza las enti
 La interfaz debe permitir gestionar:
 
 ```text
+Initial Setup / TOTP Enrollment
+Login / Logout
 GitHub Accounts
 Dokploy Servers
 Projects
@@ -337,6 +354,12 @@ Como mínimo debe permitir definir la configuración necesaria para:
 El hito se considera terminado cuando desde una instalación vacía puede completarse el siguiente flujo exclusivamente mediante la aplicación:
 
 ```text
+bootstrap Administrator
+      ↓
+confirmar TOTP
+      ↓
+login
+      ↓
 crear GitHubAccount
       +
 crear DokployServer
@@ -354,6 +377,8 @@ activar Monitoring
 
 Además:
 
+- el registro se cierra después de confirmar al único Administrator;
+- session, password, bootstrap token y seed TOTP no aparecen en JSON ni browser storage;
 - ninguna credencial puede aparecer en respuestas de API;
 - ninguna credencial debe almacenarse dentro de Project;
 - un Project activado debe contener toda la información no secreta necesaria para que el Monitoring Engine pueda comenzar a trabajar.
@@ -1183,6 +1208,8 @@ La prioridad es eliminar problemas que puedan romper la demostración end-to-end
 - PB-053 — Idempotency.
 - PB-054 — Failure handling.
 - PB-055 — E2E demo scenario.
+- PB-064 — Recovery con rotación de password y TOTP.
+- PB-065 — Rate limiting, revocación y expiración de sesiones.
 
 ### P1
 
@@ -1310,6 +1337,17 @@ PR created
 # 12. Definition of Done global del MVP
 
 El MVP se considera completado únicamente cuando puede ejecutarse el escenario E2E de forma reproducible y verificarse lo siguiente.
+
+## Authentication
+
+- [ ] El bootstrap token se obtiene únicamente desde environment.
+- [ ] Puede registrarse exactamente un Administrator.
+- [ ] El seed TOTP es distinto del bootstrap token y queda cifrado.
+- [ ] Login requiere email, password y TOTP.
+- [ ] La sesión es opaca, server-side y usa cookie HttpOnly.
+- [ ] Logout revoca la sesión actual.
+- [ ] Recovery rota password/TOTP y revoca sesiones anteriores.
+- [ ] Setup, login y recovery poseen rate limiting y errores genéricos.
 
 ## Project Management
 

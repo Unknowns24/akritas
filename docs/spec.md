@@ -193,7 +193,38 @@ resolution_status = requires_human
 
 Un proveedor externo caído puede tener una causa perfectamente identificada, pero no ser solucionable modificando el repositorio.
 
-## 10. Fuera de alcance del MVP
+## 10. Autenticación y acceso administrativo
+
+Akritas se administra desde una única cuenta local durante el MVP.
+
+El primer acceso requiere un flujo de bootstrap protegido por un secreto de
+deployment. El backend crea un `Administrator`, genera un secreto TOTP distinto y
+obliga a confirmar el enrollment antes de habilitar la sesión. Una vez activado el
+administrador, el registro queda cerrado.
+
+Los accesos posteriores requieren:
+
+```text
+email + password + TOTP
+```
+
+La sesión es opaca, server-side y se transporta únicamente mediante cookie
+`HttpOnly`. La UI debe incluir setup, login, recovery y logout sin almacenar
+credenciales ni identificadores de sesión en Web Storage.
+
+Recovery utiliza el bootstrap token configurado en el entorno, reemplaza password
+y TOTP, y revoca todas las sesiones anteriores.
+
+GitHub debe poder conectarse mediante PAT o GitHub App Manifest. En ambos casos
+los secretos son write-only y permanecen detrás del Credential Store.
+
+El contrato HTTP completo y autoritativo está definido en:
+
+```text
+backend/docs/openapi.yaml
+```
+
+## 11. Fuera de alcance del MVP
 
 - auto-merge de Pull Requests;
 - auto-deploy;
@@ -206,3 +237,5 @@ Un proveedor externo caído puede tener una causa perfectamente identificada, pe
 - múltiples agentes especializados;
 - remediación directa de infraestructura;
 - integración con proveedores cloud adicionales.
+- múltiples usuarios, invitaciones o RBAC;
+- passkeys WebAuthn, SSO y reset de password por email.

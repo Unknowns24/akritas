@@ -15,10 +15,13 @@ Architecture guidance:
 - `backend_service`: log collection, detection, incident grouping, investigation and remediation workflows.
 - Frontend: Next.js App Router, feature-based architecture.
 - API contract: OpenAPI is authoritative for frontend/backend integration.
+- Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.0.0 under `/api/v1`.
 - Persistence: GORM repositories + gormigrate/v2 migrations.
 - QVAC inference must remain local for the hackathon requirements.
 - GitHub, Dokploy, QVAC, Git and filesystem access are infrastructure adapters behind output ports.
 - Integration credentials are backend-only and must never reach browser code.
+- An installation has one administrator enrolled with password + TOTP; opaque sessions are server-side and recovery requires the deployment bootstrap token.
+- GitHub connections support either a write-only PAT or the GitHub App Manifest flow. Account ownership (`personal|organization`) is independent from authentication method.
 
 MVP execution order:
 

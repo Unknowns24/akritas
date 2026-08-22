@@ -1,0 +1,16 @@
+{
+	"serve": {
+		"models": {
+			"akritas": {
+				"model": "QWEN3_8B_INST_Q4_K_M",
+				"default": true,
+				"preload": true,
+				"config": {
+					"ctx_size": 16384,
+					"reasoning_budget": 0,
+					"tools": true
+				}
+			}
+		}
+	}
+}

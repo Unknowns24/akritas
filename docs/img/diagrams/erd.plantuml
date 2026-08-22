@@ -4,11 +4,34 @@ hide methods
 hide stereotypes
 skinparam linetype ortho
 
+entity "Administrator" as administrator {
+  * id
+  --
+  email
+  display_name
+  password_hash
+  encrypted_totp_secret
+  created_at
+  updated_at
+}
+
+entity "AdministratorSession" as administrator_session {
+  * id
+  --
+  administrator_id
+  token_hash
+  authenticated_at
+  idle_expires_at
+  absolute_expires_at
+  revoked_at
+}
+
 entity "GitHubAccount" as github_account {
   * id
   --
   display_name
   account_type
+  authentication_method
   account_identifier
   authentication_status
   created_at
@@ -80,7 +103,8 @@ entity "Incident" as incident {
   --
   project_id
   fingerprint
-  status
+  phase
+  terminal_outcome
   first_seen_at
   last_seen_at
   occurrence_count
@@ -150,5 +174,7 @@ incident ||--|| github_issue : issue
 incident ||--o| remediation : remediation
 
 remediation ||--o| pull_request : pull_request
+
+administrator ||--o{ administrator_session : sessions
 
 @enduml

@@ -28,6 +28,18 @@ El MVP debe demostrar que Akritas puede configurar integraciones reutilizables d
 
 ## Must Have
 
+### Administrator Authentication
+
+- registrar exactamente un `Administrator` mediante un bootstrap token provisto
+  por environment;
+- generar y confirmar un enrollment TOTP independiente del bootstrap token;
+- autenticar con email, password y TOTP;
+- mantener una sesión opaca server-side mediante cookie segura;
+- permitir logout y recovery con rotación de password/TOTP;
+- cerrar el registro después del primer alta confirmada;
+- aplicar rate limiting y errores genéricos a setup, login y recovery;
+- nunca exponer password hash, bootstrap token, seed TOTP o session token.
+
 ### GitHub Account Management
 
 - crear/configurar una `GitHubAccount`;
@@ -187,6 +199,13 @@ Dashboard mínimo para administrar y visualizar:
 - Dokploy Servers;
 - estado de conexión de cada Dokploy Server.
 
+#### Authentication
+
+- setup inicial con QR TOTP;
+- login con password + TOTP;
+- recovery administrativo;
+- estado de sesión y logout.
+
 #### Projects
 
 - Projects;
@@ -254,28 +273,33 @@ Dashboard mínimo para administrar y visualizar:
 - rotación automática de credenciales;
 - múltiples proveedores de Git;
 - múltiples proveedores de deployment.
+- múltiples usuarios, invitaciones y RBAC;
+- SSO y reset de password por email;
+- passkeys WebAuthn.
 
 ## Success Criteria
 
 El MVP se considera exitoso si durante una demo controlada Akritas puede:
 
-1. configurar una `GitHubAccount`;
-2. configurar un `DokployServer`;
-3. crear un `Project`;
-4. asociar al Project un `GitHubRepository` accesible mediante la GitHub Account;
-5. asociar al Project una `DokployApplication` perteneciente al Dokploy Server;
-6. activar el monitoreo;
-7. detectar un error real producido por una aplicación de prueba;
-8. generar uno o más `LogEvent`;
-9. agrupar eventos equivalentes en un `Incident`;
-10. iniciar una `Investigation`;
-11. usar QVAC local para investigar el Incident;
-12. consultar código relevante del repositorio;
-13. registrar evidencia, hipótesis y root cause;
-14. crear una GitHub Issue útil;
-15. identificar el Incident como resoluble mediante código;
-16. crear una `Remediation`;
-17. modificar el repositorio en una branch dedicada;
-18. ejecutar al menos una validación;
-19. crear una Pull Request vinculada a la Issue;
-20. visualizar desde Akritas el recorrido completo del Incident desde su detección hasta la Pull Request.
+1. completar el setup del único Administrator y confirmar TOTP;
+2. iniciar sesión con password + TOTP;
+3. configurar una `GitHubAccount` mediante PAT o GitHub App;
+4. configurar un `DokployServer`;
+5. crear un `Project`;
+6. asociar al Project un `GitHubRepository` accesible mediante la GitHub Account;
+7. asociar una `DokployApplication` perteneciente al Dokploy Server;
+8. activar el monitoreo;
+9. detectar un error real producido por una aplicación de prueba;
+10. generar uno o más `LogEvent`;
+11. agrupar eventos equivalentes en un `Incident`;
+12. iniciar una `Investigation`;
+13. usar QVAC local para investigar el Incident;
+14. consultar código relevante del repositorio;
+15. registrar evidencia, hipótesis y root cause;
+16. crear una GitHub Issue útil;
+17. identificar el Incident como resoluble mediante código;
+18. crear una `Remediation`;
+19. modificar el repositorio en una branch dedicada;
+20. ejecutar al menos una validación;
+21. crear una Pull Request vinculada a la Issue;
+22. visualizar el recorrido completo sin afirmar que la PR resolvió producción.

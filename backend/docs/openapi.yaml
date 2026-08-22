@@ -1,0 +1,3598 @@
+openapi: 3.1.0
+info:
+  title: Akritas API
+  version: 1.0.0
+  summary: Contract between the Akritas Go backend and its web frontend.
+  description: |
+    Public HTTP contract for the Akritas hackathon MVP.
+
+    Akritas monitors Dokploy applications, detects and groups incidents with a
+    deterministic engine, investigates them locally with QVAC, always creates a
+    GitHub Issue after a completed investigation and may create a validated Pull
+    Request. It never merges, deploys or rolls back automatically.
+
+    JSON fields use snake_case. All timestamps are RFC 3339 UTC. Collection
+    endpoints use signed cursor pagination. When `cursor` is supplied, filters,
+    sorting and limit must not be sent again because they are encoded in the
+    cursor.
+  contact:
+    name: Akritas maintainers
+  license:
+    name: Private hackathon project
+servers:
+  - url: /api/v1
+    description: Same-origin API
+security:
+  - cookieAuth: []
+tags:
+  - name: Auth
+  - name: System
+  - name: Dashboard
+  - name: Operations
+  - name: GitHub
+  - name: Dokploy
+  - name: QVAC
+  - name: Projects
+  - name: Automation
+  - name: Incidents
+  - name: Investigations
+  - name: Remediations
+  - name: PullRequests
+
+paths:
+  /health:
+    get:
+      tags: [System]
+      operationId: getHealth
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /readiness:
+    get:
+      tags: [System]
+      operationId: getReadiness
+      summary: Readiness probe without sensitive dependency details
+      security: []
+      responses:
+        "200":
+          description: The API can accept traffic.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+        "503":
+          description: The API is alive but not ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadinessResponse"
+
+  /auth/setup-status:
+    get:
+      tags: [Auth]
+      operationId: getAuthSetupStatus
+      summary: Check whether first-administrator setup is still available
+      security: []
+      responses:
+        "200":
+          description: Safe setup state. It does not reveal administrator identity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatusResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/setup:
+    post:
+      tags: [Auth]
+      operationId: startAdministratorSetup
+      summary: Start the one-time administrator and TOTP enrollment
+      description: |
+        Validates the bootstrap token supplied through deployment configuration,
+        creates a short-lived pending enrollment and returns TOTP provisioning
+        data exactly once. The bootstrap token never becomes the TOTP seed.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetupRequest"
+      responses:
+        "201":
+          description: Pending enrollment created.
+          headers:
+            Cache-Control:
+              description: Prevent storage of TOTP provisioning material.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpEnrollmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/setup/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyAdministratorSetup
+      summary: Verify TOTP and activate the only administrator
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TotpEnrollmentVerificationRequest"
+      responses:
+        "200":
+          description: Administrator activated and session created.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: loginAdministrator
+      summary: Authenticate with email, password and TOTP
+      description: Invalid credentials always produce the same safe error response.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated session created.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/session:
+    get:
+      tags: [Auth]
+      operationId: getCurrentSession
+      summary: Get the authenticated administrator session
+      responses:
+        "200":
+          description: Current safe session projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Auth]
+      operationId: logoutAdministrator
+      summary: Revoke the current session
+      responses:
+        "204":
+          description: Session revoked and cookie expired.
+          headers:
+            Set-Cookie:
+              description: Expired HttpOnly session cookie.
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/recovery:
+    post:
+      tags: [Auth]
+      operationId: startAdministratorRecovery
+      summary: Start password and TOTP recovery using the deployment bootstrap token
+      description: The response is generic if the administrator email does not match.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecoveryRequest"
+      responses:
+        "201":
+          description: Pending recovery enrollment created.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TotpEnrollmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /auth/recovery/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyAdministratorRecovery
+      summary: Confirm the replacement TOTP and revoke all previous sessions
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TotpEnrollmentVerificationRequest"
+      responses:
+        "200":
+          description: Recovery completed and a fresh session created.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /system/status:
+    get:
+      tags: [System]
+      operationId: getSystemStatus
+      summary: Get safe integration and worker status for Settings
+      responses:
+        "200":
+          description: Current status projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /system/diagnostics:
+    post:
+      tags: [System, Operations]
+      operationId: runSystemDiagnostics
+      summary: Queue safe diagnostics for configured dependencies
+      responses:
+        "202":
+          $ref: "#/components/responses/OperationAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /overview:
+    get:
+      tags: [Dashboard]
+      operationId: getProductionOverview
+      summary: Get dashboard counts and active investigation projections
+      responses:
+        "200":
+          description: Dashboard overview. Completed means workflow completed, not production resolved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /activity:
+    get:
+      tags: [Dashboard]
+      operationId: listActivity
+      summary: List sanitized operational activity
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: project_id_eq
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: incident_id_eq
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/ActivityType"
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cursor-paginated activity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /operations/{operation_id}:
+    parameters:
+      - name: operation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Operations]
+      operationId: getOperation
+      summary: Poll a queued or running command
+      responses:
+        "200":
+          description: Operation state and safe result reference.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/accounts:
+    get:
+      tags: [GitHub]
+      operationId: listGitHubAccounts
+      summary: List configured GitHub accounts and installations
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: authentication_status_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/IntegrationStatus"
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cursor-paginated safe account projections.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubAccountListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [GitHub]
+      operationId: createGitHubPatAccount
+      summary: Connect a GitHub personal or organization account with a PAT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGitHubPatAccountRequest"
+      responses:
+        "201":
+          description: PAT validated, encrypted and associated with the account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubAccountResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/accounts/{account_id}:
+    parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [GitHub]
+      operationId: getGitHubAccount
+      summary: Get a safe GitHub account projection
+      responses:
+        "200":
+          description: GitHub account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubAccountResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [GitHub]
+      operationId: updateGitHubAccount
+      summary: Update display data or rotate a PAT
+      description: GitHub App generated credentials cannot be returned or replaced here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGitHubAccountRequest"
+      responses:
+        "200":
+          description: Updated account.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubAccountResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [GitHub]
+      operationId: deleteGitHubAccount
+      summary: Remove an unreferenced GitHub integration
+      description: Returns conflict while any Project references this account.
+      responses:
+        "204":
+          description: Account and encrypted credentials removed.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/accounts/{account_id}/connection-test:
+    parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [GitHub]
+      operationId: testGitHubConnection
+      summary: Test GitHub authentication without returning provider errors
+      responses:
+        "200":
+          description: Normalized test result; an invalid credential is represented as a failed result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/accounts/{account_id}/repositories:
+    parameters:
+      - name: account_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [GitHub]
+      operationId: listGitHubRepositories
+      summary: Discover repositories accessible through the configured account
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: name_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Cursor-paginated repositories.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubRepositoryListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/app-manifest/registrations:
+    post:
+      tags: [GitHub]
+      operationId: startGitHubAppManifestRegistration
+      summary: Create a one-time GitHub App Manifest registration handoff
+      description: |
+        Returns the GitHub form action, JSON manifest and unpredictable state.
+        The browser submits them directly to GitHub. The registration must be
+        completed within one hour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GitHubManifestRegistrationRequest"
+      responses:
+        "201":
+          description: One-time registration handoff.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GitHubManifestRegistrationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/app-manifest/callback:
+    get:
+      tags: [GitHub]
+      operationId: completeGitHubAppManifestRegistration
+      summary: Exchange the GitHub manifest code and redirect to installation
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 20
+            maxLength: 255
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 512
+      responses:
+        "303":
+          description: Generated app secrets encrypted; redirect to the GitHub installation URL.
+          headers:
+            Location:
+              $ref: "#/components/headers/RedirectLocation"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/github/app-installations/callback:
+    get:
+      tags: [GitHub]
+      operationId: completeGitHubAppInstallation
+      summary: Validate an installation and redirect back to GitHub Settings
+      description: The installation ID is verified with app authentication and is never trusted by itself.
+      security: []
+      parameters:
+        - name: installation_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: setup_action
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [install, update]
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 32
+            maxLength: 512
+      responses:
+        "303":
+          description: Installation persisted; redirect to the frontend GitHub Settings page.
+          headers:
+            Location:
+              $ref: "#/components/headers/RedirectLocation"
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers:
+    get:
+      tags: [Dokploy]
+      operationId: listDokployServers
+      summary: List configured Dokploy servers
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: connection_status_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/IntegrationStatus"
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cursor-paginated servers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployServerListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Dokploy]
+      operationId: createDokployServer
+      summary: Configure and validate a Dokploy server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDokployServerRequest"
+      responses:
+        "201":
+          description: Server configured with encrypted credential.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployServerResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Dokploy]
+      operationId: getDokployServer
+      summary: Get a safe Dokploy server projection
+      responses:
+        "200":
+          description: Dokploy server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployServerResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Dokploy]
+      operationId: updateDokployServer
+      summary: Update server metadata or rotate its credential
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDokployServerRequest"
+      responses:
+        "200":
+          description: Updated server.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployServerResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Dokploy]
+      operationId: deleteDokployServer
+      summary: Remove an unreferenced Dokploy server
+      description: Returns conflict while any Project references this server.
+      responses:
+        "204":
+          description: Server and encrypted credential removed.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/connection-test:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Dokploy]
+      operationId: testDokployConnection
+      summary: Test Dokploy connectivity with a normalized result
+      responses:
+        "200":
+          description: Connection test result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/applications:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Dokploy]
+      operationId: listDokployApplications
+      summary: Discover applications available on a configured Dokploy server
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: name_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: environment_eq
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        "200":
+          description: Cursor-paginated applications.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployApplicationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/qvac/configuration:
+    get:
+      tags: [QVAC]
+      operationId: getQvacConfiguration
+      summary: Get safe local inference configuration
+      responses:
+        "200":
+          description: Safe QVAC configuration projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QvacConfigurationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [QVAC]
+      operationId: putQvacConfiguration
+      summary: Replace QVAC endpoint and authentication configuration
+      description: Endpoint must resolve to loopback, RFC 1918 or private IPv6 space; public redirects are rejected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutQvacConfigurationRequest"
+      responses:
+        "200":
+          description: Updated safe configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QvacConfigurationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/qvac/connection-test:
+    post:
+      tags: [QVAC]
+      operationId: testQvacConnection
+      summary: Test the currently saved local QVAC configuration
+      responses:
+        "200":
+          description: Connection test result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/qvac/status:
+    get:
+      tags: [QVAC]
+      operationId: getQvacStatus
+      summary: Get runtime model status and latency
+      responses:
+        "200":
+          description: Current runtime status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QvacStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects:
+    get:
+      tags: [Projects]
+      operationId: listProjects
+      summary: List monitored project projections
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: name_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+        - name: monitoring_status_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/MonitoringStatus"
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cursor-paginated projects.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Projects]
+      operationId: createProject
+      summary: Create a Project from previously configured integration resources
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectRequest"
+      responses:
+        "201":
+          description: Project created with monitoring disabled unless explicitly enabled.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{project_id}:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Projects]
+      operationId: getProject
+      summary: Get complete safe Project configuration
+      responses:
+        "200":
+          description: Project configuration and read-only detection capabilities.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Projects]
+      operationId: updateProject
+      summary: Update identity or integration selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+      responses:
+        "200":
+          description: Updated Project.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{project_id}/monitoring-configuration:
+    parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Projects]
+      operationId: getProjectMonitoringConfiguration
+      summary: Get deterministic monitoring configuration
+      responses:
+        "200":
+          description: Current configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonitoringConfigurationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Projects]
+      operationId: putProjectMonitoringConfiguration
+      summary: Replace deterministic monitoring configuration
+      description: Ignored patterns always take precedence over built-in and custom positive rules.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MonitoringConfiguration"
+      responses:
+        "200":
+          description: Updated configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonitoringConfigurationResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /settings/automation:
+    get:
+      tags: [Automation]
+      operationId: getAutomationPolicy
+      summary: Get global autonomous workflow policy
+      responses:
+        "200":
+          description: Current policy. GitHub Issue publication is mandatory and not configurable.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationPolicyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Automation]
+      operationId: putAutomationPolicy
+      summary: Replace global autonomous workflow toggles
+      description: Automatic remediation requires automatic investigation; automatic PR requires both.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationPolicy"
+      responses:
+        "200":
+          description: Updated policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationPolicyResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents:
+    get:
+      tags: [Incidents]
+      operationId: listIncidents
+      summary: List grouped production incidents
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: project_id_eq
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: phase_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/IncidentPhase"
+          style: form
+          explode: false
+        - name: severity_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Severity"
+          style: form
+          explode: false
+        - name: root_cause_status_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/RootCauseStatus"
+          style: form
+          explode: false
+        - name: resolution_status_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/ResolutionStatus"
+          style: form
+          explode: false
+        - name: title_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Cursor-paginated incidents.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents/{incident_id}:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Incidents]
+      operationId: getIncident
+      summary: Get complete incident, investigation, Issue and remediation projection
+      responses:
+        "200":
+          description: Incident detail with sanitized evidence summaries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IncidentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents/{incident_id}/log-events:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Incidents]
+      operationId: listIncidentLogEvents
+      summary: List sanitized occurrences grouped into an Incident
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Cursor-paginated LogEvents.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogEventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents/{incident_id}/timeline:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Incidents]
+      operationId: listIncidentTimeline
+      summary: List persisted lifecycle and optional QVAC tool events
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Cursor-paginated timeline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TimelineEventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents/{incident_id}/investigations:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Investigations]
+      operationId: listIncidentInvestigations
+      summary: List every investigation attempt for an Incident
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Cursor-paginated investigations.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestigationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Investigations, Operations]
+      operationId: startIncidentInvestigation
+      summary: Manually start or retry an investigation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          $ref: "#/components/responses/OperationAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /investigations/{investigation_id}:
+    parameters:
+      - name: investigation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Investigations]
+      operationId: getInvestigation
+      summary: Get a structured investigation result
+      responses:
+        "200":
+          description: Investigation with structured classifications and safe evidence summaries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestigationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /investigations/{investigation_id}/evidence:
+    parameters:
+      - name: investigation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Investigations]
+      operationId: listInvestigationEvidence
+      summary: List sanitized evidence used by QVAC
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: type_in
+          in: query
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/EvidenceType"
+          style: form
+          explode: false
+      responses:
+        "200":
+          description: Cursor-paginated evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvidenceListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /incidents/{incident_id}/remediation:
+    parameters:
+      - name: incident_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Remediations]
+      operationId: getIncidentRemediation
+      summary: Get the optional remediation for an Incident
+      responses:
+        "200":
+          description: Current remediation.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      tags: [Remediations, Operations]
+      operationId: startIncidentRemediation
+      summary: Manually start remediation for a fixable investigated Incident
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          $ref: "#/components/responses/OperationAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /remediations/{remediation_id}:
+    parameters:
+      - name: remediation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Remediations]
+      operationId: getRemediation
+      summary: Get changes, validation and Pull Request state
+      responses:
+        "200":
+          description: Remediation with sanitized patches and results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemediationResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /remediations/{remediation_id}/validation-results:
+    parameters:
+      - name: remediation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Remediations]
+      operationId: listRemediationValidationResults
+      summary: List sanitized test/build/static-check results
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Cursor-paginated validation results.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResultListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /remediations/{remediation_id}/pull-request:
+    parameters:
+      - name: remediation_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [PullRequests, Operations]
+      operationId: createRemediationPullRequest
+      summary: Manually create a PR after successful validation
+      description: Idempotent. It never merges the PR or deploys the branch.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "202":
+          $ref: "#/components/responses/OperationAccepted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /pull-requests:
+    get:
+      tags: [PullRequests]
+      operationId: listPullRequests
+      summary: List Pull Requests created by Akritas
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Sort"
+        - name: project_id_eq
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: incident_id_eq
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Cursor-paginated PR references.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PullRequestListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /pull-requests/{pull_request_id}:
+    parameters:
+      - name: pull_request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [PullRequests]
+      operationId: getPullRequest
+      summary: Get an Akritas Pull Request projection and cross references
+      responses:
+        "200":
+          description: Pull Request projection.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PullRequestResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: akritas_session
+      description: |
+        Opaque server-side session cookie. Production uses Secure, HttpOnly,
+        SameSite=Lax and Path=/. The value is never exposed to JavaScript.
+
+  headers:
+    SessionCookie:
+      description: Secure HttpOnly opaque session cookie; no token is returned in JSON.
+      schema:
+        type: string
+        example: akritas_session=opaque; Path=/; Secure; HttpOnly; SameSite=Lax
+    NoStore:
+      description: Prevent caching of credentials or provisioning material.
+      schema:
+        type: string
+        const: no-store
+    RedirectLocation:
+      description: Validated GitHub or same-origin frontend redirect.
+      schema:
+        type: string
+        format: uri
+    RetryAfter:
+      description: Suggested number of seconds before polling again.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 60
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      description: Page size for an initial request. Omit when cursor is present.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Cursor:
+      name: cursor
+      in: query
+      description: Signed cursor returned by the API. Send it without filters, sort or limit.
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 4096
+    Sort:
+      name: sort
+      in: query
+      description: Comma-separated field:direction list for an initial request.
+      schema:
+        type: string
+        maxLength: 200
+        example: created_at:desc
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated UUID retained for safe command retries.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Malformed input or validation failure.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication is missing, expired or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated request is rejected by Origin or deployment policy.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Requested resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource state or invariant prevents the operation.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Rate limit reached. The response does not reveal which bucket was exceeded.
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Safe internal error without provider or infrastructure details.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    OperationAccepted:
+      description: Command persisted and queued for asynchronous execution.
+      headers:
+        Retry-After:
+          $ref: "#/components/headers/RetryAfter"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/OperationResponse"
+
+  schemas:
+    ErrorCode:
+      type: string
+      pattern: "^[0-9A-F]x[0-9A-F]{6}[VUFNCI]$"
+      example: 1x100001V
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [field, reason]
+      properties:
+        field:
+          type: string
+          maxLength: 200
+        reason:
+          type: string
+          maxLength: 500
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, user_message, request_id]
+      properties:
+        code:
+          $ref: "#/components/schemas/ErrorCode"
+        message:
+          type: string
+          maxLength: 1000
+        user_message:
+          type: string
+          maxLength: 1000
+        request_id:
+          type: string
+          minLength: 8
+          maxLength: 100
+        details:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ErrorDetail"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      examples:
+        - error:
+            code: 1x100001V
+            message: La solicitud contiene datos inválidos.
+            user_message: Revisá los campos e intentá nuevamente.
+            request_id: req-01J5P7M5Q1YJ7G6K7B8P9T0W2X
+            details:
+              - field: grouping_window
+                reason: Debe ser una duración ISO 8601 mayor que cero.
+      properties:
+        error:
+          $ref: "#/components/schemas/Error"
+    Paging:
+      type: object
+      additionalProperties: false
+      required: [limit, total, has_more, next_cursor, prev_cursor]
+      properties:
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        has_more:
+          type: boolean
+        next_cursor:
+          type: string
+        prev_cursor:
+          type: string
+
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: ok
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Health"
+    Readiness:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ready, not_ready]
+    ReadinessResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Readiness"
+
+    SetupStatus:
+      type: object
+      additionalProperties: false
+      required: [setup_required, registration_open]
+      properties:
+        setup_required:
+          type: boolean
+        registration_open:
+          type: boolean
+          description: False immediately after the only Administrator is activated.
+    SetupStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/SetupStatus"
+    SetupRequest:
+      type: object
+      additionalProperties: false
+      required: [email, display_name, password, bootstrap_token]
+      examples:
+        - email: admin@example.com
+          display_name: Akritas Administrator
+          password: a-long-password-from-a-password-manager
+          bootstrap_token: deployment-bootstrap-secret-not-a-totp-seed
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        bootstrap_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          writeOnly: true
+    TotpEnrollment:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, otpauth_uri, manual_entry_key, expires_at]
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+        otpauth_uri:
+          type: string
+          format: uri
+          description: Sensitive one-time provisioning URI. Never persist it in browser storage.
+        manual_entry_key:
+          type: string
+          pattern: "^[A-Z2-7]{16,128}$"
+          description: Sensitive one-time Base32 fallback for authenticator enrollment.
+        expires_at:
+          type: string
+          format: date-time
+    TotpEnrollmentResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/TotpEnrollment"
+    TotpEnrollmentVerificationRequest:
+      type: object
+      additionalProperties: false
+      required: [enrollment_id, totp_code]
+      properties:
+        enrollment_id:
+          type: string
+          format: uuid
+        totp_code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          writeOnly: true
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password, totp_code]
+      examples:
+        - email: admin@example.com
+          password: a-long-password-from-a-password-manager
+          totp_code: "123456"
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        totp_code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          writeOnly: true
+    RecoveryRequest:
+      type: object
+      additionalProperties: false
+      required: [email, new_password, bootstrap_token]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        new_password:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 128
+          writeOnly: true
+        bootstrap_token:
+          type: string
+          minLength: 32
+          maxLength: 512
+          writeOnly: true
+    Administrator:
+      type: object
+      additionalProperties: false
+      required: [id, email, display_name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Session:
+      type: object
+      additionalProperties: false
+      required: [administrator, authenticated_at, idle_expires_at, absolute_expires_at]
+      properties:
+        administrator:
+          $ref: "#/components/schemas/Administrator"
+        authenticated_at:
+          type: string
+          format: date-time
+        idle_expires_at:
+          type: string
+          format: date-time
+        absolute_expires_at:
+          type: string
+          format: date-time
+    SessionResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Session"
+
+    IntegrationStatus:
+      type: string
+      enum: [pending, connected, authentication_failed, unavailable]
+    ConnectionTestStatus:
+      type: string
+      enum: [connected, authentication_failed, unavailable]
+    ConnectionTestResult:
+      type: object
+      additionalProperties: false
+      required: [status, checked_at, user_message]
+      properties:
+        status:
+          $ref: "#/components/schemas/ConnectionTestStatus"
+        checked_at:
+          type: string
+          format: date-time
+        latency_ms:
+          type: integer
+          minimum: 0
+        user_message:
+          type: string
+          maxLength: 500
+    ConnectionTestResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ConnectionTestResult"
+
+    GitHubAccountType:
+      type: string
+      enum: [personal, organization]
+    GitHubAuthenticationMethod:
+      type: string
+      enum: [personal_access_token, github_app]
+    GitHubAccount:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - display_name
+        - account_type
+        - account_identifier
+        - authentication_method
+        - authentication_status
+        - credential_configured
+        - repository_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+        account_type:
+          $ref: "#/components/schemas/GitHubAccountType"
+        account_identifier:
+          type: string
+        authentication_method:
+          $ref: "#/components/schemas/GitHubAuthenticationMethod"
+        authentication_status:
+          $ref: "#/components/schemas/IntegrationStatus"
+        credential_configured:
+          type: boolean
+        repository_count:
+          type: integer
+          minimum: 0
+        last_checked_at:
+          type: string
+          format: date-time
+        manage_url:
+          type: string
+          format: uri
+          description: GitHub-managed URL for an App installation when applicable.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateGitHubPatAccountRequest:
+      type: object
+      additionalProperties: false
+      required: [display_name, account_type, account_identifier, personal_access_token]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        account_type:
+          $ref: "#/components/schemas/GitHubAccountType"
+        account_identifier:
+          type: string
+          minLength: 1
+          maxLength: 100
+        personal_access_token:
+          type: string
+          minLength: 20
+          maxLength: 512
+          writeOnly: true
+    UpdateGitHubAccountRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        personal_access_token:
+          type: string
+          minLength: 20
+          maxLength: 512
+          writeOnly: true
+    GitHubManifestRegistrationRequest:
+      type: object
+      additionalProperties: false
+      required: [display_name, owner_type]
+      allOf:
+        - if:
+            properties:
+              owner_type:
+                const: organization
+          then:
+            required: [organization]
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        owner_type:
+          $ref: "#/components/schemas/GitHubAccountType"
+        organization:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Required only when owner_type is organization.
+    GitHubManifestRegistration:
+      type: object
+      additionalProperties: false
+      required: [registration_id, form_action, manifest, state, expires_at]
+      properties:
+        registration_id:
+          type: string
+          format: uuid
+        form_action:
+          type: string
+          format: uri
+          description: github.com settings form endpoint selected for personal or organization ownership.
+        manifest:
+          type: string
+          description: JSON-encoded private GitHub App manifest with minimum permissions and inactive webhooks.
+        state:
+          type: string
+          minLength: 32
+          maxLength: 512
+          description: One-time unpredictable CSRF/correlation value.
+        expires_at:
+          type: string
+          format: date-time
+    GitHubRepository:
+      type: object
+      additionalProperties: false
+      required: [github_account_id, repository_identifier, owner, name, full_name, default_branch, private, html_url]
+      properties:
+        github_account_id:
+          type: string
+          format: uuid
+        repository_identifier:
+          type: string
+        owner:
+          type: string
+        name:
+          type: string
+        full_name:
+          type: string
+        default_branch:
+          type: string
+        private:
+          type: boolean
+        html_url:
+          type: string
+          format: uri
+    GitHubAccountResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/GitHubAccount"
+    GitHubAccountListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubAccount"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    GitHubRepositoryListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/GitHubRepository"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    GitHubManifestRegistrationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/GitHubManifestRegistration"
+
+    DokployServer:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - base_url
+        - server_identifier
+        - connection_status
+        - credential_configured
+        - application_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        base_url:
+          type: string
+          format: uri
+        server_identifier:
+          type: string
+        connection_status:
+          $ref: "#/components/schemas/IntegrationStatus"
+        credential_configured:
+          type: boolean
+        application_count:
+          type: integer
+          minimum: 0
+        last_synced_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateDokployServerRequest:
+      type: object
+      additionalProperties: false
+      required: [name, base_url, api_credential]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        base_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        api_credential:
+          type: string
+          minLength: 16
+          maxLength: 1024
+          writeOnly: true
+    UpdateDokployServerRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        base_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        api_credential:
+          type: string
+          minLength: 16
+          maxLength: 1024
+          writeOnly: true
+    DokployApplication:
+      type: object
+      additionalProperties: false
+      required: [dokploy_server_id, application_identifier, instance_identifier, display_name]
+      properties:
+        dokploy_server_id:
+          type: string
+          format: uuid
+        application_identifier:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment:
+          type: string
+          description: Optional safe provider metadata such as production or staging.
+        status:
+          type: string
+          enum: [running, stopped, degraded, unknown]
+    DokployServerResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/DokployServer"
+    DokployServerListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployServer"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    DokployApplicationListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployApplication"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    QvacAuthenticationType:
+      type: string
+      enum: [none, bearer, basic]
+    QvacAuthenticationRequest:
+      type: object
+      additionalProperties: false
+      required: [type]
+      allOf:
+        - if:
+            properties:
+              type:
+                const: bearer
+          then:
+            required: [bearer_token]
+        - if:
+            properties:
+              type:
+                const: basic
+          then:
+            required: [basic_username, basic_password]
+        - if:
+            properties:
+              type:
+                const: none
+          then:
+            not:
+              anyOf:
+                - required: [bearer_token]
+                - required: [basic_username]
+                - required: [basic_password]
+      properties:
+        type:
+          $ref: "#/components/schemas/QvacAuthenticationType"
+        bearer_token:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          writeOnly: true
+        basic_username:
+          type: string
+          minLength: 1
+          maxLength: 255
+        basic_password:
+          type: string
+          minLength: 1
+          maxLength: 1024
+          writeOnly: true
+    PutQvacConfigurationRequest:
+      type: object
+      additionalProperties: false
+      required: [endpoint_url, connection_timeout_seconds, authentication]
+      properties:
+        endpoint_url:
+          type: string
+          format: uri
+          maxLength: 2048
+        connection_timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+          default: 30
+        authentication:
+          $ref: "#/components/schemas/QvacAuthenticationRequest"
+    QvacConfiguration:
+      type: object
+      additionalProperties: false
+      required: [endpoint_url, connection_timeout_seconds, authentication_type, credential_configured, updated_at]
+      properties:
+        endpoint_url:
+          type: string
+          format: uri
+        connection_timeout_seconds:
+          type: integer
+          minimum: 1
+          maximum: 300
+        authentication_type:
+          $ref: "#/components/schemas/QvacAuthenticationType"
+        credential_configured:
+          type: boolean
+        updated_at:
+          type: string
+          format: date-time
+    QvacRuntimeStatus:
+      type: object
+      additionalProperties: false
+      required: [connection_status, runtime]
+      properties:
+        connection_status:
+          $ref: "#/components/schemas/IntegrationStatus"
+        runtime:
+          type: string
+          example: QVAC Local
+        active_model:
+          type: string
+        version:
+          type: string
+        latency_ms:
+          type: integer
+          minimum: 0
+        checked_at:
+          type: string
+          format: date-time
+    QvacConfigurationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/QvacConfiguration"
+    QvacStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/QvacRuntimeStatus"
+
+    MonitoringConfiguration:
+      type: object
+      additionalProperties: false
+      required: [enabled, error_patterns, ignored_patterns, grouping_window, context_before, context_after]
+      examples:
+        - enabled: true
+          error_patterns:
+            - "database .* unavailable"
+          ignored_patterns:
+            - "expected healthcheck failure"
+          grouping_window: PT30M
+          context_before: 20
+          context_after: 20
+      properties:
+        enabled:
+          type: boolean
+          default: false
+        error_patterns:
+          type: array
+          maxItems: 100
+          default: []
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+          description: Additional regular expressions; they complement built-in rules.
+        ignored_patterns:
+          type: array
+          maxItems: 100
+          default: []
+          items:
+            type: string
+            minLength: 1
+            maxLength: 500
+          description: Regular expressions evaluated first and with absolute precedence.
+        grouping_window:
+          type: string
+          format: duration
+          default: PT30M
+          pattern: "^P(?!$).+$"
+        context_before:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          default: 20
+        context_after:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          default: 20
+    MonitoringConfigurationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/MonitoringConfiguration"
+    MonitoringStatus:
+      type: string
+      enum: [disabled, starting, monitoring, degraded, error]
+    ProjectHealthStatus:
+      type: string
+      enum: [healthy, warning, critical, unknown]
+    BuiltInDetectionRule:
+      type: object
+      additionalProperties: false
+      required: [code, display_name, enabled]
+      properties:
+        code:
+          type: string
+          enum: [error_level, fatal_level, panic, stack_trace, http_5xx, process_crash, container_restart]
+        display_name:
+          type: string
+        enabled:
+          type: boolean
+          const: true
+          description: Built-in rules are enabled and not individually configurable in the MVP.
+    ProjectSummary:
+      type: object
+      required:
+        - id
+        - name
+        - monitoring_status
+        - health_status
+        - github_repository
+        - dokploy_application
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        monitoring_status:
+          $ref: "#/components/schemas/MonitoringStatus"
+        health_status:
+          $ref: "#/components/schemas/ProjectHealthStatus"
+        github_repository:
+          $ref: "#/components/schemas/GitHubRepository"
+        dokploy_application:
+          $ref: "#/components/schemas/DokployApplication"
+        last_observed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Project:
+      allOf:
+        - $ref: "#/components/schemas/ProjectSummary"
+        - type: object
+          required: [monitoring_configuration, built_in_detection_rules]
+          properties:
+            monitoring_configuration:
+              $ref: "#/components/schemas/MonitoringConfiguration"
+            built_in_detection_rules:
+              type: array
+              items:
+                $ref: "#/components/schemas/BuiltInDetectionRule"
+      unevaluatedProperties: false
+    CreateProjectRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - github_account_id
+        - repository_identifier
+        - default_branch
+        - dokploy_server_id
+        - application_identifier
+        - monitoring_configuration
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        github_account_id:
+          type: string
+          format: uuid
+        repository_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+        default_branch:
+          type: string
+          minLength: 1
+          maxLength: 255
+        dokploy_server_id:
+          type: string
+          format: uuid
+        application_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+        monitoring_configuration:
+          $ref: "#/components/schemas/MonitoringConfiguration"
+    UpdateProjectRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        description:
+          type: string
+          maxLength: 2000
+        github_account_id:
+          type: string
+          format: uuid
+        repository_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+        default_branch:
+          type: string
+          minLength: 1
+          maxLength: 255
+        dokploy_server_id:
+          type: string
+          format: uuid
+        application_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+    ProjectResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Project"
+    ProjectListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProjectSummary"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    AutomationPolicy:
+      type: object
+      additionalProperties: false
+      required: [automatic_investigation, automatic_remediation, automatic_pull_request]
+      allOf:
+        - if:
+            properties:
+              automatic_investigation:
+                const: false
+          then:
+            properties:
+              automatic_remediation:
+                const: false
+              automatic_pull_request:
+                const: false
+        - if:
+            properties:
+              automatic_remediation:
+                const: false
+          then:
+            properties:
+              automatic_pull_request:
+                const: false
+      properties:
+        automatic_investigation:
+          type: boolean
+          default: true
+        automatic_remediation:
+          type: boolean
+          default: true
+          description: May only be true when automatic_investigation is true.
+        automatic_pull_request:
+          type: boolean
+          default: true
+          description: May only be true when automatic_investigation and automatic_remediation are true.
+    AutomationPolicyResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/AutomationPolicy"
+
+    Severity:
+      type: string
+      enum: [critical, error, warning, info]
+    RootCauseStatus:
+      type: string
+      enum: [identified, suspected, unknown]
+    ResolutionStatus:
+      type: string
+      enum: [fixable, requires_human]
+    IncidentPhase:
+      type: string
+      enum: [detected, investigating, publishing_issue, remediating, completed, failed]
+    TerminalOutcome:
+      type: string
+      enum: [pull_request_created, requires_human, remediation_failed, investigation_failed, issue_publication_failed]
+    InvestigationStatus:
+      type: string
+      enum: [pending, running, completed, failed]
+    RemediationStatus:
+      type: string
+      enum: [planned, in_progress, validated, failed, pull_request_created]
+    ProjectReference:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    GitHubIssueReference:
+      type: object
+      additionalProperties: false
+      required: [number, url, repository, created_at]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          format: uri
+        repository:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    PullRequestReference:
+      type: object
+      additionalProperties: false
+      required: [number, url, repository, branch, created_at]
+      properties:
+        number:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+          format: uri
+        repository:
+          type: string
+        branch:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    IncidentSummary:
+      type: object
+      required:
+        - id
+        - key
+        - project
+        - fingerprint
+        - severity
+        - title
+        - phase
+        - occurrence_count
+        - first_seen_at
+        - last_seen_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+          pattern: "^AKR-[0-9]+$"
+          example: AKR-184
+        project:
+          $ref: "#/components/schemas/ProjectReference"
+        fingerprint:
+          type: string
+          minLength: 16
+          maxLength: 255
+        severity:
+          $ref: "#/components/schemas/Severity"
+        title:
+          type: string
+          maxLength: 500
+        summary:
+          type: string
+          maxLength: 5000
+        phase:
+          $ref: "#/components/schemas/IncidentPhase"
+        terminal_outcome:
+          $ref: "#/components/schemas/TerminalOutcome"
+        root_cause_status:
+          $ref: "#/components/schemas/RootCauseStatus"
+        resolution_status:
+          $ref: "#/components/schemas/ResolutionStatus"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        occurrence_count:
+          type: integer
+          format: int64
+          minimum: 1
+        first_seen_at:
+          type: string
+          format: date-time
+        last_seen_at:
+          type: string
+          format: date-time
+        github_issue_reference:
+          $ref: "#/components/schemas/GitHubIssueReference"
+        pull_request_reference:
+          $ref: "#/components/schemas/PullRequestReference"
+      examples:
+        - id: 018f4f76-76e3-7f1e-9f4f-6516e81d48a2
+          key: AKR-184
+          project:
+            id: 018f4f76-76e3-7f1e-9f4f-6516e81d48b3
+            name: sentinel-api
+          fingerprint: sha256:8aa3196f881b7a50
+          severity: critical
+          title: Nil pointer panic on GET /users/:id
+          phase: remediating
+          root_cause_status: identified
+          resolution_status: fixable
+          confidence: 0.94
+          occurrence_count: 37
+          first_seen_at: "2026-08-22T23:31:04Z"
+          last_seen_at: "2026-08-22T23:38:14Z"
+    DeploymentCorrelation:
+      type: object
+      additionalProperties: false
+      required: [deployment_identifier, occurred_before_incident_seconds]
+      properties:
+        deployment_identifier:
+          type: string
+        commit_sha:
+          type: string
+        occurred_before_incident_seconds:
+          type: integer
+          minimum: 0
+        summary:
+          type: string
+          maxLength: 1000
+    Incident:
+      allOf:
+        - $ref: "#/components/schemas/IncidentSummary"
+        - type: object
+          properties:
+            latest_investigation:
+              $ref: "#/components/schemas/Investigation"
+            remediation:
+              $ref: "#/components/schemas/Remediation"
+            deployment_correlation:
+              $ref: "#/components/schemas/DeploymentCorrelation"
+      unevaluatedProperties: false
+    IncidentResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Incident"
+    IncidentListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/IncidentSummary"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    SanitizedLogRecord:
+      type: object
+      additionalProperties: false
+      required: [timestamp, message, redacted]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        stream:
+          type: string
+          enum: [stdout, stderr, unknown]
+        message:
+          type: string
+          maxLength: 20000
+          description: Sanitized content; detected secrets are redacted before persistence or exposure.
+        redacted:
+          type: boolean
+    LogEvent:
+      type: object
+      additionalProperties: false
+      required: [id, project_id, timestamp, severity, message, fingerprint, detection_rules, raw_context_redacted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+        severity:
+          $ref: "#/components/schemas/Severity"
+        message:
+          type: string
+          maxLength: 20000
+        fingerprint:
+          type: string
+        detection_rules:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        context_before:
+          type: array
+          items:
+            $ref: "#/components/schemas/SanitizedLogRecord"
+        context_after:
+          type: array
+          items:
+            $ref: "#/components/schemas/SanitizedLogRecord"
+        raw_context_redacted:
+          type: boolean
+          const: true
+    LogEventListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/LogEvent"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    EvidenceType:
+      type: string
+      enum: [log_excerpt, stack_trace, code_location, commit, diff, validation_result, deployment_metadata]
+    Evidence:
+      type: object
+      additionalProperties: false
+      required: [id, investigation_id, type, summary, redacted, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        investigation_id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/EvidenceType"
+        summary:
+          type: string
+          maxLength: 5000
+        content:
+          type: string
+          maxLength: 50000
+          description: Sanitized evidence excerpt; never contains integration credentials.
+        file_path:
+          type: string
+          maxLength: 4096
+        line_start:
+          type: integer
+          minimum: 1
+        line_end:
+          type: integer
+          minimum: 1
+        commit_sha:
+          type: string
+          maxLength: 64
+        patch:
+          type: string
+          maxLength: 100000
+          description: Sanitized unified diff excerpt.
+        occurred_at:
+          type: string
+          format: date-time
+        redacted:
+          type: boolean
+          const: true
+        created_at:
+          type: string
+          format: date-time
+    Investigation:
+      type: object
+      additionalProperties: false
+      required: [id, incident_id, status, started_at, hypotheses, relevant_files, relevant_commits, recommended_actions]
+      properties:
+        id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/InvestigationStatus"
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          maxLength: 10000
+        root_cause:
+          type: string
+          maxLength: 20000
+        root_cause_status:
+          $ref: "#/components/schemas/RootCauseStatus"
+        resolution_status:
+          $ref: "#/components/schemas/ResolutionStatus"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        hypotheses:
+          type: array
+          items:
+            type: string
+            maxLength: 5000
+        relevant_files:
+          type: array
+          items:
+            type: string
+            maxLength: 4096
+        relevant_commits:
+          type: array
+          items:
+            type: string
+            maxLength: 64
+        recommended_actions:
+          type: array
+          items:
+            type: string
+            maxLength: 5000
+        evidence_count:
+          type: integer
+          minimum: 0
+        failure_user_message:
+          type: string
+          maxLength: 1000
+    InvestigationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Investigation"
+    InvestigationListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Investigation"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    EvidenceListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Evidence"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    TimelineEventType:
+      type: string
+      enum:
+        - incident_detected
+        - investigation_started
+        - tool_used
+        - root_cause_classified
+        - issue_created
+        - remediation_started
+        - branch_created
+        - changes_generated
+        - validation_completed
+        - pull_request_created
+        - workflow_failed
+    TimelineEvent:
+      type: object
+      additionalProperties: false
+      required: [id, incident_id, type, occurred_at, summary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/TimelineEventType"
+        occurred_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          maxLength: 2000
+        detail:
+          type: string
+          maxLength: 10000
+          description: Sanitized technical detail, such as a file path or tool result summary.
+    TimelineEventListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineEvent"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    ValidationStatus:
+      type: string
+      enum: [pending, running, passed, failed]
+    ValidationType:
+      type: string
+      enum: [test, build, static_analysis]
+    ValidationResult:
+      type: object
+      additionalProperties: false
+      required: [id, remediation_id, type, name, status, started_at, output_redacted]
+      properties:
+        id:
+          type: string
+          format: uuid
+        remediation_id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ValidationType"
+        name:
+          type: string
+          maxLength: 255
+        status:
+          $ref: "#/components/schemas/ValidationStatus"
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          maxLength: 5000
+        output_excerpt:
+          type: string
+          maxLength: 50000
+          description: Sanitized output excerpt; secrets and environment values are redacted.
+        output_redacted:
+          type: boolean
+          const: true
+    CodeChange:
+      type: object
+      additionalProperties: false
+      required: [file_path, change_type, patch, redacted]
+      properties:
+        file_path:
+          type: string
+          maxLength: 4096
+        change_type:
+          type: string
+          enum: [added, modified, deleted]
+        patch:
+          type: string
+          maxLength: 200000
+          description: Sanitized unified diff for review.
+        redacted:
+          type: boolean
+          const: true
+    Remediation:
+      type: object
+      additionalProperties: false
+      required: [id, incident_id, status, created_at, changes, validation_summary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        incident_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/RemediationStatus"
+        branch_name:
+          type: string
+          maxLength: 255
+        changes_summary:
+          type: string
+          maxLength: 10000
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/CodeChange"
+        validation_summary:
+          type: object
+          additionalProperties: false
+          required: [total, passed, failed]
+          properties:
+            total:
+              type: integer
+              minimum: 0
+            passed:
+              type: integer
+              minimum: 0
+            failed:
+              type: integer
+              minimum: 0
+        failure_user_message:
+          type: string
+          maxLength: 1000
+        pull_request_reference:
+          $ref: "#/components/schemas/PullRequestReference"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    RemediationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Remediation"
+    ValidationResultListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationResult"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    PullRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - project
+        - incident_id
+        - incident_key
+        - remediation_id
+        - issue_reference
+        - reference
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        project:
+          $ref: "#/components/schemas/ProjectReference"
+        incident_id:
+          type: string
+          format: uuid
+        incident_key:
+          type: string
+          pattern: "^AKR-[0-9]+$"
+        remediation_id:
+          type: string
+          format: uuid
+        issue_reference:
+          $ref: "#/components/schemas/GitHubIssueReference"
+        reference:
+          $ref: "#/components/schemas/PullRequestReference"
+        title:
+          type: string
+          maxLength: 500
+        changes_summary:
+          type: string
+          maxLength: 10000
+        validation_summary:
+          type: string
+          maxLength: 5000
+        risk_summary:
+          type: string
+          maxLength: 5000
+        created_at:
+          type: string
+          format: date-time
+    PullRequestResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/PullRequest"
+    PullRequestListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PullRequest"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    OperationStatus:
+      type: string
+      enum: [queued, running, succeeded, failed]
+    OperationType:
+      type: string
+      enum: [system_diagnostics, investigation, remediation, pull_request]
+    Operation:
+      type: object
+      additionalProperties: false
+      required: [id, type, status, created_at, updated_at]
+      examples:
+        - id: 018f4f76-76e3-7f1e-9f4f-6516e81d48d5
+          type: investigation
+          status: queued
+          resource_type: investigation
+          user_message: La investigación fue encolada.
+          created_at: "2026-08-22T23:31:05Z"
+          updated_at: "2026-08-22T23:31:05Z"
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/OperationType"
+        status:
+          $ref: "#/components/schemas/OperationStatus"
+        resource_type:
+          type: string
+          enum: [system, investigation, remediation, pull_request]
+        resource_id:
+          type: string
+          format: uuid
+        user_message:
+          type: string
+          maxLength: 1000
+        failure_code:
+          $ref: "#/components/schemas/ErrorCode"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+    OperationResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Operation"
+
+    ActivityType:
+      type: string
+      enum: [monitoring, incident, investigation, issue, remediation, pull_request, integration, system]
+    ActivityEvent:
+      type: object
+      additionalProperties: false
+      required: [id, type, occurred_at, summary]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: "#/components/schemas/ActivityType"
+        project:
+          $ref: "#/components/schemas/ProjectReference"
+        incident_id:
+          type: string
+          format: uuid
+        incident_key:
+          type: string
+          pattern: "^AKR-[0-9]+$"
+        occurred_at:
+          type: string
+          format: date-time
+        summary:
+          type: string
+          maxLength: 2000
+        user_message:
+          type: string
+          maxLength: 2000
+    ActivityListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+        paging:
+          $ref: "#/components/schemas/Paging"
+
+    ComponentHealth:
+      type: object
+      additionalProperties: false
+      required: [component, status]
+      properties:
+        component:
+          type: string
+          enum: [github, dokploy, qvac, investigator]
+        status:
+          type: string
+          enum: [healthy, degraded, unavailable, not_configured, running]
+        checked_at:
+          type: string
+          format: date-time
+    SystemStatus:
+      type: object
+      additionalProperties: false
+      required: [github_account_count, dokploy_server_count, components]
+      properties:
+        github_account_count:
+          type: integer
+          minimum: 0
+        dokploy_server_count:
+          type: integer
+          minimum: 0
+        qvac_endpoint:
+          type: string
+          format: uri
+          description: Safe configured endpoint; credentials are never included.
+        components:
+          type: array
+          items:
+            $ref: "#/components/schemas/ComponentHealth"
+        last_diagnostics_at:
+          type: string
+          format: date-time
+    SystemStatusResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/SystemStatus"
+
+    Overview:
+      type: object
+      additionalProperties: false
+      required:
+        - monitored_projects
+        - active_incidents
+        - workflow_completed_incidents
+        - pull_requests_created
+        - active_investigations
+      properties:
+        monitored_projects:
+          type: integer
+          minimum: 0
+        active_incidents:
+          type: integer
+          minimum: 0
+        workflow_completed_incidents:
+          type: integer
+          minimum: 0
+          description: Pipelines that reached a terminal outcome; not proof of production resolution.
+        pull_requests_created:
+          type: integer
+          minimum: 0
+        active_investigations:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/IncidentSummary"
+        latest_activity:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+    OverviewResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Overview"

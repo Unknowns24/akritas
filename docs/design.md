@@ -177,3 +177,32 @@ Specialized Indigo-themed components. They should feature a subtle "Intel" icon 
 ### Code Diffs
 
 Use JetBrains Mono. Deletions are marked with a muted red background; additions with a muted green. Text remains legible with high contrast.
+
+## Authentication UX
+
+Authentication introduces three public screens that must reuse the same dark,
+low-distraction visual system:
+
+### Initial Setup
+
+- Collect email, display name, password and bootstrap token before showing TOTP.
+- Present the QR and manual key only after the first step succeeds.
+- Warn that provisioning data is shown once and must not be copied into logs.
+- Require a six-digit confirmation code before entering the application.
+- If setup is already complete, redirect to Login without revealing account data.
+
+### Login
+
+- Collect email, password and six-digit TOTP in one cohesive form.
+- Show one generic invalid-credentials message for every factor failure.
+- Preserve password-manager compatibility and allow paste into the TOTP field.
+- Display rate limiting without exposing remaining attempts or account existence.
+
+### Recovery
+
+- Clearly label recovery as an administrative operation requiring deployment access.
+- Collect email, new password and bootstrap token, then repeat TOTP enrollment.
+- Confirm that completing recovery revokes every previous session and authenticator.
+
+Passwords, bootstrap values, TOTP codes, provisioning URIs and session identifiers
+must never be placed in URLs, browser storage, analytics or client logs.

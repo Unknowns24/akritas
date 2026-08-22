@@ -811,7 +811,68 @@ Use this decision guide.
 
 ---
 
-## 21. Final rule
+## 21. Authentication boundary
+
+Authentication is a cross-cutting backend capability, not a REST-only business
+rule and not a generic enterprise identity platform.
+
+The MVP modules should remain cohesive:
+
+```text
+core/domain authentication concepts
+        ↓
+auth usecases (setup, verify, login, logout, recovery)
+        ↓
+session and encrypted-secret output ports
+        ↓
+database / cryptography adapters
+        ↓
+REST auth handlers and session middleware
+```
+
+Rules:
+
+- exactly one active Administrator;
+- passwords are Argon2id hashes, never reversible encryption;
+- TOTP seeds are encrypted at rest and only decrypted at verification time;
+- session tokens are random, opaque and persisted only in non-reversible form;
+- setup/recovery compare the environment bootstrap token in constant time;
+- login and recovery enforce independent per-account and per-IP rate limits;
+- authentication failures expose one generic public error;
+- session middleware injects authenticated identity; handlers never parse storage
+  records directly;
+- mutating browser requests validate Origin against configured same-site origins.
+
+GitHub callbacks are intentionally public HTTP endpoints, but every attempt uses a
+stored, expiring, one-time `state`. Callback payloads are validated before any
+credential is persisted or redirect is emitted.
+
+## 22. HTTP contract conventions
+
+The canonical contract is `backend/docs/openapi.yaml` and declares API version
+`1.0.0` under `/api/v1`.
+
+Transport conventions:
+
+```text
+single resource  → { data: object }
+collection       → { data: [], paging: {...} }
+long command     → 202 { data: Operation }
+failure          → { error: { code, message, user_message, request_id, details? } }
+```
+
+Operational collections use signed cursors. A request with `cursor` must not add
+or change filters, sort or limit. Manual investigation, remediation and PR
+commands require `Idempotency-Key`.
+
+OpenAPI response schemas must never contain integration credentials, auth secrets
+or session tokens. Enrollment provisioning data is a one-time response with
+`Cache-Control: no-store`, not a persisted public resource.
+
+Incident `phase = completed` means Akritas completed its workflow. It does not
+mean the production defect was merged, deployed or resolved.
+
+## 23. Final rule
 
 When deciding where code belongs, ask:
 

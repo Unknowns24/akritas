@@ -71,14 +71,16 @@ Cada Project debe permitir configurar:
 ### GitHub
 - repositorio;
 - branch por defecto;
-- credencial/autorización necesaria para lectura y escritura;
+- referencia a una `GitHubAccount` previamente validada, cuya credencial/autorización de lectura y escritura vive exclusivamente en Credential Store;
 - permisos para crear Issues y Pull Requests.
 
 ### Dokploy
 - instancia/servidor;
 - aplicación asociada;
-- credencial de acceso;
+- referencia a un `DokployServer` previamente validado, cuya credencial de acceso vive exclusivamente en Credential Store;
 - configuración mínima para obtener logs.
+
+`Project` persiste únicamente identificadores de integraciones y recursos seleccionados. Nunca contiene ni devuelve PATs, API keys, private keys, webhook secrets, ciphertext o nonces.
 
 ### Monitoring
 - activado/desactivado;

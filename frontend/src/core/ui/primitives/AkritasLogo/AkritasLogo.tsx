@@ -2,6 +2,14 @@ import React from "react";
 
 export interface AkritasLogoProps extends React.SVGProps<SVGSVGElement> {
   size?: number;
+  variant?:
+    | "default"
+    | "logo-black"
+    | "logo-text-black"
+    | "logo-text-white-outline"
+    | "logo-text-white"
+    | "logo-white-outline"
+    | "logo-white";
 }
 
 export const AkritasLogo: React.FC<AkritasLogoProps> = ({
@@ -10,10 +18,25 @@ export const AkritasLogo: React.FC<AkritasLogoProps> = ({
   height,
   className = "",
   style,
+  variant = "default",
   ...props
 }) => {
   const w = width ?? size;
   const h = height ?? Math.round((Number(w) * 592) / 872);
+
+  if (variant !== "default") {
+    return (
+      <img
+        src={`/logos/${variant}.svg`}
+        width={w}
+        height={h}
+        className={className}
+        style={{ display: "block", ...style }}
+        alt={`${variant} logo`}
+        {...(props as any)}
+      />
+    );
+  }
 
   return (
     <svg

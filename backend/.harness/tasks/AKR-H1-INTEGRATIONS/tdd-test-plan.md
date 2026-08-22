@@ -9,6 +9,28 @@ repositorios/aplicaciones.
 No se probarán ni implementarán Project/Monitoring, autenticación single-admin,
 logs, detección, Incidents, QVAC, Issues o Remediation.
 
+## Corrección arquitectónica — tests antes del refactor
+
+- Uker parsea primeras páginas y cursores firmados, rechaza tampering,
+  expiración, overrides y scopes de otra integración.
+- PostgreSQL aplica `pagination.Apply` para datos y `ApplyFilters` para el total,
+  con orden total `created_at,id` y navegación siguiente/anterior.
+- Discovery traduce boundaries firmados Uker a página GitHub u offset Dokploy
+  sin codec/serialización propios.
+- Viper respeta environment sobre `app.env`, aplica defaults y falla cerrado
+  ante DSN, URL, master key o pagination secret inválidos.
+- GORM persiste entidades de dominio contra las cinco migraciones existentes;
+  ciphertext/nonce sólo aparecen en el record privado del Credential Store.
+- Los errores por capa conservan códigos únicos y no aparecen en catálogos de
+  otra capa.
+- Los contratos REST usan DTOs tipados seguros y mappers separados sin cambiar
+  los payloads OpenAPI.
+- Bootstrap rechaza middleware admin ausente antes de abrir DB o ejecutar
+  migraciones.
+
+Estos tests priorizan comportamiento e invariantes; no fijan nombres de helpers
+privados ni orden interno de llamadas sin efecto observable.
+
 ## 1. Dominio, contratos y errores
 
 - `GitHubAccountType` y `GitHubAuthenticationMethod` permanecen independientes.
@@ -185,7 +207,7 @@ logs, detección, Incidents, QVAC, Issues o Remediation.
   schemas canónicos.
 - Todas las mutaciones privadas documentan 401 y 403.
 - `server_identifier` documenta el fingerprint derivado.
-- `info.version` y el gate coinciden en `1.1.0`.
+- `info.version` y el gate coinciden en `1.2.0`; el límite por defecto es 25.
 - Ningún response schema adquiere propiedades sensibles.
 - `mvp.md`, `spec.md` y `domain.md` quedan alineados con backlog, ADRs y OpenAPI.
 

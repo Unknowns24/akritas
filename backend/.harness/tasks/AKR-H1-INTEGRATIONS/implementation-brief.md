@@ -5,6 +5,24 @@
 `AKR-H1-INTEGRATIONS`: resolver AKR-5..12 y AKR-21 como el incremento de
 integraciones del Hito 1.
 
+## Corrección arquitectónica aprobada
+
+La segunda iteración mantiene el comportamiento H1 y reemplaza decisiones de
+estructura observadas durante review:
+
+- Uker v1.2.2 será la única implementación de cursores, parsing y construcción
+  de páginas; se elimina el codec local.
+- Configuración runtime se concentra en `config/config.go` mediante Viper.
+- Las entidades persistibles usan tags GORM sin importar GORM en core; se
+  elimina `postgres/models`, salvo un record privado del Credential Store.
+- DTOs REST llevan sufijo `DTO`, una estructura por archivo, con conversiones
+  bajo `rest/mapper`.
+- Errores REST/DB/external pertenecen a sus adapters y sólo comparten el tipo
+  `domain.Error`.
+- El composition root se mueve de `internal/app` a `internal/bootstrap`.
+
+ADRs que gobiernan la corrección: ADR-011, ADR-012 y ADR-013.
+
 ## Estado actual
 
 - El módulo Go 1.26 contiene el dominio de `GitHubAccount`,
@@ -86,14 +104,16 @@ ningún secreto formará parte de una entidad o resultado público.
 
 - Usecases en `internal/usecase/githubaccount/` y
   `internal/usecase/dokployserver/`, con una operación pública por archivo.
-- PostgreSQL en `internal/adapter/db/postgres/`, con modelos y mapping exclusivos
-  del adapter.
+- PostgreSQL en `internal/adapter/db/postgres/`, persistiendo directamente las
+  entidades de dominio autorizadas por ADR-012 y conservando sólo records
+  privados para datos sin representación de dominio.
 - Credential Store/cipher como adapter de infraestructura.
 - GitHub y Dokploy en `internal/adapter/external/` usando `net/http`.
 - DTOs y handlers feature-oriented en `internal/adapter/rest/`.
 - Router construido con una dependencia obligatoria de middleware de
   administrador. La implementación concreta de PB-061..063 queda fuera.
-- Cursor HMAC-SHA256 que firme integración, posición, filtros y límite.
+- Uker v1.2.2 como única implementación de parsing, firma y construcción de
+  cursores; los adapters externos sólo traducen boundaries a página/offset.
 - Wiring en el orden config → DB/migrations → repositories → adapters →
   usecases → router, sin exponer rutas sin autenticación.
 
@@ -193,8 +213,8 @@ Las demás operaciones exigirán sesión administrativa; las mutaciones también
 validarán Origin.
 
 Al agregar respuestas `403` compatibles y aclarar el significado de
-`server_identifier`, subir `info.version` a `1.1.0` y actualizar el gate/memoria
-que hoy fijan `1.0.0`.
+`server_identifier`, subir `info.version` a `1.2.0`, alinear el default Uker de 25
+y actualizar el gate/memoria.
 
 ## Inconsistencias detectadas
 

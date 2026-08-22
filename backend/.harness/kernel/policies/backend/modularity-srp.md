@@ -321,6 +321,19 @@ A feature requiring a new domain concept MUST define that concept in the domain 
 
 Database models and HTTP DTOs MUST NOT replace domain entities unless an ADR explicitly defines that architecture.
 
+When an accepted ADR establishes domain entities as the active GORM mapping,
+the DB adapter MUST reuse those entities instead of maintaining field-for-field
+duplicates. Infrastructure-only records may remain private to their adapter.
+
+REST DTO rules:
+
+- every transport struct name ends in `DTO`;
+- each DTO struct lives in its own file;
+- related DTOs may be grouped by feature directories;
+- mapping functions live in `internal/adapter/rest/mapper/`, not beside DTO
+  declarations;
+- each mapper file performs one direction/concept of conversion.
+
 ## Bootstrap and wiring
 
 Bootstrap code MUST only compose and start the application.

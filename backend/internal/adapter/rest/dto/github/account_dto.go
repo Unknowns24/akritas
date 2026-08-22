@@ -1,4 +1,4 @@
-package dto
+package github
 
 type GitHubAccountDTO struct {
 	ID                   string  `json:"id"`

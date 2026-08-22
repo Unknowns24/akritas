@@ -3,7 +3,8 @@ package github
 import (
 	"net/http"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	githubdto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/github"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	restpagination "github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
@@ -29,14 +30,14 @@ func (h *Handler) ListRepositories(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	items := make([]dto.GitHubRepositoryDTO, 0, len(page.Items))
+	items := make([]githubdto.GitHubRepositoryDTO, 0, len(page.Items))
 	for _, item := range page.Items {
 		items = append(items, mapper.GitHubRepositoryToDTO(item))
 	}
-	built, err := restpagination.BuildProviderPage(params, paging.Slice[dto.GitHubRepositoryDTO]{Items: items, Total: page.Total, NextBoundary: page.NextBoundary, PrevBoundary: page.PrevBoundary}, h.paging)
+	built, err := restpagination.BuildProviderPage(params, paging.Slice[githubdto.GitHubRepositoryDTO]{Items: items, Total: page.Total, NextBoundary: page.NextBoundary, PrevBoundary: page.PrevBoundary}, h.paging)
 	if err != nil {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, dto.ListResponseDTO[dto.GitHubRepositoryDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
+	response.JSON(w, http.StatusOK, commondto.ListResponseDTO[githubdto.GitHubRepositoryDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
 }

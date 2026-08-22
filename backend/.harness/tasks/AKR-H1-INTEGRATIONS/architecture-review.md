@@ -25,8 +25,8 @@
 ## Modularity y contratos
 
 - Usecases, repositorios y handlers están separados por feature/operación.
-- DTOs REST usan sufijo `DTO`, una estructura por archivo; mappers tienen una
-  conversión pública por archivo.
+- DTOs REST usan sufijo `DTO`, una estructura por archivo y paquetes por
+  feature/common; mappers tienen una conversión pública por archivo.
 - Los catálogos de errores están en su capa y cruzan límites mediante
   `domain.Error` normalizado.
 - Uker es el único contrato/codec de paginación: alias en ports, parsing/firma

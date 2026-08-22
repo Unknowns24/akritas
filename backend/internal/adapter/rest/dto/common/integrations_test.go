@@ -1,4 +1,4 @@
-package dto_test
+package common_test
 
 import (
 	"encoding/json"

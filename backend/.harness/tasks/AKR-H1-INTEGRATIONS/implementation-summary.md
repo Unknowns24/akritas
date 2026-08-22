@@ -48,7 +48,7 @@ PB-061..063.
 ## REST y errores
 
 - Todos los contratos REST tienen sufijo `DTO`, una estructura por archivo y
-  envelopes tipados.
+  están agrupados en `dto/github`, `dto/dokploy` o `dto/common`.
 - Las conversiones viven en `internal/adapter/rest/mapper`, una responsabilidad
   por archivo.
 - Los errores REST viven en `internal/adapter/rest/errors`, los PostgreSQL en

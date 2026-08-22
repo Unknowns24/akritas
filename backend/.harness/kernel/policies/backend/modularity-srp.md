@@ -80,6 +80,10 @@ internal/adapter/rest/handler/
 
 The same principle applies to repositories, services, usecases, and other feature implementations.
 
+REST DTOs follow the same feature grouping under
+`internal/adapter/rest/dto/<feature>/`. Only shared envelopes and transport
+metadata belong in `dto/common/`; the `dto/` root contains no contract structs.
+
 ## Usecase packages
 
 Each usecase MUST live inside its feature package:

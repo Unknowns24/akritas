@@ -1,4 +1,4 @@
-package dto
+package common
 
 type ListResponseDTO[T any] struct {
 	Data   []T       `json:"data"`

@@ -1,4 +1,4 @@
-package dto
+package dokploy
 
 type CreateDokployServerRequestDTO struct {
 	Name          string `json:"name"`

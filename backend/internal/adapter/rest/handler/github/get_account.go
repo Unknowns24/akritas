@@ -3,7 +3,8 @@ package github
 import (
 	"net/http"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	githubdto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/github"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
 	"github.com/google/uuid"
@@ -20,5 +21,5 @@ func (h *Handler) GetAccount(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, dto.DataResponseDTO[dto.GitHubAccountDTO]{Data: mapper.GitHubAccountToDTO(*account)})
+	response.JSON(w, http.StatusOK, commondto.DataResponseDTO[githubdto.GitHubAccountDTO]{Data: mapper.GitHubAccountToDTO(*account)})
 }

@@ -1,4 +1,4 @@
-package dto
+package common
 
 type ConnectionTestDTO struct {
 	Status      string `json:"status"`

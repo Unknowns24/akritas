@@ -1,4 +1,4 @@
-package dto
+package common
 
 type PagingDTO struct {
 	Limit      int    `json:"limit"`

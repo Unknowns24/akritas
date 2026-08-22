@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
 	resterrors "github.com/Unknowns24/akritas/backend/internal/adapter/rest/errors"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	"github.com/google/uuid"
@@ -38,12 +38,12 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 			status = http.StatusConflict
 		}
 	}
-	JSON(w, status, dto.ErrorResponseDTO{Error: dto.ErrorDTO{Code: stable.Code, Message: stable.Message, UserMessage: stable.UserMessage, RequestID: requestID(r)}})
+	JSON(w, status, commondto.ErrorResponseDTO{Error: commondto.ErrorDTO{Code: stable.Code, Message: stable.Message, UserMessage: stable.UserMessage, RequestID: requestID(r)}})
 }
 
 func Invalid(w http.ResponseWriter, r *http.Request) {
 	stable := resterrors.ErrInvalidRequest
-	JSON(w, http.StatusBadRequest, dto.ErrorResponseDTO{Error: dto.ErrorDTO{
+	JSON(w, http.StatusBadRequest, commondto.ErrorResponseDTO{Error: commondto.ErrorDTO{
 		Code: stable.Code, Message: stable.Message, UserMessage: stable.UserMessage, RequestID: requestID(r),
 	}})
 }

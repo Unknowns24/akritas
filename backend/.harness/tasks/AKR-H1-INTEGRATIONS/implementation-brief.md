@@ -15,8 +15,9 @@ estructura observadas durante review:
 - Configuración runtime se concentra en `config/config.go` mediante Viper.
 - Las entidades persistibles usan tags GORM sin importar GORM en core; se
   elimina `postgres/models`, salvo un record privado del Credential Store.
-- DTOs REST llevan sufijo `DTO`, una estructura por archivo, con conversiones
-  bajo `rest/mapper`.
+- DTOs REST llevan sufijo `DTO`, una estructura por archivo y se agrupan bajo
+  `dto/github`, `dto/dokploy` o `dto/common`, con conversiones bajo
+  `rest/mapper`.
 - Errores REST/DB/external pertenecen a sus adapters y sólo comparten el tipo
   `domain.Error`.
 - El composition root se mueve de `internal/app` a `internal/bootstrap`.

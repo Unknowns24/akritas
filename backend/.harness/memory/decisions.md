@@ -41,4 +41,6 @@ Record durable project decisions here.
 - Runtime configuration is centralized in `config/config.go` with a local Viper instance; environment overrides optional `app.env` values and invalid security configuration fails closed.
 - Uker v1.2.2 is the only pagination/cursor implementation. Core exposes its parameter alias, while REST owns parsing/signing and adapters translate provider boundaries.
 - REST, database and external-adapter errors are declared by their owning layer. Domain retains domain and use-case errors through the common `domain.Error` contract.
-- REST contract types use the `DTO` suffix, one structure per file, and mapping responsibilities live in `internal/adapter/rest/mapper`.
+- REST contract types use the `DTO` suffix, one structure per file and packages
+  grouped by feature under `rest/dto/<feature>`; shared envelopes live in
+  `rest/dto/common`, and mapping responsibilities live in `rest/mapper`.

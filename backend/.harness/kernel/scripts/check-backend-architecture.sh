@@ -34,6 +34,12 @@ if [ -d internal/core ] && grep -RE '"[0-9A-F]x[123][0-9A-F]{5}[VUFNCI]"' intern
 fi
 
 if [ -d internal/adapter/rest/dto ]; then
+  root_dtos=$(find internal/adapter/rest/dto -maxdepth 1 -type f -name '*.go' ! -name '*_test.go' | sort)
+  if [ -n "$root_dtos" ]; then
+    echo "ERROR: REST DTOs must be grouped under dto/<feature> or dto/common"
+    printf '%s\n' "$root_dtos"
+    exit 1
+  fi
   while IFS= read -r file; do
     names=$(sed -nE 's/^type ([A-Za-z0-9_]+)(\[[^]]+\])? struct.*/\1/p' "$file")
     count=$(printf '%s\n' "$names" | sed '/^$/d' | wc -l | tr -d ' ')

@@ -1,4 +1,4 @@
-package dto
+package github
 
 type GitHubRepositoryDTO struct {
 	GitHubAccountID      string `json:"github_account_id"`

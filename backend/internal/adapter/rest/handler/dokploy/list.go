@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	dokploydto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/dokploy"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	restpagination "github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
@@ -32,16 +33,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	items := make([]dto.DokployServerDTO, 0, len(page.Items))
+	items := make([]dokploydto.DokployServerDTO, 0, len(page.Items))
 	for _, item := range page.Items {
 		items = append(items, mapper.DokployServerToDTO(item))
 	}
-	built, err := restpagination.BuildPage(params, paging.Slice[dto.DokployServerDTO]{Items: items, Total: page.Total}, h.paging, nil)
+	built, err := restpagination.BuildPage(params, paging.Slice[dokploydto.DokployServerDTO]{Items: items, Total: page.Total}, h.paging, nil)
 	if err != nil {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, dto.ListResponseDTO[dto.DokployServerDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
+	response.JSON(w, http.StatusOK, commondto.ListResponseDTO[dokploydto.DokployServerDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
 }
 
 func integrationStatuses(value string) ([]domain.IntegrationStatus, bool) {

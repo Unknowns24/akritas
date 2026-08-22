@@ -1,4 +1,4 @@
-package dto
+package github
 
 type CreateGitHubPATAccountRequestDTO struct {
 	DisplayName         string `json:"display_name"`

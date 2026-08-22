@@ -3,12 +3,12 @@ package mapper
 import (
 	"time"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	githubdto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/github"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 )
 
-func GitHubAccountToDTO(value domain.GitHubAccount) dto.GitHubAccountDTO {
-	result := dto.GitHubAccountDTO{
+func GitHubAccountToDTO(value domain.GitHubAccount) githubdto.GitHubAccountDTO {
+	result := githubdto.GitHubAccountDTO{
 		ID: value.ID.String(), DisplayName: value.DisplayName, AccountType: string(value.AccountType), AccountIdentifier: value.AccountIdentifier,
 		AuthenticationMethod: string(value.AuthenticationMethod), AuthenticationStatus: string(value.AuthenticationStatus),
 		CredentialConfigured: value.CredentialConfigured, RepositoryCount: value.RepositoryCount, ManageURL: value.ManageURL,

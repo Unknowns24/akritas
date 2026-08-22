@@ -47,6 +47,8 @@ Expected substructure:
 
 ```text
 internal/adapter/rest/dto/
+  common/
+  <feature>/
 internal/adapter/rest/handler/
 internal/adapter/rest/middleware/
 internal/adapter/rest/router/
@@ -62,6 +64,8 @@ REST rules:
 - Map domain errors to HTTP through the existing mapper/middleware.
 - Never put business rules in handlers.
 - REST transport structs MUST use the `DTO` suffix and one DTO struct per file.
+- DTO files MUST be grouped under `dto/<feature>/` or `dto/common/`; transport
+  structs MUST NOT live directly in the `dto/` root.
 - DTO/domain/usecase conversion MUST live under `internal/adapter/rest/mapper/`;
   mapping files must have one conversion responsibility.
 

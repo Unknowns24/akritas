@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	dokploydto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/dokploy"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/request"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
@@ -17,7 +18,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		response.Invalid(w, r)
 		return
 	}
-	var body dto.UpdateDokployServerRequestDTO
+	var body dokploydto.UpdateDokployServerRequestDTO
 	if request.DecodeJSON(w, r, &body) != nil || (body.Name == nil && body.BaseURL == nil && body.APICredential == nil) || (body.Name != nil && (len(strings.TrimSpace(*body.Name)) < 1 || len(*body.Name) > 100)) || (body.BaseURL != nil && (len(*body.BaseURL) < 1 || len(*body.BaseURL) > 2048)) || (body.APICredential != nil && (len(*body.APICredential) < 16 || len(*body.APICredential) > 1024)) {
 		response.Invalid(w, r)
 		return
@@ -27,5 +28,5 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, dto.DataResponseDTO[dto.DokployServerDTO]{Data: mapper.DokployServerToDTO(*server)})
+	response.JSON(w, http.StatusOK, commondto.DataResponseDTO[dokploydto.DokployServerDTO]{Data: mapper.DokployServerToDTO(*server)})
 }

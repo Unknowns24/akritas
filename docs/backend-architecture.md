@@ -107,6 +107,8 @@ internal/
 
     rest/
       dto/
+        common/
+        <feature>/
       handler/
       middleware/
       router/
@@ -328,8 +330,9 @@ Handlers must remain thin.
 
 They must not contain business rules, direct GORM queries or provider-specific integrations.
 
-REST contract structs use the `DTO` suffix and one struct per file. Conversions
-between transport DTOs and application/domain values live in
+REST contract structs use the `DTO` suffix, one struct per file and feature
+packages under `dto/<feature>/`; shared envelopes live under `dto/common/`.
+Conversions between transport DTOs and application/domain values live in
 `internal/adapter/rest/mapper/`, with one mapping responsibility per file.
 
 Recommended structure:

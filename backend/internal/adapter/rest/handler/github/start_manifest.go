@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	githubdto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/github"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/request"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
@@ -12,7 +13,7 @@ import (
 
 func (h *Handler) StartManifest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	var body dto.GitHubManifestRegistrationRequestDTO
+	var body githubdto.GitHubManifestRegistrationRequestDTO
 	if request.DecodeJSON(w, r, &body) != nil {
 		response.Invalid(w, r)
 		return
@@ -26,5 +27,5 @@ func (h *Handler) StartManifest(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusCreated, dto.DataResponseDTO[dto.GitHubManifestRegistrationDTO]{Data: mapper.GitHubManifestRegistrationResultToDTO(result)})
+	response.JSON(w, http.StatusCreated, commondto.DataResponseDTO[githubdto.GitHubManifestRegistrationDTO]{Data: mapper.GitHubManifestRegistrationResultToDTO(result)})
 }

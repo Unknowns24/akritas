@@ -23,8 +23,9 @@ logs, detección, Incidents, QVAC, Issues o Remediation.
   ciphertext/nonce sólo aparecen en el record privado del Credential Store.
 - Los errores por capa conservan códigos únicos y no aparecen en catálogos de
   otra capa.
-- Los contratos REST usan DTOs tipados seguros y mappers separados sin cambiar
-  los payloads OpenAPI.
+- Los contratos REST usan DTOs tipados seguros, agrupados por feature/common y
+  mappers separados sin cambiar los payloads OpenAPI; el gate rechaza DTOs
+  sueltos en la raíz `rest/dto`.
 - Bootstrap rechaza middleware admin ausente antes de abrir DB o ejecutar
   migraciones.
 

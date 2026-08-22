@@ -3,12 +3,12 @@ package mapper
 import (
 	"time"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	dokploydto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/dokploy"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 )
 
-func DokployServerToDTO(value domain.DokployServer) dto.DokployServerDTO {
-	result := dto.DokployServerDTO{
+func DokployServerToDTO(value domain.DokployServer) dokploydto.DokployServerDTO {
+	result := dokploydto.DokployServerDTO{
 		ID: value.ID.String(), Name: value.Name, BaseURL: value.BaseURL, ServerIdentifier: value.ServerIdentifier,
 		ConnectionStatus: string(value.ConnectionStatus), CredentialConfigured: value.CredentialConfigured,
 		ApplicationCount: value.ApplicationCount, CreatedAt: value.CreatedAt.UTC().Format(time.RFC3339), UpdatedAt: value.UpdatedAt.UTC().Format(time.RFC3339),

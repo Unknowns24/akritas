@@ -13,7 +13,8 @@ AKR-5..12 y AKR-21.
   defaults y validación fail-closed.
 - Persistencia directa de entidades de dominio con tags GORM; modelos duplicados
   eliminados y Credential Store privado/cifrado preservado.
-- DTOs REST con sufijo `DTO`, un struct por archivo y mappers SRP.
+- DTOs REST con sufijo `DTO`, un struct por archivo, paquetes
+  `common`/`github`/`dokploy` y mappers SRP.
 - Errores declarados por REST, PostgreSQL y adapters externos en su propia capa.
 - Composition root renombrado a `internal/bootstrap/integrations`.
 - ADR-011/012/013, policies, gates, documentación, memoria y OpenAPI 1.2.0

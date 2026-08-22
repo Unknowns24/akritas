@@ -1,4 +1,4 @@
-package dto
+package dokploy
 
 type DokployApplicationDTO struct {
 	DokployServerID       string `json:"dokploy_server_id"`

@@ -1,4 +1,4 @@
-package dto
+package github
 
 type GitHubManifestRegistrationRequestDTO struct {
 	DisplayName  string `json:"display_name"`

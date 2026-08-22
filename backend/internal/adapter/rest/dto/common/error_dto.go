@@ -1,4 +1,4 @@
-package dto
+package common
 
 type ErrorDTO struct {
 	Code        string `json:"code"`

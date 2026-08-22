@@ -1,4 +1,4 @@
-package dto
+package dokploy
 
 type UpdateDokployServerRequestDTO struct {
 	Name          *string `json:"name"`

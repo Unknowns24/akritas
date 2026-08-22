@@ -3,7 +3,8 @@ package dokploy
 import (
 	"net/http"
 
-	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto"
+	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
+	dokploydto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/dokploy"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/mapper"
 	restpagination "github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/response"
@@ -29,14 +30,14 @@ func (h *Handler) ListApplications(w http.ResponseWriter, r *http.Request) {
 		response.Error(w, r, err)
 		return
 	}
-	items := make([]dto.DokployApplicationDTO, 0, len(page.Items))
+	items := make([]dokploydto.DokployApplicationDTO, 0, len(page.Items))
 	for _, item := range page.Items {
 		items = append(items, mapper.DokployApplicationToDTO(item))
 	}
-	built, err := restpagination.BuildProviderPage(params, paging.Slice[dto.DokployApplicationDTO]{Items: items, Total: page.Total, NextBoundary: page.NextBoundary, PrevBoundary: page.PrevBoundary}, h.paging)
+	built, err := restpagination.BuildProviderPage(params, paging.Slice[dokploydto.DokployApplicationDTO]{Items: items, Total: page.Total, NextBoundary: page.NextBoundary, PrevBoundary: page.PrevBoundary}, h.paging)
 	if err != nil {
 		response.Error(w, r, err)
 		return
 	}
-	response.JSON(w, http.StatusOK, dto.ListResponseDTO[dto.DokployApplicationDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
+	response.JSON(w, http.StatusOK, commondto.ListResponseDTO[dokploydto.DokployApplicationDTO]{Data: built.Data, Paging: mapper.PagingToDTO(built.Paging)})
 }

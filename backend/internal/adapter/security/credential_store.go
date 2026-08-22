@@ -12,7 +12,10 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 )
 
-var ErrEmptyMasterKey = errors.New("master key must not be empty")
+var (
+	ErrEmptyMasterKey     = errors.New("master key must not be empty")
+	ErrCiphertextTooShort = errors.New("ciphertext too short")
+)
 
 // aesGCMCredentialStore implements the ADR-005 Credential Store. AKRITAS_MASTER_KEY
 // is hashed into a 32-byte key so any high-entropy string the operator supplies works,
@@ -43,4 +46,13 @@ func (s *aesGCMCredentialStore) Encrypt(ctx context.Context, plaintext []byte) (
 		return nil, err
 	}
 	return s.gcm.Seal(nonce, nonce, plaintext, nil), nil
+}
+
+func (s *aesGCMCredentialStore) Decrypt(ctx context.Context, ciphertext []byte) ([]byte, error) {
+	nonceSize := s.gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return nil, ErrCiphertextTooShort
+	}
+	nonce, data := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	return s.gcm.Open(nil, nonce, data, nil)
 }

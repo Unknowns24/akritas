@@ -13,6 +13,8 @@ func Run(db *gorm.DB) error {
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		schema.Migration20260822_01_CreateAdministrators(),
 		schema.Migration20260822_02_CreatePendingEnrollments(),
+		schema.Migration20260822_03_AddTotpSecretToAdministrators(),
+		schema.Migration20260822_04_CreateAdministratorSessions(),
 	})
 	return m.Migrate()
 }

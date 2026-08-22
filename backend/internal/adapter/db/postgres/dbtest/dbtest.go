@@ -34,7 +34,7 @@ func Connect(t *testing.T) *gorm.DB {
 	if err := migrations.Run(db); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
-	if err := db.Exec("TRUNCATE TABLE pending_enrollments, administrators").Error; err != nil {
+	if err := db.Exec("TRUNCATE TABLE administrator_sessions, pending_enrollments, administrators").Error; err != nil {
 		t.Fatalf("truncate tables: %v", err)
 	}
 

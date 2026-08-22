@@ -26,12 +26,13 @@ func TestExistsActive(t *testing.T) {
 
 	now := time.Now().UTC()
 	record := &model.Administrator{
-		ID:           uuid.New(),
-		Email:        "admin@example.com",
-		DisplayName:  "Akritas Administrator",
-		PasswordHash: "$argon2id$v=19$m=19456,t=2,p=1$salt$hash",
-		CreatedAt:    now,
-		UpdatedAt:    now,
+		ID:                  uuid.New(),
+		Email:               "admin@example.com",
+		DisplayName:         "Akritas Administrator",
+		PasswordHash:        "$argon2id$v=19$m=19456,t=2,p=1$salt$hash",
+		EncryptedTOTPSecret: []byte("ciphertext"),
+		CreatedAt:           now,
+		UpdatedAt:           now,
 	}
 	if err := db.Create(record).Error; err != nil {
 		t.Fatalf("seed administrator: %v", err)

@@ -52,3 +52,30 @@ func TestSessionTokenGeneratorProducesDistinctTokens(t *testing.T) {
 		t.Fatal("two calls must not generate the same hash")
 	}
 }
+
+func TestSessionTokenGeneratorHashMatchesGenerate(t *testing.T) {
+	t.Parallel()
+
+	generator := NewSessionTokenGenerator()
+
+	token, hash, err := generator.Generate()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := generator.Hash(token); got != hash {
+		t.Fatalf("Hash(token) = %q, want the same hash Generate returned: %q", got, hash)
+	}
+}
+
+func TestSessionTokenGeneratorHashIsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	generator := NewSessionTokenGenerator()
+
+	if generator.Hash("some-token") != generator.Hash("some-token") {
+		t.Fatal("Hash must be deterministic for the same input")
+	}
+	if generator.Hash("some-token") == generator.Hash("a-different-token") {
+		t.Fatal("Hash must differ for different inputs")
+	}
+}

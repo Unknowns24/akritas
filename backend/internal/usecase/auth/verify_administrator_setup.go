@@ -85,7 +85,7 @@ func (uc *verifyAdministratorSetupUseCase) Execute(ctx context.Context, input in
 		return in.VerifyAdministratorSetupOutput{}, err
 	}
 
-	valid, err := uc.totpVerifier.Verify(string(secret), input.TOTPCode, now)
+	valid, _, err := uc.totpVerifier.Verify(string(secret), input.TOTPCode, now)
 	if err != nil {
 		return in.VerifyAdministratorSetupOutput{}, err
 	}

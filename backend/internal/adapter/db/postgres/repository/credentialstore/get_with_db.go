@@ -12,7 +12,7 @@ import (
 
 func (s *Store) GetWithDB(ctx context.Context, tx *gorm.DB, ownerType string, ownerID uuid.UUID, kind portsout.SecretKind) ([]byte, error) {
 	var record credentialRecord
-	if err := tx.WithContext(ctx).Table("integration_credentials").Where("owner_type = ? AND owner_id = ? AND secret_kind = ?", ownerType, ownerID, string(kind)).First(&record).Error; err != nil {
+	if err := tx.WithContext(ctx).Table("credentials").Where("owner_type = ? AND owner_id = ? AND secret_kind = ?", ownerType, ownerID, string(kind)).First(&record).Error; err != nil {
 		return nil, dberrors.ErrIntegrationPersistence.Wrap(err)
 	}
 	sealed := credentialcipher.SealedValue{Ciphertext: record.Ciphertext, Nonce: record.Nonce}

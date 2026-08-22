@@ -19,6 +19,11 @@ const (
 	defaultDatabaseMaxOpen        = 10
 	defaultDatabaseMaxIdle        = 5
 	defaultDatabaseConnLifetime   = 30 * time.Minute
+	defaultSessionIdleTTL         = 12 * time.Hour
+	defaultSessionAbsoluteTTL     = 7 * 24 * time.Hour
+	defaultSessionCookieSecure    = true
+	minimumBootstrapTokenLength   = 32
+	maximumBootstrapTokenLength   = 512
 )
 
 var (
@@ -37,11 +42,18 @@ type Config struct {
 	DatabaseMaxOpenConnections    int           `mapstructure:"AKRITAS_DB_MAX_OPEN_CONNECTIONS"`
 	DatabaseMaxIdleConnections    int           `mapstructure:"AKRITAS_DB_MAX_IDLE_CONNECTIONS"`
 	DatabaseConnectionMaxLifetime time.Duration `mapstructure:"AKRITAS_DB_CONNECTION_MAX_LIFETIME"`
+	BootstrapTokenValue           string        `mapstructure:"AKRITAS_BOOTSTRAP_TOKEN"`
+	SessionIdleTTL                time.Duration `mapstructure:"AKRITAS_SESSION_IDLE_TTL"`
+	SessionAbsoluteTTL            time.Duration `mapstructure:"AKRITAS_SESSION_ABSOLUTE_TTL"`
+	SessionCookieSecure           bool          `mapstructure:"AKRITAS_SESSION_COOKIE_SECURE"`
+	AllowedOriginsValue           string        `mapstructure:"AKRITAS_ALLOWED_ORIGINS"`
 
 	// Derived secrets are populated only after validation. The raw fields above
 	// are cleared before Config leaves this package.
-	MasterKey        []byte `mapstructure:"-"`
-	PaginationSecret []byte `mapstructure:"-"`
+	MasterKey        []byte   `mapstructure:"-"`
+	PaginationSecret []byte   `mapstructure:"-"`
+	BootstrapToken   []byte   `mapstructure:"-"`
+	AllowedOrigins   []string `mapstructure:"-"`
 }
 
 func Load() (Config, error) {
@@ -92,27 +104,70 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 	if err != nil || (parsedDatabase.Scheme != "postgres" && parsedDatabase.Scheme != "postgresql") || parsedDatabase.Host == "" {
 		return Config{}, ErrInvalidRuntimeConfiguration
 	}
+
 	publicURL := strings.TrimRight(strings.TrimSpace(raw.PublicURL), "/")
 	parsedPublic, err := url.Parse(publicURL)
 	if err != nil || parsedPublic.Scheme != "https" || parsedPublic.Host == "" || parsedPublic.User != nil || parsedPublic.Path != "" || parsedPublic.RawQuery != "" || parsedPublic.Fragment != "" {
 		return Config{}, ErrInvalidRuntimeConfiguration
 	}
+
 	masterKey, err := ParseMasterKey(strings.TrimSpace(raw.MasterKeyEncoded))
 	if err != nil {
 		return Config{}, err
 	}
+
 	paginationSecret := []byte(raw.PaginationSecretValue)
-	if len(paginationSecret) < minimumPaginationSecretLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 {
+	bootstrapToken := []byte(raw.BootstrapTokenValue)
+
+	if len(paginationSecret) < minimumPaginationSecretLength || len(bootstrapToken) < minimumBootstrapTokenLength || len(bootstrapToken) > maximumBootstrapTokenLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 || raw.SessionIdleTTL <= 0 || raw.SessionAbsoluteTTL <= 0 || raw.SessionIdleTTL > raw.SessionAbsoluteTTL || !raw.SessionCookieSecure {
 		clear(masterKey)
+		clear(bootstrapToken)
 		return Config{}, ErrInvalidRuntimeConfiguration
 	}
+
+	allowedOrigins, err := parseAllowedOrigins(publicURL, raw.AllowedOriginsValue)
+	if err != nil {
+		clear(masterKey)
+		clear(bootstrapToken)
+		return Config{}, ErrInvalidRuntimeConfiguration
+	}
+
 	raw.DatabaseURL = databaseURL
 	raw.PublicURL = publicURL
 	raw.MasterKeyEncoded = ""
 	raw.PaginationSecretValue = ""
+	raw.BootstrapTokenValue = ""
+	raw.AllowedOriginsValue = ""
 	raw.MasterKey = masterKey
 	raw.PaginationSecret = append([]byte(nil), paginationSecret...)
+	raw.BootstrapToken = append([]byte(nil), bootstrapToken...)
+	raw.AllowedOrigins = allowedOrigins
+	clear(bootstrapToken)
 	return raw, nil
+}
+
+func parseAllowedOrigins(publicURL, configured string) ([]string, error) {
+	values := []string{publicURL}
+	if strings.TrimSpace(configured) != "" {
+		values = append(values, strings.Split(configured, ",")...)
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	origins := make([]string, 0, len(values))
+	for _, value := range values {
+		origin := strings.TrimRight(strings.TrimSpace(value), "/")
+		parsed, err := url.Parse(origin)
+		if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+			return nil, ErrInvalidRuntimeConfiguration
+		}
+		if _, exists := seen[origin]; exists {
+			continue
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+	}
+
+	return origins, nil
 }
 
 func ParseMasterKey(value string) ([]byte, error) {
@@ -120,8 +175,10 @@ func ParseMasterKey(value string) ([]byte, error) {
 	if err != nil || len(decoded) != masterKeySize {
 		return nil, ErrInvalidMasterKey
 	}
+
 	key := make([]byte, len(decoded))
 	copy(key, decoded)
+
 	return key, nil
 }
 
@@ -130,6 +187,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("AKRITAS_DB_MAX_OPEN_CONNECTIONS", defaultDatabaseMaxOpen)
 	v.SetDefault("AKRITAS_DB_MAX_IDLE_CONNECTIONS", defaultDatabaseMaxIdle)
 	v.SetDefault("AKRITAS_DB_CONNECTION_MAX_LIFETIME", defaultDatabaseConnLifetime)
+	v.SetDefault("AKRITAS_SESSION_IDLE_TTL", defaultSessionIdleTTL)
+	v.SetDefault("AKRITAS_SESSION_ABSOLUTE_TTL", defaultSessionAbsoluteTTL)
+	v.SetDefault("AKRITAS_SESSION_COOKIE_SECURE", defaultSessionCookieSecure)
 }
 
 func bindEnvironment(v *viper.Viper) {

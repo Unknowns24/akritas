@@ -46,6 +46,7 @@ Example:
 - `N`: not found → 404
 - `C`: conflict → 409
 - `I`: internal → 500
+- `R`: rate limited → 429
 
 ## Rules
 

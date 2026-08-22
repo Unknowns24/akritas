@@ -5,9 +5,6 @@ import (
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/config"
-	"github.com/Unknowns24/akritas/backend/internal/adapter/crypto/credentialcipher"
-	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
-	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/migrations"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	dokployrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/dokployserver"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
@@ -15,57 +12,53 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/integrationusage"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
+	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubapp"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 )
 
-// Build prepares the integration module only when the administrator middleware
-// already exists. cmd/main.go intentionally does not call this before PB-061..063.
-func Build(configuration config.Config, admin router.AdminMiddleware) (http.Handler, error) {
-	if admin == nil {
+type Dependencies struct {
+	DB           *gorm.DB
+	Credentials  *credentialstore.Store
+	Admin        router.AdminMiddleware
+	Auth         *authhandler.Handler
+	Authenticate portsin.AuthenticateSessionUseCase
+}
+
+// Build composes integrations over the application's shared PostgreSQL
+// connection and credential store. Infrastructure ownership remains in the
+// application bootstrap so auth and integrations cannot silently diverge.
+func Build(configuration config.Config, dependencies Dependencies) (http.Handler, error) {
+	if dependencies.Admin == nil {
 		return nil, router.ErrAdminMiddlewareUnavailable
 	}
-	db, err := postgres.Open(postgres.Config{
-		DSN:             configuration.DatabaseURL,
-		MaxOpenConns:    configuration.DatabaseMaxOpenConnections,
-		MaxIdleConns:    configuration.DatabaseMaxIdleConnections,
-		ConnMaxLifetime: configuration.DatabaseConnectionMaxLifetime,
-	})
+	if dependencies.DB == nil || dependencies.Credentials == nil || dependencies.Auth == nil || dependencies.Authenticate == nil {
+		return nil, router.ErrInvalidRouterConfiguration
+	}
+	githubAccounts, err := githubrepo.New(dependencies.DB, dependencies.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	if err := migrations.Run(db); err != nil {
-		return nil, err
-	}
-	cipher, err := credentialcipher.NewFromKey(configuration.MasterKey)
+	githubApps, err := githubapprepo.New(dependencies.DB, dependencies.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	credentials, err := credentialstore.New(db, cipher)
+	dokployServers, err := dokployrepo.New(dependencies.DB, dependencies.Credentials)
 	if err != nil {
 		return nil, err
 	}
-	githubAccounts, err := githubrepo.New(db, credentials)
+	githubClient, err := githubexternal.NewClient(githubexternal.ClientConfig{Credentials: dependencies.Credentials, Bindings: githubApps, Now: time.Now})
 	if err != nil {
 		return nil, err
 	}
-	githubApps, err := githubapprepo.New(db, credentials)
-	if err != nil {
-		return nil, err
-	}
-	dokployServers, err := dokployrepo.New(db, credentials)
-	if err != nil {
-		return nil, err
-	}
-	githubClient, err := githubexternal.NewClient(githubexternal.ClientConfig{Credentials: credentials, Bindings: githubApps, Now: time.Now})
-	if err != nil {
-		return nil, err
-	}
-	dokployClient, err := dokployexternal.NewClient(dokployexternal.ClientConfig{Credentials: credentials})
+	dokployClient, err := dokployexternal.NewClient(dokployexternal.ClientConfig{Credentials: dependencies.Credentials})
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +75,7 @@ func Build(configuration config.Config, admin router.AdminMiddleware) (http.Hand
 	}
 	return router.New(router.Config{
 		GitHubAccounts: githubAccountUseCase, GitHubApps: githubAppUseCase,
-		DokployServers: dokployUseCase, Pagination: pagingConfig, Admin: admin,
+		DokployServers: dokployUseCase, Pagination: pagingConfig, Admin: dependencies.Admin,
+		Auth: dependencies.Auth, Authenticate: dependencies.Authenticate, AllowedOrigins: configuration.AllowedOrigins,
 	})
 }

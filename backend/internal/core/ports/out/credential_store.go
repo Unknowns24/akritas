@@ -9,16 +9,19 @@ import (
 type SecretKind string
 
 const (
-	SecretKindGitHubPAT        SecretKind = "github_pat"
-	SecretKindGitHubPrivateKey SecretKind = "github_app_private_key"
-	SecretKindGitHubWebhook    SecretKind = "github_app_webhook_secret"
-	SecretKindDokployAPIKey    SecretKind = "dokploy_api_key"
+	SecretKindGitHubPAT         SecretKind = "github_pat"
+	SecretKindGitHubPrivateKey  SecretKind = "github_app_private_key"
+	SecretKindGitHubWebhook     SecretKind = "github_app_webhook_secret"
+	SecretKindDokployAPIKey     SecretKind = "dokploy_api_key"
+	SecretKindAdministratorTOTP SecretKind = "administrator_totp"
 )
 
 const (
-	CredentialOwnerGitHubAccount  = "github_account"
-	CredentialOwnerDokployServer  = "dokploy_server"
-	CredentialOwnerGitHubManifest = "github_app_registration"
+	CredentialOwnerGitHubAccount     = "github_account"
+	CredentialOwnerDokployServer     = "dokploy_server"
+	CredentialOwnerGitHubManifest    = "github_app_registration"
+	CredentialOwnerPendingEnrollment = "pending_enrollment"
+	CredentialOwnerAdministrator     = "administrator"
 )
 
 type SecretValue struct {

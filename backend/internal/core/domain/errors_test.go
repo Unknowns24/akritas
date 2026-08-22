@@ -61,13 +61,13 @@ func TestDomainErrorWrapPreservesIdentityAndCause(t *testing.T) {
 
 func TestIntegrationErrorCatalogIsUniqueAndDocumented(t *testing.T) {
 	t.Parallel()
-	codePattern := regexp.MustCompile(`^0x[125][0-9A-F]{2}[0-9A-F]{3}[VUFCNI]$`)
+	codePattern := regexp.MustCompile(`^0x[125][0-9A-F]{2}[0-9A-F]{3}[VUFCNIR]$`)
 	documentation, err := os.ReadFile("../../../docs/errors/aaa-map.md")
 	if err != nil {
 		t.Fatal(err)
 	}
 	seen := make(map[string]string)
-	for _, catalog := range []map[string]*Error{IntegrationErrors()} {
+	for _, catalog := range []map[string]*Error{IntegrationErrors(), AuthenticationErrors()} {
 		for name, stable := range catalog {
 			if !codePattern.MatchString(stable.Code) || stable.Message == "" || stable.UserMessage == "" {
 				t.Fatalf("invalid stable error %s: %#v", name, stable)

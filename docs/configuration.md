@@ -80,8 +80,8 @@ Production cookie attributes:
 HttpOnly; Secure; SameSite=Lax; Path=/
 ```
 
-Local HTTP development may disable `Secure`, but production validation must reject
-that configuration when `AKRITAS_PUBLIC_URL` uses HTTPS.
+Startup fails closed when `Secure` is disabled. Local development must use HTTPS
+or an equivalent secure reverse proxy.
 
 ## Browser origins
 

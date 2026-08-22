@@ -12,10 +12,38 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	SessionCookieName    = "akritas_session"
+	CodeMalformedRequest = "0x102001V"
+	CodeInternalError    = "0x102002I"
+	CodeRateLimited      = "0x102003R"
+)
+
 func JSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
+}
+
+func WriteJSON(w http.ResponseWriter, status int, value any) {
+	JSON(w, status, value)
+}
+
+func WriteError(w http.ResponseWriter, r *http.Request, status int, code, message, userMessage string, details ...commondto.ErrorDetailDTO) {
+	JSON(w, status, commondto.ErrorResponseDTO{Error: commondto.ErrorDTO{
+		Code: code, Message: message, UserMessage: userMessage, RequestID: requestID(r), Details: details,
+	}})
+}
+
+func WriteDomainError(w http.ResponseWriter, r *http.Request, err *domain.Error) {
+	if len(err.Code) > 0 && err.Code[len(err.Code)-1] == 'R' {
+		w.Header().Set("Retry-After", "60")
+	}
+	Error(w, r, err)
+}
+
+func WriteInternalError(w http.ResponseWriter, r *http.Request) {
+	Error(w, r, resterrors.ErrRequestFailed)
 }
 
 func Error(w http.ResponseWriter, r *http.Request, err error) {
@@ -36,6 +64,8 @@ func Error(w http.ResponseWriter, r *http.Request, err error) {
 			status = http.StatusNotFound
 		case 'C':
 			status = http.StatusConflict
+		case 'R':
+			status = http.StatusTooManyRequests
 		}
 	}
 	JSON(w, status, commondto.ErrorResponseDTO{Error: commondto.ErrorDTO{Code: stable.Code, Message: stable.Message, UserMessage: stable.UserMessage, RequestID: requestID(r)}})

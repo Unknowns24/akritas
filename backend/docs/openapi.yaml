@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.2.0
+  version: 1.3.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -227,6 +227,8 @@ paths:
                 type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1810,7 +1812,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      pattern: "^[0-9A-F]x[0-9A-F]{6}[VUFNCI]$"
+      pattern: "^[0-9A-F]x[0-9A-F]{6}[VUFNCIR]$"
       example: 1x100001V
     ErrorDetail:
       type: object

@@ -11,7 +11,7 @@ import (
 
 func (s *Store) MoveOwnerTx(ctx context.Context, tx *gorm.DB, fromType string, fromID uuid.UUID, toType string, toID uuid.UUID) error {
 	var records []credentialRecord
-	if err := tx.WithContext(ctx).Table("integration_credentials").Where("owner_type = ? AND owner_id = ?", fromType, fromID).Find(&records).Error; err != nil {
+	if err := tx.WithContext(ctx).Table("credentials").Where("owner_type = ? AND owner_id = ?", fromType, fromID).Find(&records).Error; err != nil {
 		return dberrors.ErrIntegrationPersistence.Wrap(err)
 	}
 	for _, record := range records {

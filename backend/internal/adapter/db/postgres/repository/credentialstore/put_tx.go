@@ -23,7 +23,7 @@ func (s *Store) PutTx(ctx context.Context, tx *gorm.DB, ownerType string, ownerI
 	err = tx.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "owner_type"}, {Name: "owner_id"}, {Name: "secret_kind"}},
 		DoUpdates: clause.Assignments(map[string]any{"ciphertext": sealed.Ciphertext, "nonce": sealed.Nonce, "encryption_version": encryptionVersion, "updated_at": now}),
-	}).Table("integration_credentials").Create(&record).Error
+	}).Table("credentials").Create(&record).Error
 	if err != nil {
 		return dberrors.ErrIntegrationPersistence.Wrap(err)
 	}

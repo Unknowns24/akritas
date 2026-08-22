@@ -12,6 +12,7 @@ func TestLoadValuesFailsClosedForMissingOrInvalidSecurityConfiguration(t *testin
 		"AKRITAS_PUBLIC_URL":        "https://akritas.example.com",
 		"AKRITAS_MASTER_KEY":        base64.StdEncoding.EncodeToString(make([]byte, 32)),
 		"AKRITAS_PAGINATION_SECRET": "01234567890123456789012345678901",
+		"AKRITAS_BOOTSTRAP_TOKEN":   "01234567890123456789012345678901",
 	}
 	getenv := func(name string) string { return values[name] }
 	configuration, err := LoadValues(getenv)

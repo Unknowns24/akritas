@@ -5,6 +5,7 @@ package postgres_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/crypto/credentialcipher"
 	dbadapter "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/migrations"
+	administratorrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
@@ -48,7 +50,8 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 	if err := migrations.Run(db); err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"github_accounts", "dokploy_servers", "integration_credentials", "github_app_registrations", "github_app_bindings"} {
+	allTables := []string{"github_accounts", "dokploy_servers", "credentials", "github_app_registrations", "github_app_bindings", "administrators", "pending_enrollments", "administrator_sessions"}
+	for _, table := range allTables {
 		if !db.Migrator().HasTable(table) {
 			t.Fatalf("migration did not create %s", table)
 		}
@@ -56,6 +59,31 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 
 	cipher, _ := credentialcipher.NewFromKey(bytes.Repeat([]byte{7}, 32))
 	credentials, _ := credentialstore.New(db, cipher)
+	administrators := administratorrepo.NewRepository(db)
+	transactor := dbadapter.NewTransactor(db)
+	rollbackAdministrator, err := domain.NewAdministrator(uuid.New(), "rollback@example.com", "Rollback", time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollbackCause := errors.New("rollback shared transaction")
+	err = transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		if createErr := administrators.Create(txCtx, rollbackAdministrator, "password-hash"); createErr != nil {
+			return createErr
+		}
+		if putErr := credentials.Put(txCtx, portsout.CredentialOwnerAdministrator, rollbackAdministrator.ID, portsout.SecretValue{Kind: portsout.SecretKindAdministratorTOTP, Plaintext: []byte("JBSWY3DPEHPK3PXP")}); putErr != nil {
+			return putErr
+		}
+		return rollbackCause
+	})
+	if !errors.Is(err, rollbackCause) {
+		t.Fatalf("shared transaction error = %v", err)
+	}
+	if exists, existsErr := administrators.ExistsActive(ctx); existsErr != nil || exists {
+		t.Fatalf("administrator survived rollback: exists=%v err=%v", exists, existsErr)
+	}
+	if _, getErr := credentials.Get(ctx, portsout.CredentialOwnerAdministrator, rollbackAdministrator.ID, portsout.SecretKindAdministratorTOTP); getErr == nil {
+		t.Fatal("credential survived shared rollback")
+	}
 	repository, _ := githubrepo.New(db, credentials)
 	now := time.Now().UTC()
 	account, err := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountOrganization, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, now)
@@ -71,7 +99,7 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 		Ciphertext []byte
 		Nonce      []byte
 	}
-	if err := db.Raw("SELECT ciphertext, nonce FROM integration_credentials WHERE owner_id = ?", account.ID).Scan(&stored).Error; err != nil {
+	if err := db.Raw("SELECT ciphertext, nonce FROM credentials WHERE owner_id = ?", account.ID).Scan(&stored).Error; err != nil {
 		t.Fatal(err)
 	}
 	if bytes.Contains(stored.Ciphertext, plaintext) || len(stored.Nonce) != 12 {
@@ -150,7 +178,7 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, table := range []string{"github_accounts", "dokploy_servers", "integration_credentials", "github_app_registrations", "github_app_bindings"} {
+	for _, table := range allTables {
 		if db.Migrator().HasTable(table) {
 			t.Fatalf("rollback left table %s", table)
 		}

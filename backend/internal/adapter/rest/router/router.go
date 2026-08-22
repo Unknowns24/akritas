@@ -4,8 +4,10 @@ import (
 	"errors"
 	"net/http"
 
+	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
+	authmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 )
@@ -23,11 +25,17 @@ type Config struct {
 	DokployServers portsin.DokployServerUseCase
 	Pagination     pagination.Config
 	Admin          AdminMiddleware
+	Auth           *authhandler.Handler
+	Authenticate   portsin.AuthenticateSessionUseCase
+	AllowedOrigins []string
 }
 
 func New(config Config) (http.Handler, error) {
 	if config.Admin == nil {
 		return nil, ErrAdminMiddlewareUnavailable
+	}
+	if config.Auth == nil || config.Authenticate == nil || len(config.AllowedOrigins) == 0 {
+		return nil, ErrInvalidRouterConfiguration
 	}
 	githubHandler, err := github.New(config.GitHubAccounts, config.GitHubApps, config.Pagination)
 	if err != nil {
@@ -54,11 +62,19 @@ func New(config Config) (http.Handler, error) {
 	private.HandleFunc("POST /api/v1/integrations/dokploy/servers/{server_id}/connection-test", dokployHandler.TestConnection)
 	private.HandleFunc("GET /api/v1/integrations/dokploy/servers/{server_id}/applications", dokployHandler.ListApplications)
 
-	protected := config.Admin(private)
+	originProtected := authmiddleware.RequireAllowedOrigin(config.AllowedOrigins)
+	protected := config.Admin(originProtected(private))
 	if protected == nil {
 		return nil, ErrAdminMiddlewareUnavailable
 	}
 	root := http.NewServeMux()
+	root.HandleFunc("GET /api/v1/auth/setup-status", config.Auth.GetSetupStatus)
+	root.HandleFunc("POST /api/v1/auth/setup", config.Auth.StartAdministratorSetup)
+	root.HandleFunc("POST /api/v1/auth/setup/verify", config.Auth.VerifyAdministratorSetup)
+	root.HandleFunc("POST /api/v1/auth/login", config.Auth.Login)
+	authenticatedAuth := authmiddleware.RequireSession(config.Authenticate)
+	root.Handle("GET /api/v1/auth/session", authenticatedAuth(http.HandlerFunc(config.Auth.GetCurrentSession)))
+	root.Handle("DELETE /api/v1/auth/session", authenticatedAuth(originProtected(http.HandlerFunc(config.Auth.Logout))))
 	root.HandleFunc("GET /api/v1/integrations/github/app-manifest/callback", githubHandler.CompleteManifest)
 	root.HandleFunc("GET /api/v1/integrations/github/app-installations/callback", githubHandler.CompleteInstallation)
 	root.Handle("/api/v1/integrations/", protected)

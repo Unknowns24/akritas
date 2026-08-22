@@ -15,4 +15,5 @@ type ProjectRepository interface {
 	GetByDokployApplication(ctx context.Context, serverID uuid.UUID, applicationIdentifier string) (*domain.Project, error)
 	List(ctx context.Context, query paging.ListQuery) ([]domain.Project, int64, error)
 	Update(ctx context.Context, project *domain.Project) error
+	CountByGitHubAccountID(ctx context.Context, accountID uuid.UUID) (int64, error)
 }

@@ -10,6 +10,7 @@ func Run(db *gorm.DB) error {
 	migrator := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 		schema.SCHEMA_20260822_01_AddIntegrationLookups(),
 		schema.SCHEMA_20260822_02_AddProjects(),
+		schema.SCHEMA_20260822_03_AddProjectGitHubAccountFK(),
 	})
 	return migrator.Migrate()
 }

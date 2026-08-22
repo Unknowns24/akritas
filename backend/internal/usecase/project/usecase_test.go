@@ -149,6 +149,77 @@ func TestCreateRejectsMissingIntegrationsDuplicatesAndSecrets(t *testing.T) {
 	assertNoSecrets(t, first.Project)
 }
 
+func TestCreateRejectsUnresolvableRepositoryIdentifier(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	ctx := context.Background()
+	if _, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "broken", GitHubAccountID: account.ID, RepositoryIdentifier: "a/b/c", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "app-1", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	}); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
+		t.Fatalf("expected unresolvable repository, got %v", err)
+	}
+}
+
+func TestUpdatePersistsNewGitHubSnapshot(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)
+		other, err := domain.NewGitHubAccount(uuid.New(), "Other", domain.GitHubAccountPersonal, domain.GitHubAuthenticationGitHubApp, "other-org", domain.IntegrationStatusConnected, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	uc.accounts.(*memoryAccounts).byID[other.ID] = other
+
+	ctx := context.Background()
+	created, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "sentinel-api", GitHubAccountID: account.ID, RepositoryIdentifier: "Unknowns24/akritas", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "app-1", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	identifier := "other-org/sentinel"
+	branch := "develop"
+	updated, err := uc.Update(ctx, inproject.UpdateCommand{
+		ID: created.Project.ID, GitHubAccountID: &other.ID, RepositoryIdentifier: &identifier, DefaultBranch: &branch,
+	})
+	if err != nil {
+		t.Fatalf("update integrations: %v", err)
+	}
+	repo := updated.Project.GitHubRepository
+	if repo.GitHubAccountID != other.ID || repo.RepositoryIdentifier != identifier {
+		t.Fatalf("identity not updated: %+v", repo)
+	}
+	if repo.Owner != "other-org" || repo.Name != "sentinel" || repo.FullName != "other-org/sentinel" {
+		t.Fatalf("snapshot not rebuilt: %+v", repo)
+	}
+	if repo.DefaultBranch != "develop" || repo.HTMLURL != "https://github.com/other-org/sentinel" || repo.Private {
+		t.Fatalf("projection mismatch: %+v", repo)
+	}
+
+	got, err := uc.Get(ctx, created.Project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Project.GitHubRepository != repo {
+		t.Fatalf("persisted snapshot mismatch: %+v", got.Project.GitHubRepository)
+	}
+	assertNoSecrets(t, got.Project)
+
+	count, err := uc.projects.CountByGitHubAccountID(ctx, other.ID)
+	if err != nil || count != 1 {
+		t.Fatalf("count other account: count=%d err=%v", count, err)
+	}
+	oldCount, err := uc.projects.CountByGitHubAccountID(ctx, account.ID)
+	if err != nil || oldCount != 0 {
+		t.Fatalf("count original account: count=%d err=%v", oldCount, err)
+	}
+}
+
 func newTestUseCase(t *testing.T) (*UseCase, *domain.GitHubAccount, *domain.DokployServer) {
 	t.Helper()
 	now := time.Date(2026, 8, 22, 15, 0, 0, 0, time.UTC)

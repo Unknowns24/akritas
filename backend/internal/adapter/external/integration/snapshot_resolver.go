@@ -7,6 +7,15 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 )
 
+// SnapshotResolver fills non-secret GitHub/Dokploy projections from identifiers.
+// It does not call GitHub or Dokploy APIs; a later adapter behind
+// ports/out.IntegrationSnapshotResolver can replace this with live metadata
+// once Credential Store exists.
+//
+// MVP host is github.com only (ADR-009). private is always false because
+// visibility is unknown without the GitHub API. html_url is synthesized as
+// https://github.com/{owner}/{name}. No PAT, token, or private key is stored
+// on the GitHubRepository value object.
 type SnapshotResolver struct{}
 
 func NewSnapshotResolver() SnapshotResolver {
@@ -17,17 +26,8 @@ func (SnapshotResolver) ResolveGitHubRepository(account *domain.GitHubAccount, r
 	if account == nil {
 		return domain.GitHubRepository{}, apperr.ErrGitHubAccountNotFound
 	}
-	identifier := strings.TrimSpace(repositoryIdentifier)
-	if identifier == "" || strings.TrimSpace(defaultBranch) == "" {
-		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
-	}
-	owner, name := strings.TrimSpace(account.AccountIdentifier), identifier
-	if parts := strings.Split(identifier, "/"); len(parts) == 2 {
-		owner, name = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	} else if strings.Contains(identifier, "/") {
-		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
-	}
-	if owner == "" || name == "" {
+	owner, name, identifier, err := parseGitHubIdentifier(account.AccountIdentifier, repositoryIdentifier)
+	if err != nil || strings.TrimSpace(defaultBranch) == "" {
 		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
 	}
 	repository, err := domain.NewGitHubRepository(
@@ -38,6 +38,23 @@ func (SnapshotResolver) ResolveGitHubRepository(account *domain.GitHubAccount, r
 		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable.Wrap(err)
 	}
 	return repository, nil
+}
+
+func parseGitHubIdentifier(accountIdentifier, repositoryIdentifier string) (owner, name, identifier string, err error) {
+	identifier = strings.TrimSpace(repositoryIdentifier)
+	if identifier == "" {
+		return "", "", "", apperr.ErrRepositoryNotResolvable
+	}
+	owner, name = strings.TrimSpace(accountIdentifier), identifier
+	if parts := strings.Split(identifier, "/"); len(parts) == 2 {
+		owner, name = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	} else if strings.Contains(identifier, "/") {
+		return "", "", "", apperr.ErrRepositoryNotResolvable
+	}
+	if owner == "" || name == "" {
+		return "", "", "", apperr.ErrRepositoryNotResolvable
+	}
+	return owner, name, identifier, nil
 }
 
 func (SnapshotResolver) ResolveDokployApplication(server *domain.DokployServer, applicationIdentifier string) (domain.DokployApplication, error) {

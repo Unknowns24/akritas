@@ -38,9 +38,42 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 	if got.Name != "sentinel-api" || got.GitHubRepository.FullName != "Unknowns24/akritas" {
 		t.Fatalf("round trip mismatch: %+v", got)
 	}
+	if got.GitHubRepository.GitHubAccountID != account.ID ||
+		got.GitHubRepository.RepositoryIdentifier != "Unknowns24/akritas" ||
+		got.GitHubRepository.Owner != "Unknowns24" ||
+		got.GitHubRepository.Name != "akritas" ||
+		got.GitHubRepository.DefaultBranch != "main" ||
+		got.GitHubRepository.Private ||
+		got.GitHubRepository.HTMLURL != "https://github.com/Unknowns24/akritas" {
+		t.Fatalf("github snapshot round trip mismatch: %+v", got.GitHubRepository)
+	}
 
-	listed, total, err := projects.List(ctx, paging.ListQuery{Limit: 10, NameLike: "sentinel", Offset: 0})
-	if err != nil || total != 1 || len(listed) != 1 {
+	count, err := projects.CountByGitHubAccountID(ctx, account.ID)
+	if err != nil || count != 1 {
+		t.Fatalf("count by account: count=%d err=%v", count, err)
+	}
+	emptyCount, err := projects.CountByGitHubAccountID(ctx, uuid.New())
+	if err != nil || emptyCount != 0 {
+		t.Fatalf("count missing account: count=%d err=%v", emptyCount, err)
+	}
+
+	second := newPersistedProject(t, account, server, "sentinel-worker", "app-2", now)
+	if err := projects.Create(ctx, second); err != nil {
+		t.Fatalf("create second: %v", err)
+	}
+	count, err = projects.CountByGitHubAccountID(ctx, account.ID)
+	if err != nil || count != 2 {
+		t.Fatalf("count after second project: count=%d err=%v", count, err)
+	}
+
+	orphan := newPersistedProject(t, account, server, "orphan", "app-orphan", now)
+	orphan.GitHubRepository.GitHubAccountID = uuid.New()
+	if err := projects.Create(ctx, orphan); err == nil {
+		t.Fatal("expected FK violation for unknown github_account_id")
+	}
+
+		listed, total, err := projects.List(ctx, paging.ListQuery{Limit: 10, NameLike: "sentinel", Offset: 0})
+	if err != nil || total != 2 || len(listed) != 2 {
 		t.Fatalf("list: total=%d n=%d err=%v", total, len(listed), err)
 	}
 
@@ -66,6 +99,7 @@ func TestProjectRepositoryRoundTripAndConstraints(t *testing.T) {
 	}
 
 	assertSchemaHasNoSecrets(t, db)
+	assertNoGitHubRepositoriesTable(t, db)
 	if _, err := projects.GetByID(ctx, uuid.New()); !errors.Is(err, apperr.ErrProjectNotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
@@ -111,6 +145,13 @@ func newPersistedProject(t *testing.T, account *domain.GitHubAccount, server *do
 		t.Fatal(err)
 	}
 	return project
+}
+
+func assertNoGitHubRepositoriesTable(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	if db.Migrator().HasTable("github_repositories") {
+		t.Fatal("github_repositories table must not exist; repository is an embedded value object on projects")
+	}
 }
 
 func assertSchemaHasNoSecrets(t *testing.T, db *gorm.DB) {

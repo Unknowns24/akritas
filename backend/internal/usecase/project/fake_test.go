@@ -87,6 +87,16 @@ func (m *memoryProjects) Update(_ context.Context, project *domain.Project) erro
 	return nil
 }
 
+func (m *memoryProjects) CountByGitHubAccountID(_ context.Context, accountID uuid.UUID) (int64, error) {
+	var total int64
+	for _, project := range m.byID {
+		if project.GitHubRepository.GitHubAccountID == accountID {
+			total++
+		}
+	}
+	return total, nil
+}
+
 func containsStatus(allowed []domain.MonitoringStatus, status domain.MonitoringStatus) bool {
 	for _, candidate := range allowed {
 		if candidate == status {
@@ -125,10 +135,21 @@ func (m *memoryServers) GetByID(_ context.Context, id uuid.UUID) (*domain.Dokplo
 type memorySnapshots struct{}
 
 func (memorySnapshots) ResolveGitHubRepository(account *domain.GitHubAccount, repositoryIdentifier, defaultBranch string) (domain.GitHubRepository, error) {
+	if account == nil {
+		return domain.GitHubRepository{}, apperr.ErrGitHubAccountNotFound
+	}
 	identifier := strings.TrimSpace(repositoryIdentifier)
-	owner, name := account.AccountIdentifier, identifier
-	if parts := strings.SplitN(identifier, "/", 2); len(parts) == 2 {
-		owner, name = parts[0], parts[1]
+	if identifier == "" || strings.TrimSpace(defaultBranch) == "" {
+		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
+	}
+	owner, name := strings.TrimSpace(account.AccountIdentifier), identifier
+	if parts := strings.Split(identifier, "/"); len(parts) == 2 {
+		owner, name = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	} else if strings.Contains(identifier, "/") {
+		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
+	}
+	if owner == "" || name == "" {
+		return domain.GitHubRepository{}, apperr.ErrRepositoryNotResolvable
 	}
 	return domain.NewGitHubRepository(
 		account.ID, identifier, owner, name, defaultBranch, false,

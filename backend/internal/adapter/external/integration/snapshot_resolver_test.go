@@ -34,6 +34,12 @@ func TestSnapshotResolverParsesIdentifiers(t *testing.T) {
 	if repository.HTMLURL != "https://github.com/Unknowns24/akritas" {
 		t.Fatalf("unexpected html url: %s", repository.HTMLURL)
 	}
+	if repository.Private {
+		t.Fatal("snapshot resolver cannot know private without the GitHub API")
+	}
+	if repository.GitHubAccountID != account.ID {
+		t.Fatalf("account id not copied: %s", repository.GitHubAccountID)
+	}
 
 	simple, err := resolver.ResolveGitHubRepository(account, "sentinel", "develop")
 	if err != nil {
@@ -46,8 +52,20 @@ func TestSnapshotResolverParsesIdentifiers(t *testing.T) {
 	if _, err := resolver.ResolveGitHubRepository(account, "a/b/c", "main"); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
 		t.Fatalf("expected unresolvable repo, got %v", err)
 	}
+	if _, err := resolver.ResolveGitHubRepository(account, "https://github.com/Unknowns24/akritas", "main"); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
+		t.Fatalf("expected url identifier unresolvable, got %v", err)
+	}
+	if _, err := resolver.ResolveGitHubRepository(account, "Unknowns24/", "main"); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
+		t.Fatalf("expected empty name unresolvable, got %v", err)
+	}
 	if _, err := resolver.ResolveGitHubRepository(account, "", "main"); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
 		t.Fatalf("expected empty repo error, got %v", err)
+	}
+	if _, err := resolver.ResolveGitHubRepository(account, "Unknowns24/akritas", " "); !errors.Is(err, apperr.ErrRepositoryNotResolvable) {
+		t.Fatalf("expected empty branch unresolvable, got %v", err)
+	}
+	if _, err := resolver.ResolveGitHubRepository(nil, "Unknowns24/akritas", "main"); !errors.Is(err, apperr.ErrGitHubAccountNotFound) {
+		t.Fatalf("expected missing account, got %v", err)
 	}
 
 	application, err := resolver.ResolveDokployApplication(server, "app-1")

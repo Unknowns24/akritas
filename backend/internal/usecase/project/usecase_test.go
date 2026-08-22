@@ -116,6 +116,71 @@ func TestCreateGetListUpdateAndMonitoring(t *testing.T) {
 	}
 }
 
+func TestPutMonitoringPersistsAllFieldsAndRejectsInvalidPatterns(t *testing.T) {
+	t.Parallel()
+
+	uc, account, server := newTestUseCase(t)
+	ctx := context.Background()
+	created, err := uc.Create(ctx, inproject.CreateCommand{
+		Name: "sentinel-api", GitHubAccountID: account.ID, RepositoryIdentifier: "Unknowns24/akritas", DefaultBranch: "main",
+		DokployServerID: server.ID, ApplicationIdentifier: "app-1", MonitoringConfiguration: domain.DefaultMonitoringConfiguration(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	custom, err := domain.NewMonitoringConfiguration(
+		true, []string{`database .* unavailable`}, []string{`expected healthcheck failure`},
+		15*time.Minute, 8, 12,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: created.Project.ID, MonitoringConfiguration: custom})
+	if err != nil {
+		t.Fatalf("put custom: %v", err)
+	}
+	if !saved.Enabled || saved.GroupingWindow != 15*time.Minute || saved.ContextBefore != 8 || saved.ContextAfter != 12 {
+		t.Fatalf("saved config mismatch: %+v", saved)
+	}
+	if len(saved.ErrorPatterns) != 1 || saved.ErrorPatterns[0] != `database .* unavailable` {
+		t.Fatalf("error patterns: %+v", saved.ErrorPatterns)
+	}
+	if len(saved.IgnoredPatterns) != 1 || saved.IgnoredPatterns[0] != `expected healthcheck failure` {
+		t.Fatalf("ignored patterns: %+v", saved.IgnoredPatterns)
+	}
+
+	got, err := uc.GetMonitoring(ctx, created.Project.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Enabled != saved.Enabled || got.GroupingWindow != saved.GroupingWindow ||
+		got.ContextBefore != saved.ContextBefore || got.ContextAfter != saved.ContextAfter {
+		t.Fatalf("get mismatch: %+v", got)
+	}
+	if len(got.ErrorPatterns) != 1 || got.ErrorPatterns[0] != saved.ErrorPatterns[0] ||
+		len(got.IgnoredPatterns) != 1 || got.IgnoredPatterns[0] != saved.IgnoredPatterns[0] {
+		t.Fatalf("get patterns mismatch: %+v", got)
+	}
+
+	cleared := domain.DefaultMonitoringConfiguration()
+	replaced, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: created.Project.ID, MonitoringConfiguration: cleared})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replaced.Enabled || len(replaced.ErrorPatterns) != 0 || len(replaced.IgnoredPatterns) != 0 {
+		t.Fatalf("replace must wipe previous patterns: %+v", replaced)
+	}
+
+	invalid := domain.MonitoringConfiguration{GroupingWindow: time.Minute, ErrorPatterns: []string{"["}}
+	if _, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: created.Project.ID, MonitoringConfiguration: invalid}); !errors.Is(err, domain.ErrInvalidMonitoringConfiguration) {
+		t.Fatalf("expected invalid regex, got %v", err)
+	}
+	if _, err := uc.PutMonitoring(ctx, inproject.MonitoringCommand{ProjectID: uuid.New(), MonitoringConfiguration: custom}); !errors.Is(err, apperr.ErrProjectNotFound) {
+		t.Fatalf("expected missing project, got %v", err)
+	}
+}
+
 func TestCreateRejectsMissingIntegrationsDuplicatesAndSecrets(t *testing.T) {
 	t.Parallel()
 

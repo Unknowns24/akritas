@@ -1,0 +1,154 @@
+@startuml Akritas_ERD
+
+hide methods
+hide stereotypes
+skinparam linetype ortho
+
+entity "GitHubAccount" as github_account {
+  * id
+  --
+  display_name
+  account_type
+  account_identifier
+  authentication_status
+  created_at
+  updated_at
+}
+
+entity "GitHubRepository" as github_repository {
+  * repository_identifier
+  --
+  github_account_id
+  owner
+  name
+  default_branch
+}
+
+entity "DokployServer" as dokploy_server {
+  * id
+  --
+  name
+  base_url
+  server_identifier
+  connection_status
+  created_at
+  updated_at
+}
+
+entity "DokployApplication" as dokploy_application {
+  * application_identifier
+  --
+  dokploy_server_id
+  instance_identifier
+  display_name
+}
+
+entity "Project" as project {
+  * id
+  --
+  name
+  description
+  monitoring_status
+  created_at
+  updated_at
+}
+
+entity "MonitoringConfiguration" as monitoring_configuration {
+  * project_id
+  --
+  enabled
+  error_patterns
+  ignored_patterns
+  grouping_window
+  context_before
+  context_after
+}
+
+entity "LogEvent" as log_event {
+  * id
+  --
+  project_id
+  timestamp
+  severity
+  message
+  raw_context
+  fingerprint
+}
+
+entity "Incident" as incident {
+  * id
+  --
+  project_id
+  fingerprint
+  status
+  first_seen_at
+  last_seen_at
+  occurrence_count
+  title
+  summary
+  root_cause_status
+  resolution_status
+  confidence
+}
+
+entity "Investigation" as investigation {
+  * id
+  --
+  incident_id
+  started_at
+  finished_at
+  evidence
+  hypotheses
+  root_cause
+  root_cause_status
+  resolution_status
+  confidence
+  relevant_files
+  relevant_commits
+  recommended_actions
+}
+
+entity "GitHubIssueReference" as github_issue {
+  * incident_id
+  --
+  number
+  url
+  repository
+}
+
+entity "Remediation" as remediation {
+  * id
+  --
+  incident_id
+  status
+  branch_name
+  changes_summary
+  validation_results
+}
+
+entity "PullRequestReference" as pull_request {
+  * remediation_id
+  --
+  number
+  url
+  repository
+  branch
+}
+
+github_account ||--o{ github_repository : contains
+dokploy_server ||--o{ dokploy_application : contains
+
+github_repository ||--o{ project : source_code
+dokploy_application ||--o{ project : deployment
+
+project ||--|| monitoring_configuration : configuration
+project ||--o{ incident : incidents
+
+incident ||--o{ log_event : groups
+incident ||--|{ investigation : investigations
+incident ||--|| github_issue : issue
+incident ||--o| remediation : remediation
+
+remediation ||--o| pull_request : pull_request
+
+@enduml

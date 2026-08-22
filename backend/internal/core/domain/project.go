@@ -82,6 +82,11 @@ func NewProject(
 	if err := project.Validate(); err != nil {
 		return nil, err
 	}
+	if monitoringConfiguration.Enabled {
+		if err := project.ReadyForMonitoringEngine(); err != nil {
+			return nil, err
+		}
+	}
 	return project, nil
 }
 
@@ -94,6 +99,25 @@ func (p Project) Validate() error {
 	}
 	if p.LastObservedAt != nil && p.LastObservedAt.Before(p.CreatedAt) {
 		return ErrInvalidProject.Wrap(validationCause("last observed time"))
+	}
+	return nil
+}
+
+// ReadyForMonitoringEngine reports whether the Project has the non-secret
+// GitHub, Dokploy and monitoring snapshots required to start the engine.
+// Credentials stay in Credential Store; this does not start workers.
+func (p Project) ReadyForMonitoringEngine() error {
+	if err := p.GitHubRepository.Validate(); err != nil {
+		return err
+	}
+	if err := p.DokployApplication.Validate(); err != nil {
+		return err
+	}
+	if err := p.MonitoringConfiguration.Validate(); err != nil {
+		return err
+	}
+	if !p.MonitoringConfiguration.Enabled {
+		return ErrInvalidMonitoringConfiguration.Wrap(validationCause("monitoring not enabled"))
 	}
 	return nil
 }
@@ -127,12 +151,22 @@ func (p *Project) ReplaceMonitoringConfiguration(configuration MonitoringConfigu
 	}
 	configuration.ErrorPatterns = cloneStrings(configuration.ErrorPatterns)
 	configuration.IgnoredPatterns = cloneStrings(configuration.IgnoredPatterns)
-	p.MonitoringConfiguration = configuration
-	p.UpdatedAt = updatedAt
+	next := *p
+	next.MonitoringConfiguration = configuration
+	next.UpdatedAt = updatedAt
 	if !configuration.Enabled {
-		p.MonitoringStatus = MonitoringStatusDisabled
-	} else if p.MonitoringStatus == MonitoringStatusDisabled {
-		p.MonitoringStatus = MonitoringStatusStarting
+		next.MonitoringStatus = MonitoringStatusDisabled
+	} else if next.MonitoringStatus == MonitoringStatusDisabled {
+		next.MonitoringStatus = MonitoringStatusStarting
 	}
-	return p.Validate()
+	if configuration.Enabled {
+		if err := next.ReadyForMonitoringEngine(); err != nil {
+			return err
+		}
+	}
+	if err := next.Validate(); err != nil {
+		return err
+	}
+	*p = next
+	return nil
 }

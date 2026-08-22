@@ -81,6 +81,84 @@ func TestProjectRenameReplaceIntegrationsAndMonitoring(t *testing.T) {
 	}
 }
 
+func TestProjectEnableDisableKeepsPatternsAndRequiresValidRefs(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	project := newTestProject(t, now)
+	later := now.Add(time.Minute)
+	if err := project.ReadyForMonitoringEngine(); !errors.Is(err, ErrInvalidMonitoringConfiguration) {
+		t.Fatalf("disabled project must not be ready, got %v", err)
+	}
+
+	enabled, err := NewMonitoringConfiguration(true, []string{`panic`}, []string{`healthcheck`}, time.Hour, 5, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := project.ReplaceMonitoringConfiguration(enabled, later); err != nil {
+		t.Fatalf("enable rejected: %v", err)
+	}
+	if project.MonitoringStatus != MonitoringStatusStarting || !project.MonitoringConfiguration.Enabled {
+		t.Fatalf("disabled project must become starting: %+v", project)
+	}
+	if err := project.ReadyForMonitoringEngine(); err != nil {
+		t.Fatalf("enabled project with valid refs must be ready: %v", err)
+	}
+
+	disabled, err := NewMonitoringConfiguration(false, []string{`panic`}, []string{`healthcheck`}, time.Hour, 5, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := project.ReplaceMonitoringConfiguration(disabled, later.Add(time.Second)); err != nil {
+		t.Fatalf("disable rejected: %v", err)
+	}
+	if project.MonitoringStatus != MonitoringStatusDisabled || project.MonitoringConfiguration.Enabled {
+		t.Fatalf("disable must set disabled without wiping config: %+v", project)
+	}
+	if len(project.MonitoringConfiguration.ErrorPatterns) != 1 || project.MonitoringConfiguration.ErrorPatterns[0] != `panic` {
+		t.Fatalf("disable must keep error patterns: %+v", project.MonitoringConfiguration.ErrorPatterns)
+	}
+	if len(project.MonitoringConfiguration.IgnoredPatterns) != 1 || project.MonitoringConfiguration.IgnoredPatterns[0] != `healthcheck` {
+		t.Fatalf("disable must keep ignored patterns: %+v", project.MonitoringConfiguration.IgnoredPatterns)
+	}
+
+	if err := project.ReplaceMonitoringConfiguration(enabled, later.Add(2*time.Second)); err != nil {
+		t.Fatalf("re-enable rejected: %v", err)
+	}
+	if project.MonitoringStatus != MonitoringStatusStarting {
+		t.Fatalf("disabled→enabled must become starting, got %s", project.MonitoringStatus)
+	}
+
+	project.MonitoringStatus = MonitoringStatusDegraded
+	if err := project.ReplaceMonitoringConfiguration(enabled, later.Add(3*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if project.MonitoringStatus != MonitoringStatusDegraded {
+		t.Fatalf("re-enable must keep degraded, got %s", project.MonitoringStatus)
+	}
+
+	if err := project.ReplaceMonitoringConfiguration(disabled, later.Add(4*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	brokenRepo := *project
+	brokenRepo.GitHubRepository.GitHubAccountID = uuid.Nil
+	if err := brokenRepo.ReplaceMonitoringConfiguration(enabled, later.Add(5*time.Second)); !errors.Is(err, ErrInvalidGitHubRepository) {
+		t.Fatalf("enable with invalid repo must fail, got %v", err)
+	}
+	if brokenRepo.MonitoringStatus != MonitoringStatusDisabled || brokenRepo.MonitoringConfiguration.Enabled {
+		t.Fatalf("failed enable must leave project disabled: %+v", brokenRepo)
+	}
+
+	brokenApp := *project
+	brokenApp.DokployApplication.ApplicationIdentifier = ""
+	if err := brokenApp.ReplaceMonitoringConfiguration(enabled, later.Add(6*time.Second)); !errors.Is(err, ErrInvalidDokployApplication) {
+		t.Fatalf("enable with invalid app must fail, got %v", err)
+	}
+	if brokenApp.MonitoringStatus != MonitoringStatusDisabled || brokenApp.MonitoringConfiguration.Enabled {
+		t.Fatalf("failed enable must leave project disabled: %+v", brokenApp)
+	}
+}
+
 func TestAllBuiltInDetectionRulesAreEnabledCatalog(t *testing.T) {
 	t.Parallel()
 

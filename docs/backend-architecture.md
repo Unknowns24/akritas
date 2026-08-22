@@ -107,6 +107,8 @@ internal/
 
     rest/
       dto/
+        common/
+        <feature>/
       handler/
       middleware/
       router/
@@ -161,7 +163,10 @@ Typical Akritas concepts include:
 
 Domain objects may contain invariants and behavior when that behavior belongs naturally to the entity or value object.
 
-The domain must not contain HTTP DTOs, GORM repository logic, GitHub payloads or QVAC response structures.
+The domain must not contain HTTP DTOs, GORM repository logic, GitHub payloads or
+QVAC response structures. Persistible domain entities may declare passive GORM
+field tags when an accepted ADR authorizes direct persistence; they must not
+import GORM or contain persistence behavior.
 
 ### 5.2 Input ports
 
@@ -325,6 +330,11 @@ Handlers must remain thin.
 
 They must not contain business rules, direct GORM queries or provider-specific integrations.
 
+REST contract structs use the `DTO` suffix, one struct per file and feature
+packages under `dto/<feature>/`; shared envelopes live under `dto/common/`.
+Conversions between transport DTOs and application/domain values live in
+`internal/adapter/rest/mapper/`, with one mapping responsibility per file.
+
 Recommended structure:
 
 ```text
@@ -353,7 +363,9 @@ internal/adapter/db/<technology>/
 
 Database repositories implement output ports defined by the core.
 
-When GORM is used, GORM belongs here and not in the domain/usecase layers.
+When GORM is used, executable GORM dependencies, queries and repository behavior
+belong here and not in domain/usecase layers. Passive GORM tags on persistible
+domain entities are the narrow exception documented by ADR-012.
 
 Recommended repository structure:
 
@@ -630,6 +642,9 @@ Do not instantiate repositories or provider clients inside use cases or handlers
 When persistence uses GORM:
 
 - repositories use GORM inside the DB adapter;
+- repositories may persist tagged domain entities directly when ADR-012 applies;
+- adapter-private storage records remain appropriate for non-domain data such as
+  encrypted Credential Store rows;
 - schema/data evolution uses `github.com/go-gormigrate/gormigrate/v2`;
 - startup-wide `AutoMigrate` is not the migration strategy;
 - every persistent change must have an ordered versioned migration.
@@ -716,6 +731,10 @@ unauthorized operation
 
 The REST adapter maps known application errors to appropriate HTTP responses.
 
+The shared enriched error type does not centralize ownership: REST, database and
+external-provider sentinels are declared in their respective adapters; only
+domain and use-case errors live in core.
+
 Provider-specific errors should be normalized inside their adapters instead of leaking GitHub/QVAC/Dokploy SDK errors throughout the application.
 
 Raw infrastructure errors, tokens and sensitive provider payloads must not be exposed to API consumers.
@@ -724,13 +743,18 @@ Raw infrastructure errors, tokens and sensitive provider payloads must not be ex
 
 ## 17. Pagination
 
-For operational list endpoints, prefer cursor-based signed pagination when pagination is required by the project.
+For operational list endpoints, use `github.com/unknowns24/uker/pagination` as the
+single cursor implementation. REST parses with `ParseWithSecurity`, database
+adapters apply `Apply`/`ApplyFilters`, and REST builds responses with
+`BuildPageSigned`. External discovery adapters translate Uker boundaries to
+provider page/offset values without defining a second cursor codec.
 
 Backend-owned filters such as authenticated scopes should not be client-overridable.
 
 If a cursor encodes filters/sort/limit, subsequent cursor requests must preserve that state.
 
-Do not introduce offset pagination in new endpoints unless the requirement explicitly needs it.
+Provider-native offsets may exist behind an adapter, but public endpoints must not
+introduce a second offset pagination contract.
 
 ---
 
@@ -779,7 +803,7 @@ Validate transport concerns:
 The following patterns should be treated as architecture violations:
 
 ```text
-core/domain → GORM
+core/domain → GORM imports or repository behavior
 core/usecase → GitHub SDK
 core/usecase → Dokploy/QVAC HTTP client
 core/usecase → os/exec
@@ -850,7 +874,7 @@ credential is persisted or redirect is emitted.
 ## 22. HTTP contract conventions
 
 The canonical contract is `backend/docs/openapi.yaml` and declares API version
-`1.0.0` under `/api/v1`.
+`1.2.0` under `/api/v1`.
 
 Transport conventions:
 

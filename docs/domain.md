@@ -64,6 +64,10 @@ Campos conceptuales:
 - `authentication_method`
 - `account_identifier`
 - `authentication_status`
+- `credential_configured`
+- `repository_count`
+- `last_checked_at`
+- `manage_url`
 - `created_at`
 - `updated_at`
 
@@ -89,6 +93,9 @@ Campos conceptuales:
 - `name`
 - `default_branch`
 - `repository_identifier`
+- `full_name`
+- `private`
+- `html_url`
 
 El repositorio pertenece conceptualmente a una `GitHubAccount` configurada en Akritas.
 Las credenciales no forman parte conceptual del repositorio; pertenecen a la capa de integración/configuración segura.
@@ -104,10 +111,15 @@ Campos conceptuales:
 - `base_url`
 - `server_identifier`
 - `connection_status`
+- `credential_configured`
+- `application_count`
+- `last_synced_at`
 - `created_at`
 - `updated_at`
 
 Las API keys, tokens y demás secretos necesarios para conectarse al servidor no forman parte conceptual de esta entidad; pertenecen a la capa de integración y configuración segura.
+
+`server_identifier` no proviene de Dokploy ni del request de creación: es el fingerprint SHA-256 del origen `base_url` normalizado. Permite una identidad estable mientras Dokploy no exponga un identificador de instancia documentado.
 
 ## DokployApplication
 
@@ -118,6 +130,8 @@ Campos conceptuales:
 - `application_identifier`
 - `instance_identifier`
 - `display_name`
+- `environment`
+- `status`
 
 La aplicación pertenece conceptualmente a un `DokployServer` configurado en Akritas.
 

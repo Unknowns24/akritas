@@ -53,6 +53,11 @@ Example:
 - Do not create ad-hoc errors in handlers.
 - Do not dynamically build error codes at runtime.
 - Preserve `domain.Error` or the project equivalent as the single error contract.
+- The shared error type does not imply shared ownership of sentinels. REST, DB,
+  external-adapter, domain and usecase errors MUST be declared in their owning
+  layer/package.
+- Domain/core MUST NOT catalogue REST (`AAA[0]=1`), DB (`AAA[0]=2`) or external
+  adapter (`AAA[0]=3`) errors.
 - Use wrapping only through the existing enriched error mechanism, for example `ErrXxx.Wrap(err)` if available.
 - Do not leak infrastructure details to clients.
 - New errors must be registered in the project error catalog and `docs/errors/aaa-map.md`.

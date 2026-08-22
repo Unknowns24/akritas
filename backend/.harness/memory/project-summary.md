@@ -15,9 +15,11 @@ Architecture guidance:
 - `backend_service`: log collection, detection, incident grouping, investigation and remediation workflows.
 - Frontend: Next.js App Router, feature-based architecture.
 - API contract: OpenAPI is authoritative for frontend/backend integration.
-- Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.0.0 under `/api/v1`.
+- Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.2.0 under `/api/v1`.
 - Persistence: GORM repositories + gormigrate/v2 migrations.
-- Backend foundation: Go 1.26 module with a transport/persistence-independent MVP domain under `internal/core/domain`.
+- Backend foundation: Go 1.26 module with a transport-independent MVP domain under `internal/core/domain`; persistible entities may carry passive GORM tags under ADR-012, without GORM imports or repository behavior.
+- Pagination: Uker v1.2.2 with signed cursors and a default page size of 25.
+- Runtime configuration: centralized Viper loading from environment over optional `app.env`.
 - QVAC inference must remain local for the hackathon requirements.
 - GitHub, Dokploy, QVAC, Git and filesystem access are infrastructure adapters behind output ports.
 - Integration credentials are backend-only and must never reach browser code.

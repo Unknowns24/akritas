@@ -86,6 +86,14 @@ var (
 	ErrValidationTransition           = newDomainError("0x406008C", "invalid validation transition", "La validación no puede cambiar a ese estado.")
 	ErrInvalidCodeChange              = newDomainError("0x406009V", "invalid code change", "El cambio de código no es válido.")
 	ErrInvalidPullRequestReference    = newDomainError("0x40600AV", "invalid pull request reference", "La referencia a la Pull Request no es válida.")
+	ErrIntegrationNotFound            = newDomainError("0x502001N", "integration not found", "La integración solicitada no existe.")
+	ErrIntegrationConflict            = newDomainError("0x502002C", "integration conflict", "La integración entra en conflicto con una configuración existente.")
+	ErrIntegrationInUse               = newDomainError("0x502003C", "integration in use", "La integración está asociada a un Project y no puede eliminarse.")
+	ErrGitHubCredentialRejected       = newDomainError("0x502004V", "GitHub credential rejected", "GitHub rechazó la credencial o la cuenta configurada.")
+	ErrDokployCredentialRejected      = newDomainError("0x502005V", "Dokploy credential rejected", "Dokploy rechazó la credencial configurada.")
+	ErrManifestStateInvalid           = newDomainError("0x502006V", "invalid GitHub manifest state", "El intento de conexión con GitHub no es válido.")
+	ErrManifestStateConflict          = newDomainError("0x502007C", "GitHub manifest state conflict", "El intento de conexión con GitHub ya fue utilizado o expiró.")
+	ErrIntegrationUnavailable         = newDomainError("0x502008I", "integration unavailable", "No se pudo contactar la integración.")
 )
 
 // DomainErrors returns the complete stable catalog keyed by sentinel name.
@@ -133,5 +141,19 @@ func DomainErrors() map[string]*Error {
 		"ErrValidationTransition":           ErrValidationTransition,
 		"ErrInvalidCodeChange":              ErrInvalidCodeChange,
 		"ErrInvalidPullRequestReference":    ErrInvalidPullRequestReference,
+	}
+}
+
+// IntegrationErrors returns stable errors introduced by the integration application boundary.
+func IntegrationErrors() map[string]*Error {
+	return map[string]*Error{
+		"ErrIntegrationNotFound":       ErrIntegrationNotFound,
+		"ErrIntegrationConflict":       ErrIntegrationConflict,
+		"ErrIntegrationInUse":          ErrIntegrationInUse,
+		"ErrGitHubCredentialRejected":  ErrGitHubCredentialRejected,
+		"ErrDokployCredentialRejected": ErrDokployCredentialRejected,
+		"ErrManifestStateInvalid":      ErrManifestStateInvalid,
+		"ErrManifestStateConflict":     ErrManifestStateConflict,
+		"ErrIntegrationUnavailable":    ErrIntegrationUnavailable,
 	}
 }

@@ -80,6 +80,10 @@ internal/adapter/rest/handler/
 
 The same principle applies to repositories, services, usecases, and other feature implementations.
 
+REST DTOs follow the same feature grouping under
+`internal/adapter/rest/dto/<feature>/`. Only shared envelopes and transport
+metadata belong in `dto/common/`; the `dto/` root contains no contract structs.
+
 ## Usecase packages
 
 Each usecase MUST live inside its feature package:
@@ -320,6 +324,19 @@ internal/core/domain/
 A feature requiring a new domain concept MUST define that concept in the domain layer before adapters begin representing it through persistence or transport-specific structures.
 
 Database models and HTTP DTOs MUST NOT replace domain entities unless an ADR explicitly defines that architecture.
+
+When an accepted ADR establishes domain entities as the active GORM mapping,
+the DB adapter MUST reuse those entities instead of maintaining field-for-field
+duplicates. Infrastructure-only records may remain private to their adapter.
+
+REST DTO rules:
+
+- every transport struct name ends in `DTO`;
+- each DTO struct lives in its own file;
+- related DTOs may be grouped by feature directories;
+- mapping functions live in `internal/adapter/rest/mapper/`, not beside DTO
+  declarations;
+- each mapper file performs one direction/concept of conversion.
 
 ## Bootstrap and wiring
 

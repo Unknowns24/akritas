@@ -46,5 +46,23 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrValidationTransition` | `0x406008C` | Remediation | Conflict | La validación no puede cambiar a ese estado. |
 | `ErrInvalidCodeChange` | `0x406009V` | Remediation | Validation | El cambio de código no es válido. |
 | `ErrInvalidPullRequestReference` | `0x40600AV` | Remediation | Validation | La referencia a la Pull Request no es válida. |
+| `ErrIntegrationNotFound` | `0x502001N` | Integrations usecase | Not found | La integración solicitada no existe. |
+| `ErrIntegrationConflict` | `0x502002C` | Integrations usecase | Conflict | La integración entra en conflicto con una configuración existente. |
+| `ErrIntegrationInUse` | `0x502003C` | Integrations usecase | Conflict | La integración está asociada a un Project y no puede eliminarse. |
+| `ErrGitHubCredentialRejected` | `0x502004V` | Integrations usecase | Validation | GitHub rechazó la credencial o la cuenta configurada. |
+| `ErrDokployCredentialRejected` | `0x502005V` | Integrations usecase | Validation | Dokploy rechazó la credencial configurada. |
+| `ErrManifestStateInvalid` | `0x502006V` | Integrations usecase | Validation | El intento de conexión con GitHub no es válido. |
+| `ErrManifestStateConflict` | `0x502007C` | Integrations usecase | Conflict | El intento de conexión con GitHub ya fue utilizado o expiró. |
+| `ErrIntegrationUnavailable` | `0x502008I` | Integrations usecase | Internal | No se pudo contactar la integración. |
+| `ErrIntegrationPersistence` | `0x202001I` | Integrations database | Internal | No se pudo guardar la integración. |
+| `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
+| `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
+| `ErrInvalidGitHubAppPrivateKey` | `0x302001I` | GitHub adapter | Internal | La clave privada de la GitHub App no pudo utilizarse. |
 
-Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401 y `C` a 409.
+Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401, `F` a 403, `N` a 404, `C` a 409 e `I` a 500.
+
+Cada sentinel se declara en la capa que representa: errores REST bajo
+`internal/adapter/rest/errors`, errores PostgreSQL bajo
+`internal/adapter/db/postgres/errors` y errores internos de proveedor dentro del
+adapter correspondiente. `internal/core/domain` conserva sólo errores de dominio
+y casos de uso mediante el contrato común `domain.Error`.

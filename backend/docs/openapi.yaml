@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.0.0
+  version: 1.2.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -466,6 +466,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "500":
@@ -518,6 +520,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -534,6 +538,8 @@ paths:
           description: Account and encrypted credentials removed.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -562,6 +568,8 @@ paths:
                 $ref: "#/components/schemas/ConnectionTestResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -632,6 +640,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -773,6 +783,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "500":
@@ -824,6 +836,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -840,6 +854,8 @@ paths:
           description: Server and encrypted credential removed.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -868,6 +884,8 @@ paths:
                 $ref: "#/components/schemas/ConnectionTestResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -1707,7 +1725,7 @@ components:
         type: integer
         minimum: 1
         maximum: 100
-        default: 20
+        default: 25
     Cursor:
       name: cursor
       in: query
@@ -2310,6 +2328,8 @@ components:
           format: uri
         server_identifier:
           type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: SHA-256 fingerprint derived from the normalized Dokploy origin; it is not supplied by the client or Dokploy.
         connection_status:
           $ref: "#/components/schemas/IntegrationStatus"
         credential_configured:

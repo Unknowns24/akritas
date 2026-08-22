@@ -15,7 +15,7 @@ Architecture guidance:
 - `backend_service`: log collection, detection, incident grouping, investigation and remediation workflows.
 - Frontend: Next.js App Router, feature-based architecture.
 - API contract: OpenAPI is authoritative for frontend/backend integration.
-- Persistence: GORM repositories + gormigrate/v2 migrations.
+- Persistence: GORM repositories + gormigrate/v2 migrations against domain structs (`gorm` tags). The database adapter must not introduce duplicate table models.
 - QVAC inference must remain local for the hackathon requirements.
 - GitHub, Dokploy, QVAC, Git and filesystem access are infrastructure adapters behind output ports.
 - Integration credentials are backend-only and must never reach browser code.

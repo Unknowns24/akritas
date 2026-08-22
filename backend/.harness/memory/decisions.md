@@ -26,5 +26,13 @@ Record durable project decisions here.
 - The backend Go module is `github.com/Unknowns24/akritas/backend` and declares Go 1.26.
 - The MVP domain starts as one flat `internal/core/domain` package with one file per cohesive concept.
 - Akritas-owned identities use `github.com/google/uuid`; provider identifiers remain strings.
-- Domain entities do not contain JSON/GORM tags or integration/authentication secrets.
+- Domain entities do not contain JSON tags, GORM imports, or integration/authentication secrets.
 - Domain error components reserve `0x401` through `0x406` for auth, integrations, project, incidents, investigations and remediation respectively.
+
+## 2026-08-22 — Domain persistence metadata
+
+- Persisted domain structs carry `gorm` tags so repositories and versioned migrations can use `domain.X` directly.
+- Parallel GORM model packages under `internal/adapter/db/**/model` are forbidden when they duplicate domain fields.
+- REST DTOs remain the HTTP contract (OpenAPI, envelopes, ISO-8601). They must not be replaced by domain structs in handlers.
+- `internal/core/**` must not import `gorm.io/gorm`, Chi, SQL drivers, or define GORM callbacks. Table names and migrations stay in the database adapter.
+- JSON tags belong only on REST DTOs.

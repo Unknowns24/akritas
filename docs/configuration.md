@@ -37,6 +37,19 @@ High-entropy administrator setup/recovery capability. It must be independent fro
 It is read at runtime, compared in constant time, rate limited at the HTTP boundary
 and never stored or logged.
 
+### `AKRITAS_POSTGRES_DSN`
+
+PostgreSQL connection string used by the persistence adapter.
+
+Example:
+
+```text
+postgres://akritas:akritas@127.0.0.1:5432/akritas?sslmode=disable
+```
+
+The value must not be logged. Tests may use `AKRITAS_POSTGRES_TEST_DSN` to reuse an
+already running instance instead of starting an embedded Postgres.
+
 ### `AKRITAS_PAGINATION_SECRET`
 
 High-entropy key used to sign cursor pagination payloads. Rotating it invalidates

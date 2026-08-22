@@ -173,9 +173,10 @@ Migration code belongs to the DB adapter and may depend on GORM/gormigrate.
 
 Domain entities must remain independent from migration infrastructure:
 
-- `internal/core/**` must never import GORM or gormigrate.
-- Migration packages may import domain models when GORM metadata on those models is the established project convention.
-- Migration-only helper structs may be defined inside the migration package when historical schema shape differs from the current domain model.
+- `internal/core/**` must never import GORM or gormigrate. `gorm` struct tags on domain types are the project convention.
+- Schema migrations MUST call `AutoMigrate` against `domain` types (for example `tx.AutoMigrate(&domain.Project{})`).
+- Do not introduce adapter-local GORM models that duplicate domain fields.
+- Migration-only helper structs may be defined inside the migration package only when historical schema shape differs from the current domain model.
 
 ## Testing requirements
 

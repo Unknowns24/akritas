@@ -15,11 +15,12 @@ adapter/rest|db|external → usecase → core(domain + ports)
 ## Forbidden dependencies
 
 - `internal/core/**` importing `internal/adapter/**`.
-- `internal/core/**` importing HTTP, Chi, GORM, SQL drivers or external SDKs.
+- `internal/core/**` importing HTTP, Chi, GORM, SQL drivers or external SDKs. Struct tags `gorm` on domain types are allowed; `import gorm.io/gorm` is not.
 - `internal/usecase/**` importing concrete adapters.
 - REST handlers using GORM or concrete repositories directly.
 - HTTP DTOs leaking into domain/usecase contracts.
-- GORM models being returned as REST responses.
+- Domain entities or persistence structs being encoded as REST responses. Handlers must map through REST DTOs.
+- Duplicate table structs under `internal/adapter/db/**/model` that mirror domain fields. Repositories persist `domain` types.
 
 ## Expected structure
 
@@ -43,6 +44,7 @@ Expected substructure:
 
 ```text
 internal/adapter/rest/dto/
+internal/adapter/rest/utils/
 internal/adapter/rest/handler/
 internal/adapter/rest/middleware/
 internal/adapter/rest/router/

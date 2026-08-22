@@ -161,7 +161,7 @@ Typical Akritas concepts include:
 
 Domain objects may contain invariants and behavior when that behavior belongs naturally to the entity or value object.
 
-The domain must not contain HTTP DTOs, GORM repository logic, GitHub payloads or QVAC response structures.
+The domain must not contain HTTP DTOs, GORM repository logic, GitHub payloads or QVAC response structures. Persisted domain structs MAY carry `gorm` tags so the database adapter can use them directly; they MUST NOT import GORM or define persistence callbacks.
 
 ### 5.2 Input ports
 
@@ -353,7 +353,7 @@ internal/adapter/db/<technology>/
 
 Database repositories implement output ports defined by the core.
 
-When GORM is used, GORM belongs here and not in the domain/usecase layers.
+When GORM is used, GORM repositories, drivers and migrations belong here. Domain structs MAY carry `gorm` tags; the adapter MUST NOT introduce duplicate table models.
 
 Recommended repository structure:
 
@@ -779,14 +779,15 @@ Validate transport concerns:
 The following patterns should be treated as architecture violations:
 
 ```text
-core/domain → GORM
+core/domain → import GORM/Chi/SQL drivers
 core/usecase → GitHub SDK
 core/usecase → Dokploy/QVAC HTTP client
 core/usecase → os/exec
 REST handler → GORM
 REST handler → concrete repository
 REST DTO used as domain model
-GORM model returned directly as HTTP response
+domain entity returned directly as HTTP response
+duplicate GORM models under adapter/db that mirror domain fields
 repository method triggering GitHub/QVAC calls
 provider DTO stored throughout the domain
 large generic services/repositories/handlers with unrelated operations

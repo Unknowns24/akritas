@@ -319,7 +319,7 @@ internal/core/domain/
 
 A feature requiring a new domain concept MUST define that concept in the domain layer before adapters begin representing it through persistence or transport-specific structures.
 
-Database models and HTTP DTOs MUST NOT replace domain entities unless an ADR explicitly defines that architecture.
+HTTP DTOs MUST NOT replace domain entities. Duplicate database model structs that mirror domain fields MUST NOT replace domain entities either: persisted aggregates are the domain types (with `gorm` tags). REST DTOs remain required at the HTTP boundary.
 
 ## Bootstrap and wiring
 

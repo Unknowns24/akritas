@@ -37,6 +37,18 @@ High-entropy administrator setup/recovery capability. It must be independent fro
 It is read at runtime, compared in constant time, rate limited at the HTTP boundary
 and never stored or logged.
 
+### `AKRITAS_DB_DSN`
+
+PostgreSQL connection string for the backend's primary database (GORM +
+gormigrate migrations, including the Administrator and pending enrollment
+tables). It is read at runtime and never logged.
+
+Example:
+
+```text
+postgres://user:password@localhost:5432/akritas?sslmode=disable
+```
+
 ### `AKRITAS_PAGINATION_SECRET`
 
 High-entropy key used to sign cursor pagination payloads. Rotating it invalidates

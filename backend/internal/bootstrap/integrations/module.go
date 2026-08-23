@@ -22,6 +22,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/stub"
 	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
+	"github.com/Unknowns24/akritas/backend/internal/service/investigationtools"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
@@ -103,7 +104,13 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 
 	incidentReader := stub.NewDenyAllIncidentReader()
 	evidenceAssembler := evidenceassembly.New(incidentReader, projects, uuid.New, time.Now)
-	runInvestigation := investigationusecase.NewRunUseCase(investigations, operations, evidences, evidenceAssembler, qvac.NewStubRunner(), time.Now)
+	qvacClient, err := qvac.NewClient(qvac.ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+	toolResolver := investigationtools.NewResolver(incidentReader, projects, githubAccounts)
+	investigationRunner := investigationtools.NewRunner(qvacClient, githubClient, toolResolver, qvac.RunnerConfig{})
+	runInvestigation := investigationusecase.NewRunUseCase(investigations, operations, evidences, evidenceAssembler, investigationRunner, time.Now)
 	investigationDispatcher := investigationdispatch.New(runInvestigation, investigationRunTimeout)
 	investigationUseCase := investigationusecase.New(
 		incidentReader, investigations, operations, investigationDispatcher, uuid.New, time.Now,

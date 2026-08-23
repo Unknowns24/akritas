@@ -39,6 +39,18 @@ This document tracks all temporary mocks, overrides, and hardcoded values inject
 
 **Reasoning:** To preview the incident UI components and detail views, the endpoints are mocked since the real backend is unavailable.
 
+## 3. Dokploy Service Mocks
+
+**Files:** 
+- `src/features/settings/services/dokploy/list-dokploy-servers.service.ts`
+- `src/features/settings/services/dokploy/create-dokploy-server.service.ts`
+- `src/features/settings/services/dokploy/update-dokploy-server.service.ts`
+- `src/features/settings/services/dokploy/delete-dokploy-server.service.ts`
+- `src/features/settings/services/dokploy/test-dokploy-connection.service.ts`
+- `src/features/settings/services/dokploy/get-dokploy-applications.service.ts`
+
+These files check for an `error` or a missing `data` object from the API client. If the backend fails to respond correctly, they automatically inject synthetic data (e.g., returning mock dokploy servers, applications, or faking a successful delete operation).
+
 **Specific Workarounds:**
 - **`/incidents` (`getIncidentsService`)**:
   - Catches API failure and returns hardcoded lists of `IncidentSummary` (one in `detected` phase, one in `failed` phase).

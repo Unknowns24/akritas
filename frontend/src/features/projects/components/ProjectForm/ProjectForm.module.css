@@ -36,7 +36,22 @@
   color: var(--text-secondary);
 }
 
-.input {
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.input,
+.textarea {
+  width: 100%;
   background-color: var(--surface-2);
   border: 1px solid var(--surface-3);
   color: var(--text-primary);
@@ -48,7 +63,13 @@
   transition: border-color 0.2s ease;
 }
 
-.input:focus {
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.input:focus,
+.textarea:focus {
   border-color: var(--brand-500);
 }
 

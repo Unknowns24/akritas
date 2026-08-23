@@ -33,13 +33,13 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
   const [dokployServerId, setDokployServerId] = useState(initialData?.dokploy_application?.dokploy_server_id || "");
   const [applicationId, setApplicationId] = useState(initialData?.dokploy_application?.application_identifier || "");
 
-  // Monitoring State (Default values for now as agreed)
-  const [monitoringEnabled, setMonitoringEnabled] = useState(
-    initialData?.monitoring_configuration?.enabled ?? true
-  );
-  const [groupingWindow, setGroupingWindow] = useState(
-    initialData?.monitoring_configuration?.grouping_window || "PT30M"
-  );
+  // Monitoring Config State
+  const [monitoringEnabled, setMonitoringEnabled] = useState(initialData?.monitoring_configuration?.enabled ?? true);
+  const [groupingWindow, setGroupingWindow] = useState(initialData?.monitoring_configuration?.grouping_window || "PT30M");
+  const [errorPatterns, setErrorPatterns] = useState<string[]>(initialData?.monitoring_configuration?.error_patterns || []);
+  const [ignoredPatterns, setIgnoredPatterns] = useState<string[]>(initialData?.monitoring_configuration?.ignored_patterns || []);
+  const [contextBefore, setContextBefore] = useState<number>(initialData?.monitoring_configuration?.context_before ?? 20);
+  const [contextAfter, setContextAfter] = useState<number>(initialData?.monitoring_configuration?.context_after ?? 20);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,10 +93,10 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
           monitoring_configuration: {
             enabled: monitoringEnabled,
             grouping_window: groupingWindow,
-            error_patterns: [],
-            ignored_patterns: [],
-            context_before: 20,
-            context_after: 20,
+            error_patterns: errorPatterns,
+            ignored_patterns: ignoredPatterns,
+            context_before: contextBefore,
+            context_after: contextAfter,
           },
         });
 
@@ -173,7 +173,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
 
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Monitoring Configuration</h3>
-        <div className={styles.field} style={{ flexDirection: "row", alignItems: "center", gap: "12px" }}>
+        <div className={styles.checkboxRow}>
           <input
             id="monitoringEnabled"
             type="checkbox"
@@ -182,15 +182,66 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
           />
           <label htmlFor="monitoringEnabled" className={styles.label} style={{ margin: 0 }}>Enable automatic monitoring and alerting</label>
         </div>
+        
+        <div className={styles.fieldRow}>
+          <div className={styles.field}>
+            <label htmlFor="groupingWindow" className={styles.label}>Grouping Window</label>
+            <input
+              id="groupingWindow"
+              className={styles.input}
+              value={groupingWindow}
+              onChange={(e) => setGroupingWindow(e.target.value)}
+              placeholder="e.g. PT30M"
+              required
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="contextBefore" className={styles.label}>Context Before (lines)</label>
+            <input
+              id="contextBefore"
+              type="number"
+              min="0"
+              className={styles.input}
+              value={contextBefore}
+              onChange={(e) => setContextBefore(Number(e.target.value))}
+              required
+            />
+          </div>
+          <div className={styles.field}>
+            <label htmlFor="contextAfter" className={styles.label}>Context After (lines)</label>
+            <input
+              id="contextAfter"
+              type="number"
+              min="0"
+              className={styles.input}
+              value={contextAfter}
+              onChange={(e) => setContextAfter(Number(e.target.value))}
+              required
+            />
+          </div>
+        </div>
+
         <div className={styles.field}>
-          <label htmlFor="groupingWindow" className={styles.label}>Incident Grouping Window</label>
-          <input
-            id="groupingWindow"
-            className={styles.input}
-            value={groupingWindow}
-            onChange={(e) => setGroupingWindow(e.target.value)}
-            placeholder="e.g. PT30M"
-            required
+          <label htmlFor="errorPatterns" className={styles.label}>Error Patterns (Regex, one per line)</label>
+          <textarea
+            id="errorPatterns"
+            className={styles.textarea}
+            value={errorPatterns.join('\n')}
+            onChange={(e) => setErrorPatterns(e.target.value.split('\n').filter(p => p.trim() !== ''))}
+            placeholder="e.g. ^Error:.*"
+            rows={3}
+          />
+        </div>
+
+        <div className={styles.field}>
+          <label htmlFor="ignoredPatterns" className={styles.label}>Ignored Patterns (Regex, one per line)</label>
+          <textarea
+            id="ignoredPatterns"
+            className={styles.textarea}
+            value={ignoredPatterns.join('\n')}
+            onChange={(e) => setIgnoredPatterns(e.target.value.split('\n').filter(p => p.trim() !== ''))}
+            placeholder="e.g. ^Warning:.*"
+            rows={3}
           />
         </div>
       </div>

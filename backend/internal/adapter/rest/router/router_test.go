@@ -160,6 +160,12 @@ func (f *fakeDokployServers) TestConnection(context.Context, uuid.UUID) (portsin
 func (f *fakeDokployServers) ListApplications(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployApplication], error) {
 	return paging.Slice[domain.DokployApplication]{}, nil
 }
+func (f *fakeDokployServers) ListComposes(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployCompose], error) {
+	return paging.Slice[domain.DokployCompose]{}, nil
+}
+func (f *fakeDokployServers) ListComposeServices(context.Context, uuid.UUID, string, bool) ([]domain.DokployComposeService, error) {
+	return nil, nil
+}
 
 type fakeInvestigations struct {
 	startCalls int
@@ -361,6 +367,8 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/integrations/dokploy/servers",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}/applications",
+		"GET /api/v1/integrations/dokploy/servers/{server_id}/composes",
+		"GET /api/v1/integrations/dokploy/servers/{server_id}/composes/{compose_id}/services",
 		"GET /api/v1/integrations/github/accounts",
 		"GET /api/v1/integrations/github/accounts/{account_id}",
 		"GET /api/v1/integrations/github/accounts/{account_id}/repositories",

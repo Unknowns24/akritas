@@ -19,11 +19,11 @@ func (uc *UseCase) PutMonitoring(ctx context.Context, id uuid.UUID, configuratio
 		if resolveErr != nil {
 			return domain.MonitoringConfiguration{}, resolveErr
 		}
-		application, resolveErr := uc.resolveApplication(ctx, project.DokployApplication.DokployServerID, project.DokployApplication.ApplicationIdentifier)
+		source, resolveErr := uc.resolveSource(ctx, project.DokploySource.Selector())
 		if resolveErr != nil {
 			return domain.MonitoringConfiguration{}, resolveErr
 		}
-		if refreshErr := project.RefreshIntegrationSnapshots(repository, application, now); refreshErr != nil {
+		if refreshErr := project.RefreshIntegrationSnapshots(repository, source, now); refreshErr != nil {
 			return domain.MonitoringConfiguration{}, refreshErr
 		}
 	}

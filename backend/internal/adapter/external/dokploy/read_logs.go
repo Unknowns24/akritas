@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -16,20 +17,28 @@ import (
 )
 
 func (c *Client) FetchLogs(ctx context.Context, request portsout.LogFetchRequest) ([]portsout.RawLogRecord, error) {
-	if c.credentials == nil || request.Tail < 1 || request.Tail > 10000 || strings.TrimSpace(request.Since) == "" || request.Application.ApplicationIdentifier == "" || request.Server.ID != request.Application.DokployServerID {
+	if c.credentials == nil || request.Tail < 1 || request.Tail > 10000 || strings.TrimSpace(request.Since) == "" || request.Source.Validate() != nil || request.Server.ID != request.Source.DokployServerID {
 		return nil, domain.ErrIntegrationUnavailable
 	}
-	credential, err := c.credentials.Get(ctx, portsout.CredentialOwnerDokployServer, request.Server.ID, portsout.SecretKindDokployAPIKey)
+	base, credential, err := c.providerAccess(ctx, request.Server)
 	if err != nil {
-		return nil, domain.ErrIntegrationUnavailable
+		return nil, err
 	}
 	defer wipe(credential)
-	base, err := c.normalizeAndValidateURL(ctx, request.Server.BaseURL)
-	if err != nil {
-		return nil, domain.ErrIntegrationUnavailable
+	query := url.Values{"tail": {strconv.Itoa(request.Tail)}, "since": {request.Since}}
+	endpoint := "/api/application.readLogs"
+	if request.Source.Type == domain.DokploySourceApplication {
+		query.Set("applicationId", request.Source.ResourceIdentifier)
+	} else {
+		containerID, resolveErr := c.resolveComposeContainer(ctx, base, string(credential), request.Source)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		endpoint = "/api/compose.readLogs"
+		query.Set("composeId", request.Source.ResourceIdentifier)
+		query.Set("containerId", containerID)
 	}
-	query := url.Values{"applicationId": {request.Application.ApplicationIdentifier}, "tail": {strconv.Itoa(request.Tail)}, "since": {request.Since}}
-	body, err := c.do(ctx, base+"/api/application.readLogs?"+query.Encode(), string(credential))
+	body, err := c.do(ctx, base+endpoint+"?"+query.Encode(), string(credential))
 	if err != nil {
 		return nil, normalizeProviderError(err)
 	}
@@ -38,6 +47,63 @@ func (c *Client) FetchLogs(ctx context.Context, request portsout.LogFetchRequest
 		return nil, domain.ErrIntegrationUnavailable.Wrap(err)
 	}
 	return records, nil
+}
+
+type containerDTO struct {
+	ID     string            `json:"Id"`
+	IDAlt  string            `json:"ID"`
+	State  string            `json:"State"`
+	Labels map[string]string `json:"Labels"`
+}
+
+func (c containerDTO) identifier() string {
+	if c.ID != "" {
+		return c.ID
+	}
+	return c.IDAlt
+}
+
+func (c *Client) resolveComposeContainer(ctx context.Context, base, credential string, source domain.DokploySource) (string, error) {
+	values := url.Values{"appName": {source.InstanceIdentifier}, "appType": {string(source.RuntimeType)}}
+	if source.ProviderServerID != "" {
+		values.Set("serverId", source.ProviderServerID)
+	}
+	body, err := c.do(ctx, base+"/api/docker.getContainersByAppNameMatch?"+values.Encode(), credential)
+	if err != nil {
+		return "", normalizeProviderError(err)
+	}
+	var containers []containerDTO
+	if json.Unmarshal(body, &containers) != nil {
+		var wrapper struct {
+			Items []containerDTO `json:"items"`
+		}
+		if json.Unmarshal(body, &wrapper) != nil {
+			return "", domain.ErrIntegrationUnavailable
+		}
+		containers = wrapper.Items
+	}
+	candidates := make([]string, 0)
+	for _, container := range containers {
+		if !strings.EqualFold(strings.TrimSpace(container.State), "running") || !matchesComposeService(container.Labels, source) {
+			continue
+		}
+		if identifier := strings.TrimSpace(container.identifier()); identifier != "" {
+			candidates = append(candidates, identifier)
+		}
+	}
+	if len(candidates) == 0 {
+		return "", domain.ErrDokployContainerUnavailable
+	}
+	sort.Strings(candidates)
+	return candidates[0], nil
+}
+
+func matchesComposeService(labels map[string]string, source domain.DokploySource) bool {
+	if source.RuntimeType == domain.DokployRuntimeStack {
+		return labels["com.docker.stack.namespace"] == source.InstanceIdentifier &&
+			labels["com.docker.swarm.service.name"] == source.InstanceIdentifier+"_"+source.ServiceName
+	}
+	return labels["com.docker.compose.project"] == source.InstanceIdentifier && labels["com.docker.compose.service"] == source.ServiceName
 }
 
 func ParseLogs(body []byte) ([]portsout.RawLogRecord, error) {

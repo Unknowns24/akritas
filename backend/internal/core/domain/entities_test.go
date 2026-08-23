@@ -148,9 +148,13 @@ func TestIntegrationAndProjectConstructors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	source, err := SourceFromApplication(application)
+	if err != nil {
+		t.Fatal(err)
+	}
 	config := DefaultMonitoringConfiguration()
 	config.ErrorPatterns = []string{"original"}
-	project, err := NewProject(uuid.New(), "sentinel-api", "demo", repository, application, config, now)
+	project, err := NewProject(uuid.New(), "sentinel-api", "demo", repository, source, config, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +166,7 @@ func TestIntegrationAndProjectConstructors(t *testing.T) {
 		t.Fatal("project retained caller-owned monitoring slices")
 	}
 
-	_, err = NewProject(uuid.Nil, "", "", repository, application, config, now)
+	_, err = NewProject(uuid.Nil, "", "", repository, source, config, now)
 	if !errors.Is(err, ErrInvalidProject) {
 		t.Fatalf("expected invalid project error, got %v", err)
 	}

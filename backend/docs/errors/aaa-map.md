@@ -19,6 +19,9 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidDokployServer` | `0x402004V` | Integrations | Validation | El servidor Dokploy no es válido. |
 | `ErrInvalidDokployApplication` | `0x402005V` | Integrations | Validation | La aplicación Dokploy no es válida. |
 | `ErrInvalidConnectionTestStatus` | `0x402006V` | Integrations | Validation | El resultado de conexión no es válido. |
+| `ErrInvalidDokploySource` | `0x402007V` | Integrations | Validation | La fuente Dokploy no es válida. |
+| `ErrInvalidDokployCompose` | `0x402008V` | Integrations | Validation | El Compose Dokploy no es válido. |
+| `ErrInvalidDokployComposeService` | `0x402009V` | Integrations | Validation | El servicio Compose Dokploy no es válido. |
 | `ErrInvalidMonitoringStatus` | `0x403001V` | Project | Validation | El estado de monitoreo no es válido. |
 | `ErrInvalidProjectHealthStatus` | `0x403002V` | Project | Validation | El estado de salud del proyecto no es válido. |
 | `ErrInvalidProject` | `0x403003V` | Project | Validation | El proyecto no es válido. |
@@ -64,6 +67,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrManifestStateInvalid` | `0x502006V` | Integrations usecase | Validation | El intento de conexión con GitHub no es válido. |
 | `ErrManifestStateConflict` | `0x502007C` | Integrations usecase | Conflict | El intento de conexión con GitHub ya fue utilizado o expiró. |
 | `ErrIntegrationUnavailable` | `0x502008I` | Integrations usecase | Internal | No se pudo contactar la integración. |
+| `ErrDokployContainerUnavailable` | `0x502009I` | Integrations usecase | Internal | El servicio no tiene un contenedor activo disponible. |
 | `ErrProjectNotFound` | `0x503001N` | Project usecase | Not found | El proyecto no existe. |
 | `ErrProjectRepositoryNotFound` | `0x503002N` | Project usecase | Not found | El repositorio seleccionado no existe o no pertenece a la integración. |
 | `ErrProjectApplicationNotFound` | `0x503003N` | Project usecase | Not found | La aplicación seleccionada no existe. |
@@ -74,6 +78,8 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrProjectDefaultBranchMismatch` | `0x503008V` | Project usecase | Validation | La rama predeterminada no coincide con GitHub. |
 | `ErrProjectHasDependencies` | `0x503009C` | Project usecase | Conflict | El proyecto tiene registros asociados y no puede eliminarse. |
 | `ErrInvalidInitialLogIngestion` | `0x50300AV` | Project usecase | Validation | La opción de ingesta inicial no es válida. |
+| `ErrProjectDokploySourceNotFound` | `0x50300BN` | Project usecase | Not found | La fuente Dokploy seleccionada no existe. |
+| `ErrProjectDokploySourceConflict` | `0x50300CC` | Project usecase | Conflict | La fuente Dokploy ya está asociada a otro proyecto. |
 | `ErrIncidentNotFound` | `0x504001N` | Incident usecase | Not found | El incidente no existe. |
 | `ErrMonitoringContinuityLost` | `0x505001I` | Monitoring service | Internal | No se pudo verificar la continuidad de los logs. |
 | `ErrMonitoringConcurrentModification` | `0x505002C` | Monitoring service | Conflict | El estado de monitoreo cambió durante el procesamiento. |

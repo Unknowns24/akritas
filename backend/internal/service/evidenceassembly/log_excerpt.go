@@ -22,28 +22,32 @@ type logRecordPayload struct {
 }
 
 type logExcerptPayload struct {
-	Message             string             `json:"message"`
-	Timestamp           time.Time          `json:"timestamp"`
-	Severity            string             `json:"severity"`
-	DetectionRules      []string           `json:"detection_rules"`
-	SourceApplicationID string             `json:"source_application_id,omitempty"`
-	SourceInstanceID    string             `json:"source_instance_id,omitempty"`
-	ContextBefore       []logRecordPayload `json:"context_before"`
-	ContextAfter        []logRecordPayload `json:"context_after"`
-	Redacted            bool               `json:"redacted"`
+	Message           string             `json:"message"`
+	Timestamp         time.Time          `json:"timestamp"`
+	Severity          string             `json:"severity"`
+	DetectionRules    []string           `json:"detection_rules"`
+	SourceType        string             `json:"source_type,omitempty"`
+	SourceResourceID  string             `json:"source_resource_id,omitempty"`
+	SourceServiceName string             `json:"source_service_name,omitempty"`
+	SourceInstanceID  string             `json:"source_instance_id,omitempty"`
+	ContextBefore     []logRecordPayload `json:"context_before"`
+	ContextAfter      []logRecordPayload `json:"context_after"`
+	Redacted          bool               `json:"redacted"`
 }
 
 func logExcerptEvidence(id, investigationID uuid.UUID, event domain.LogEvent, now time.Time) (*domain.Evidence, error) {
 	payload := logExcerptPayload{
-		Message:             evidencesafety.Redact(event.Message),
-		Timestamp:           event.Timestamp,
-		Severity:            string(event.Severity),
-		DetectionRules:      append([]string(nil), event.DetectionRules...),
-		SourceApplicationID: evidencesafety.Redact(event.SourceApplicationID),
-		SourceInstanceID:    evidencesafety.Redact(event.SourceInstanceID),
-		ContextBefore:       logRecords(event.ContextBefore),
-		ContextAfter:        logRecords(event.ContextAfter),
-		Redacted:            true,
+		Message:           evidencesafety.Redact(event.Message),
+		Timestamp:         event.Timestamp,
+		Severity:          string(event.Severity),
+		DetectionRules:    append([]string(nil), event.DetectionRules...),
+		SourceType:        string(event.SourceType),
+		SourceResourceID:  evidencesafety.Redact(event.SourceResourceID),
+		SourceServiceName: evidencesafety.Redact(event.SourceServiceName),
+		SourceInstanceID:  evidencesafety.Redact(event.SourceInstanceID),
+		ContextBefore:     logRecords(event.ContextBefore),
+		ContextAfter:      logRecords(event.ContextAfter),
+		Redacted:          true,
 	}
 	raw, err := json.Marshal(payload)
 	if err != nil {

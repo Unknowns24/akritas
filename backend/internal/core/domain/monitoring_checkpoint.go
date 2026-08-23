@@ -53,7 +53,9 @@ type MonitoringAssemblyState struct {
 type MonitoringCheckpoint struct {
 	ID                     uuid.UUID               `gorm:"column:id;type:uuid;primaryKey"`
 	ProjectID              uuid.UUID               `gorm:"column:project_id;type:uuid"`
-	SourceApplicationID    string                  `gorm:"column:source_application_id"`
+	SourceType             DokploySourceType       `gorm:"column:source_type"`
+	SourceResourceID       string                  `gorm:"column:source_resource_id"`
+	SourceServiceName      string                  `gorm:"column:source_service_name"`
 	SourceInstanceID       string                  `gorm:"column:source_instance_id"`
 	IsCurrent              bool                    `gorm:"column:is_current"`
 	InitialBackfillPending bool                    `gorm:"column:initial_backfill_pending"`
@@ -75,8 +77,9 @@ func NewMonitoringCheckpoint(id uuid.UUID, project Project, ingestion InitialLog
 		return nil, ErrInvalidMonitoringConfiguration.Wrap(validationCause("monitoring checkpoint"))
 	}
 	checkpoint := &MonitoringCheckpoint{
-		ID: id, ProjectID: project.ID, SourceApplicationID: project.DokployApplication.ApplicationIdentifier,
-		SourceInstanceID: project.DokployApplication.InstanceIdentifier, IsCurrent: true,
+		ID: id, ProjectID: project.ID, SourceType: project.DokploySource.Type,
+		SourceResourceID: project.DokploySource.ResourceIdentifier, SourceServiceName: project.DokploySource.ServiceName,
+		SourceInstanceID: project.DokploySource.InstanceIdentifier, IsCurrent: true,
 		InitialBackfillPending: ingestion == InitialLogIngestionLast10000, Version: 1,
 		State:     MonitoringAssemblyState{RecentRecords: []SanitizedLogRecord{}, OpenRecords: []SanitizedLogRecord{}, Pending: []PendingLogOccurrence{}},
 		CreatedAt: now.UTC(), UpdatedAt: now.UTC(),

@@ -18,5 +18,5 @@ func CreateProjectToCommand(value projectdto.CreateProjectRequestDTO) (portsin.C
 	if err := ingestion.Validate(); err != nil {
 		return portsin.CreateProjectCommand{}, err
 	}
-	return portsin.CreateProjectCommand{Name: value.Name, Description: value.Description, GitHubAccountID: value.GitHubAccountID, RepositoryIdentifier: value.RepositoryIdentifier, DefaultBranch: value.DefaultBranch, DokployServerID: value.DokployServerID, ApplicationIdentifier: value.ApplicationIdentifier, MonitoringConfiguration: monitoring, InitialLogIngestion: ingestion}, nil
+	return portsin.CreateProjectCommand{Name: value.Name, Description: value.Description, GitHubAccountID: value.GitHubAccountID, RepositoryIdentifier: value.RepositoryIdentifier, DefaultBranch: value.DefaultBranch, DokploySource: DokploySourceSelectorToDomain(value.DokploySource), MonitoringConfiguration: monitoring, InitialLogIngestion: ingestion}, nil
 }

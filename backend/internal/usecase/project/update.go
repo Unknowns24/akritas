@@ -72,8 +72,35 @@ func (uc *UseCase) Update(ctx context.Context, command portsin.UpdateProjectComm
 			return nil, err
 		}
 	}
-	if err := uc.projects.Update(ctx, project, expected); err != nil {
-		return nil, err
+	if !dokployChanged || uc.monitoring == nil || uc.transactor == nil {
+		if err := uc.projects.Update(ctx, project, expected); err != nil {
+			return nil, err
+		}
+	} else {
+		checkpoint, checkpointErr := domain.NewMonitoringCheckpoint(uc.newID(), *project, domain.InitialLogIngestionFromNow, now)
+		if checkpointErr != nil {
+			return nil, checkpointErr
+		}
+		if err := uc.transactor.WithinTransaction(ctx, func(txctx context.Context) error {
+			if _, lockErr := uc.monitoring.LockProject(txctx, project.ID); lockErr != nil {
+				return lockErr
+			}
+			current, getErr := uc.monitoring.GetCurrentCheckpoint(txctx, project.ID, true)
+			if getErr != nil {
+				return getErr
+			}
+			if current != nil && current.InitialBackfillPending {
+				checkpoint.InitialBackfillPending = true
+				checkpoint.CursorTimestamp = nil
+				checkpoint.CursorContentHash = ""
+			}
+			if updateErr := uc.projects.Update(txctx, project, expected); updateErr != nil {
+				return updateErr
+			}
+			return uc.monitoring.RotateCheckpoint(txctx, checkpoint)
+		}); err != nil {
+			return nil, err
+		}
 	}
 	return result(project), nil
 }

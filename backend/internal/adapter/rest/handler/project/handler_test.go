@@ -25,7 +25,7 @@ func TestCreateReturnsSafeStableProjectEnvelope(t *testing.T) {
 	body := fmt.Sprintf(`{
 		"name":"Akritas","description":"demo","github_account_id":%q,
 		"repository_identifier":"42","default_branch":"main","dokploy_server_id":%q,
-		"application_identifier":"app-1","monitoring_configuration":{
+		"application_identifier":"app-1","initial_log_ingestion":"last_10000","monitoring_configuration":{
 			"enabled":false,"error_patterns":["panic"],"ignored_patterns":[],
 			"grouping_window":"PT30M","context_before":20,"context_after":20}}
 	`, project.GitHubRepository.GitHubAccountID, project.DokployApplication.DokployServerID)
@@ -34,6 +34,9 @@ func TestCreateReturnsSafeStableProjectEnvelope(t *testing.T) {
 	handler.Create(recorder, httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(body)))
 	if recorder.Code != http.StatusCreated || useCase.createCalls != 1 {
 		t.Fatalf("Create status/calls = %d/%d, body=%s", recorder.Code, useCase.createCalls, recorder.Body.String())
+	}
+	if useCase.createCommand.InitialLogIngestion != domain.InitialLogIngestionLast10000 || strings.Contains(recorder.Body.String(), "initial_log_ingestion") {
+		t.Fatalf("one-shot ingestion was not consumed operationally: command=%+v response=%s", useCase.createCommand, recorder.Body.String())
 	}
 	responseBody := strings.ToLower(recorder.Body.String())
 	for _, forbidden := range []string{"password", "secret", "api_key", "credential", "access_token"} {
@@ -65,6 +68,15 @@ func TestProjectHandlersRejectInvalidInputAndReturnStableConflicts(t *testing.T)
 	t.Run("invalid create body", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		handler.Create(recorder, httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(`{"name":"Akritas"}`)))
+		if recorder.Code != http.StatusBadRequest || useCase.createCalls != 0 {
+			t.Fatalf("status/calls = %d/%d", recorder.Code, useCase.createCalls)
+		}
+	})
+
+	t.Run("invalid initial ingestion enum", func(t *testing.T) {
+		body := fmt.Sprintf(`{"name":"Akritas","github_account_id":%q,"repository_identifier":"42","default_branch":"main","dokploy_server_id":%q,"application_identifier":"app","initial_log_ingestion":"all","monitoring_configuration":{"enabled":false,"error_patterns":[],"ignored_patterns":[],"grouping_window":"PT30M","context_before":20,"context_after":20}}`, uuid.New(), uuid.New())
+		recorder := httptest.NewRecorder()
+		handler.Create(recorder, httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(body)))
 		if recorder.Code != http.StatusBadRequest || useCase.createCalls != 0 {
 			t.Fatalf("status/calls = %d/%d", recorder.Code, useCase.createCalls)
 		}
@@ -177,6 +189,7 @@ type projectUseCaseStub struct {
 	createResult       *portsin.ProjectResult
 	createErr          error
 	createCalls        int
+	createCommand      portsin.CreateProjectCommand
 	deleteErr          error
 	deleteID           uuid.UUID
 	putMonitoringCalls int
@@ -185,8 +198,9 @@ type projectUseCaseStub struct {
 	listCalls          int
 }
 
-func (s *projectUseCaseStub) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
+func (s *projectUseCaseStub) Create(_ context.Context, command portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
 	s.createCalls++
+	s.createCommand = command
 	return s.createResult, s.createErr
 }
 func (*projectUseCaseStub) Get(context.Context, uuid.UUID) (*portsin.ProjectResult, error) {

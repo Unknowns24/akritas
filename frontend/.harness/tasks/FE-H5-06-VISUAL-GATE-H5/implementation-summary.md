@@ -17,3 +17,4 @@ Se implementó el visualizador del Golden Flow de Remediación (**FE-H5-06**) en
    - Ensamblado en la vista de detalle del incidente (`IncidentDetailView.tsx`).
 3. **Cobertura de Pruebas**:
    - Tests unitarios en `review-packet.utils.test.ts` verificando la integridad de los 7 artefactos del Golden Flow.
+

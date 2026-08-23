@@ -7,3 +7,4 @@
   - La interfaz orienta al usuario hacia la revisión por pares humana en GitHub y CI/CD existente.
   - Queda prohibida la ejecución de merge o deploy automatizado.
 - **Veredicto**: APROBADO (PASS).
+

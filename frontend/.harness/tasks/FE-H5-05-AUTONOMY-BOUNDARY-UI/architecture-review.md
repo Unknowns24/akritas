@@ -6,3 +6,4 @@
   - `src/features/incidents/views/IncidentDetailView/components/AutonomyBoundaryBanner.tsx` encapsulado con CSS Modules.
   - Cero dependencias externas no autorizadas.
 - **Veredicto**: APROBADO (PASS).
+

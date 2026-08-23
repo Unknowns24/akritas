@@ -16,3 +16,4 @@ complete
    - TypeScript `tsc --noEmit` con 0 errores.
    - ESLint en `src/features/incidents` con 0 errores.
    - Tests unitarios en `validation.utils.test.ts`.
+

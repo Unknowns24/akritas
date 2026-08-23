@@ -8,3 +8,4 @@
 - **Redacción de Información Sensible**:
   - Los campos `output_excerpt` están marcados como `output_redacted: true` en el contrato OpenAPI y se renderizan de forma segura.
 - **Veredicto**: APROBADO (PASS).
+

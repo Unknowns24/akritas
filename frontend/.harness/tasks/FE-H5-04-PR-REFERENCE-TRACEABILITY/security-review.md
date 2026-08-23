@@ -8,3 +8,4 @@
   - Se explicita la política inmutable: *"Akritas never merges changes automatically"*.
   - En caso de fallo o de incidentes manuales, la interfaz expone con claridad que el pipeline autónomo fue detenido y que ninguna mutación no autorizada fue propagada al repositorio remoto.
 - **Veredicto**: APROBADO (PASS).
+

@@ -7,3 +7,4 @@
   - Componentes puros con CSS Modules (`TraceabilityChainView.module.css`, `TraceabilityStepNode.module.css`).
   - Consumo tipado del modelo OpenAPI `Incident`.
 - **Veredicto**: APROBADO (PASS).
+

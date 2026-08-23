@@ -15,3 +15,4 @@ complete
    - TypeScript `tsc --noEmit` sin errores.
    - ESLint en `src/features/incidents` sin errores.
    - Tests unitarios en `remediation.utils.test.ts`.
+

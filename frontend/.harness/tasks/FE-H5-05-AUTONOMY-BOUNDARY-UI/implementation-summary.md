@@ -11,3 +11,4 @@ Se implementó el componente y las salvaguardas de frontera de autonomía (**FE-
    - Se muestra automáticamente en la sección inferior tras la creación exitosa de la Pull Request.
 3. **Auditoría de Acciones y Seguridad (ADR-004)**:
    - Se certificó que no existen botones de auto-merge, deploy a producción ni rollback automatizado en la interfaz.
+

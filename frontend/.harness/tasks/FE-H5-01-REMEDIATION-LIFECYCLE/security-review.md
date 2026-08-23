@@ -10,3 +10,4 @@
   - Para `resolution_status = fixable`, la creación de PR es el límite absoluto de autonomía.
   - Mensaje explícito visible: *"Akritas never merges changes automatically"*.
 - **Veredicto**: APROBADO (PASS).
+

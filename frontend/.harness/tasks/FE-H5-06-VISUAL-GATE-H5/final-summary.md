@@ -14,3 +14,4 @@ complete
    - TypeScript `tsc --noEmit` $\rightarrow$ 0 errores.
    - ESLint en `src/features/incidents` $\rightarrow$ 0 errores.
    - Tests unitarios en `review-packet.utils.test.ts` $\rightarrow$ 100% pasando.
+

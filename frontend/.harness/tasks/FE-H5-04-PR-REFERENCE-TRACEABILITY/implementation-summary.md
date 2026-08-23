@@ -13,3 +13,4 @@ Se implementó el visualizador de trazabilidad completa (`Incident → Investiga
    - Ensamblado en la vista de detalle del incidente (`IncidentDetailView.tsx`).
 4. **Verificación y Cobertura**:
    - Pruebas unitarias en `traceability.utils.test.ts` verificando escenarios con PR, incidentes manuales (`requires_human`) y fallos de validación.
+

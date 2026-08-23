@@ -13,3 +13,4 @@ Se implementó el visualizador detallado de resultados de validación en `src/fe
 3. **Seguridad y Contratos**:
    - Respeto total de la propiedad `output_redacted: true` proveniente de la especificación OpenAPI.
    - Cero dependencias externas no autorizadas; estilización mediante CSS Modules nativos.
+

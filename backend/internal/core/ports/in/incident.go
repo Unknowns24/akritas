@@ -12,4 +12,5 @@ type IncidentUseCase interface {
 	Get(context.Context, uuid.UUID) (*domain.Incident, error)
 	List(context.Context, paging.Params) (paging.Slice[domain.Incident], error)
 	ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error)
+	ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error)
 }

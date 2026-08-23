@@ -21,6 +21,10 @@ type IncidentLogEventLister interface {
 	ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error)
 }
 
+type IncidentTimelineLister interface {
+	ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error)
+}
+
 type IncidentWorkflowStore interface {
 	IncidentGetter
 	Lock(context.Context, uuid.UUID) (*domain.Incident, error)

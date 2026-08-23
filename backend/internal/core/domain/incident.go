@@ -101,9 +101,10 @@ type Incident struct {
 	RootCauseStatus      *RootCauseStatus      `gorm:"column:root_cause_status"`
 	ResolutionStatus     *ResolutionStatus     `gorm:"column:resolution_status"`
 	Confidence           *float64              `gorm:"column:confidence"`
-	GitHubIssueReference *GitHubIssueReference `gorm:"serializer:json;type:jsonb;column:github_issue_reference"`
+	GitHubIssueReference *GitHubIssueReference `gorm:"-"`
 	PullRequestReference *PullRequestReference `gorm:"serializer:json;type:jsonb;column:pull_request_reference"`
 	Project              *ProjectReference     `gorm:"-"`
+	LatestInvestigation  *Investigation        `gorm:"-"`
 }
 
 type ProjectReference struct {
@@ -172,6 +173,9 @@ func (i Incident) Validate() error {
 	if i.PullRequestReference != nil && i.PullRequestReference.Validate() != nil {
 		return ErrInvalidIncident.Wrap(validationCause("pull request reference"))
 	}
+	if i.LatestInvestigation != nil && (i.LatestInvestigation.Validate() != nil || i.LatestInvestigation.IncidentID != i.ID) {
+		return ErrInvalidIncident.Wrap(validationCause("latest investigation"))
+	}
 	return nil
 }
 
@@ -215,7 +219,7 @@ func (i *Incident) StartIssuePublication(rootCause RootCauseStatus, resolution R
 }
 
 func (i *Incident) AttachGitHubIssue(reference GitHubIssueReference) error {
-	if i == nil || i.Phase != IncidentPhasePublishingIssue || i.GitHubIssueReference != nil || reference.Validate() != nil {
+	if i == nil || i.Phase != IncidentPhasePublishingIssue || i.GitHubIssueReference != nil || reference.Validate() != nil || reference.IncidentID != i.ID {
 		return ErrIncidentTransition.Wrap(validationCause("attach issue"))
 	}
 	i.GitHubIssueReference = &reference

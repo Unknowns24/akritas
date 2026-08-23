@@ -92,6 +92,39 @@ func TestStartRegistrationFormActionIncludesState(t *testing.T) {
 	}
 }
 
+func TestNewValidatesPublicURL(t *testing.T) {
+	tests := []struct {
+		name      string
+		publicURL string
+		wantErr   bool
+	}{
+		{name: "public HTTPS", publicURL: "https://akritas.example.com"},
+		{name: "localhost HTTP", publicURL: "http://localhost:8080"},
+		{name: "IPv4 loopback HTTP", publicURL: "http://127.0.0.1:8080"},
+		{name: "IPv6 loopback HTTP", publicURL: "http://[::1]:8080"},
+		{name: "public HTTP", publicURL: "http://akritas.example.com", wantErr: true},
+		{name: "wildcard HTTP", publicURL: "http://0.0.0.0:8080", wantErr: true},
+		{name: "public URL with path", publicURL: "https://akritas.example.com/base", wantErr: true},
+		{name: "public URL with query", publicURL: "https://akritas.example.com?next=/settings", wantErr: true},
+		{name: "public URL with credentials", publicURL: "https://user@akritas.example.com", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := New(&registrationStoreFake{}, &appGatewayFake{}, tt.publicURL, uuid.New, time.Now)
+			if tt.wantErr {
+				if !errors.Is(err, ErrInvalidConfiguration) {
+					t.Fatalf("expected invalid configuration, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("valid public URL rejected: %v", err)
+			}
+		})
+	}
+}
+
 func TestCompleteManifestRejectsMissingAndExpiredStateBeforeExchange(t *testing.T) {
 	const state = "conversion-state-value-that-is-long-enough-0001"
 	now := time.Date(2026, 8, 23, 12, 0, 0, 0, time.UTC)

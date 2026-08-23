@@ -2,6 +2,7 @@ package investigation
 
 import (
 	"context"
+	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/out"
@@ -35,6 +36,9 @@ func (f *fakeIncidentStore) Lock(ctx context.Context, id uuid.UUID) (*domain.Inc
 
 func (f *fakeIncidentStore) Update(ctx context.Context, value *domain.Incident) error {
 	f.updated = append(f.updated, *value)
+	copied := *value
+	f.getResult = &copied
+	f.exists = true
 	return nil
 }
 
@@ -71,6 +75,13 @@ func (f *fakeInvestigationStore) Update(ctx context.Context, value *domain.Inves
 func (f *fakeInvestigationStore) FindByID(ctx context.Context, id uuid.UUID) (*domain.Investigation, error) {
 	if f.findByIDErr != nil {
 		return nil, f.findByIDErr
+	}
+	return f.findByIDResult, nil
+}
+
+func (f *fakeInvestigationStore) FindLatestByIncident(ctx context.Context, incidentID uuid.UUID) (*domain.Investigation, error) {
+	if f.findByIDResult == nil {
+		return nil, domain.ErrInvestigationNotFound
 	}
 	return f.findByIDResult, nil
 }
@@ -189,6 +200,99 @@ type fakeEvidenceAssembler struct {
 func (f *fakeEvidenceAssembler) Assemble(ctx context.Context, investigation domain.Investigation) (out.InvestigationRunContext, error) {
 	f.result.Investigation = investigation
 	return f.result, f.err
+}
+
+type fakeProjectStore struct {
+	project *domain.Project
+	err     error
+}
+
+func (f fakeProjectStore) Create(context.Context, *domain.Project) error { return nil }
+func (f fakeProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, error) {
+	return f.project, f.err
+}
+func (f fakeProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (f fakeProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (f fakeProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
+	return paging.Slice[domain.Project]{}, nil
+}
+func (f fakeProjectStore) Update(context.Context, *domain.Project, time.Time) error { return nil }
+func (f fakeProjectStore) Delete(context.Context, uuid.UUID) error                  { return nil }
+
+type fakeGitHubAccountReader struct {
+	account *domain.GitHubAccount
+	err     error
+}
+
+func (f fakeGitHubAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
+	return f.account, f.err
+}
+
+type fakeIssueReferenceStore struct {
+	existing *domain.GitHubIssueReference
+	created  *domain.GitHubIssueReference
+	err      error
+}
+
+func (f *fakeIssueReferenceStore) Create(ctx context.Context, value *domain.GitHubIssueReference) error {
+	if f.err != nil {
+		return f.err
+	}
+	copied := *value
+	f.created = &copied
+	return nil
+}
+func (f *fakeIssueReferenceStore) FindByInvestigation(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return f.existing, f.err
+}
+func (f *fakeIssueReferenceStore) FindLatestByIncident(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return f.existing, f.err
+}
+
+type fakeIssuePublisher struct {
+	result out.PublishedIssue
+	err    error
+	calls  int
+}
+
+func (f *fakeIssuePublisher) PublishIssue(ctx context.Context, account domain.GitHubAccount, repository domain.GitHubRepository, content out.IssueContent) (out.PublishedIssue, error) {
+	f.calls++
+	return f.result, f.err
+}
+
+type fakeIssueContentBuilder struct {
+	content out.IssueContent
+	err     error
+}
+
+func (f fakeIssueContentBuilder) BuildIssueContent(out.IssueContentInput) (out.IssueContent, error) {
+	return f.content, f.err
+}
+
+func fakeProject(t time.Time) (*domain.Project, *domain.GitHubAccount) {
+	account, _ := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, t)
+	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
+	application, _ := domain.NewDokployApplication(uuid.New(), "app", "instance", "Service", "prod", domain.DokployApplicationRunning)
+	source, _ := domain.SourceFromApplication(application)
+	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, source, domain.DefaultMonitoringConfiguration(), t)
+	return project, account
+}
+
+func projectForIncident(incident *domain.Incident, at time.Time) *domain.Project {
+	project, _ := fakeProject(at)
+	if incident != nil {
+		project.ID = incident.ProjectID
+	}
+	return project
+}
+
+func accountForProject(project *domain.Project, at time.Time) *domain.GitHubAccount {
+	account, _ := domain.NewGitHubAccount(project.GitHubRepository.GitHubAccountID, "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, at)
+	return account
 }
 
 type fakeTransactor struct{}

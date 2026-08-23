@@ -61,7 +61,7 @@ func TestIncidentRequiresIssueAndValidatedRemediationBeforePR(t *testing.T) {
 	if err := incident.StartRemediation(); !errors.Is(err, ErrIncidentTransition) {
 		t.Fatalf("remediation without issue must fail, got %v", err)
 	}
-	issue, err := NewGitHubIssueReference(7, "https://github.com/Unknowns24/akritas/issues/7", "Unknowns24/akritas", time.Now().UTC())
+	issue, err := NewGitHubIssueReference(incident.ID, uuid.New(), 7, "https://github.com/Unknowns24/akritas/issues/7", "Unknowns24/akritas", time.Now().UTC())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +111,7 @@ func TestIncidentRequiresHumanAndRetryPaths(t *testing.T) {
 	if err := incident.StartIssuePublication(RootCauseUnknown, ResolutionRequiresHuman, 0, "insufficient evidence"); err != nil {
 		t.Fatal(err)
 	}
-	issue, _ := NewGitHubIssueReference(1, "https://example.com/issues/1", "owner/repo", time.Now().UTC())
+	issue, _ := NewGitHubIssueReference(incident.ID, uuid.New(), 1, "https://example.com/issues/1", "owner/repo", time.Now().UTC())
 	if err := incident.AttachGitHubIssue(issue); err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestIncidentFailureOutcomes(t *testing.T) {
 	remediationFailure := newTestIncident(t)
 	_ = remediationFailure.StartInvestigation()
 	_ = remediationFailure.StartIssuePublication(RootCauseIdentified, ResolutionFixable, 1, "known")
-	issue, _ := NewGitHubIssueReference(2, "https://example.com/issues/2", "owner/repo", time.Now().UTC())
+	issue, _ := NewGitHubIssueReference(remediationFailure.ID, uuid.New(), 2, "https://example.com/issues/2", "owner/repo", time.Now().UTC())
 	_ = remediationFailure.AttachGitHubIssue(issue)
 	_ = remediationFailure.StartRemediation()
 	if err := remediationFailure.CompleteRemediationFailed(); err != nil {

@@ -14,8 +14,12 @@ func (r *Repository) Update(ctx context.Context, incident *domain.Incident) erro
 		return domain.ErrInvalidIncident
 	}
 	result := txcontext.From(ctx, r.db).WithContext(ctx).Table("incidents").Where("id = ?", incident.ID).Updates(map[string]any{
-		"phase":            incident.Phase,
-		"terminal_outcome": incident.TerminalOutcome,
+		"phase":             incident.Phase,
+		"terminal_outcome":  incident.TerminalOutcome,
+		"summary":           incident.Summary,
+		"root_cause_status": incident.RootCauseStatus,
+		"resolution_status": incident.ResolutionStatus,
+		"confidence":        incident.Confidence,
 	})
 	if result.Error != nil {
 		return mapError(result.Error)

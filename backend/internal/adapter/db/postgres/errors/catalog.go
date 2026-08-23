@@ -30,14 +30,19 @@ var ErrMonitoringPersistence = &domain.Error{
 	Code: "0x208001I", Message: "monitoring persistence failure", UserMessage: "No se pudo guardar el estado de monitoreo.",
 }
 
+var ErrGitHubIssueReferencePersistence = &domain.Error{
+	Code: "0x209001I", Message: "GitHub issue reference persistence failure", UserMessage: "No se pudo guardar la referencia a la Issue.",
+}
+
 func Catalog() map[string]*domain.Error {
 	return map[string]*domain.Error{
-		"ErrIntegrationPersistence":   ErrIntegrationPersistence,
-		"ErrProjectPersistence":       ErrProjectPersistence,
-		"ErrInvestigationPersistence": ErrInvestigationPersistence,
-		"ErrOperationPersistence":     ErrOperationPersistence,
-		"ErrEvidencePersistence":      ErrEvidencePersistence,
-		"ErrIncidentPersistence":      ErrIncidentPersistence,
-		"ErrMonitoringPersistence":    ErrMonitoringPersistence,
+		"ErrIntegrationPersistence":          ErrIntegrationPersistence,
+		"ErrProjectPersistence":              ErrProjectPersistence,
+		"ErrInvestigationPersistence":        ErrInvestigationPersistence,
+		"ErrOperationPersistence":            ErrOperationPersistence,
+		"ErrEvidencePersistence":             ErrEvidencePersistence,
+		"ErrIncidentPersistence":             ErrIncidentPersistence,
+		"ErrMonitoringPersistence":           ErrMonitoringPersistence,
+		"ErrGitHubIssueReferencePersistence": ErrGitHubIssueReferencePersistence,
 	}
 }

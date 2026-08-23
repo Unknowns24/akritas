@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/base64"
 	"errors"
+	"net"
 	"net/url"
 	"os"
 	"reflect"
@@ -123,7 +124,7 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 
 	publicURL := strings.TrimRight(strings.TrimSpace(raw.PublicURL), "/")
 	parsedPublic, err := url.Parse(publicURL)
-	if err != nil || parsedPublic.Scheme != "https" || parsedPublic.Host == "" || parsedPublic.User != nil || parsedPublic.Path != "" || parsedPublic.RawQuery != "" || parsedPublic.Fragment != "" {
+	if err != nil || !validPublicURL(parsedPublic) {
 		return Config{}, ErrInvalidRuntimeConfiguration
 	}
 
@@ -171,6 +172,25 @@ func validSessionCookieSameSite(value string) bool {
 	default:
 		return false
 	}
+}
+
+func validPublicURL(parsed *url.URL) bool {
+	if parsed == nil || parsed.Host == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	if parsed.Scheme == "https" {
+		return true
+	}
+	return parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname())
+}
+
+func isLoopbackHost(host string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(host))
+	if normalized == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(normalized)
+	return ip != nil && ip.IsLoopback()
 }
 
 func parseAllowedOrigins(publicURL, configured string) ([]string, error) {

@@ -3,18 +3,23 @@ package domain
 import (
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type GitHubIssueReference struct {
-	Number     int
-	URL        string
-	Repository string
-	CreatedAt  time.Time
+	IncidentID      uuid.UUID `gorm:"column:incident_id;type:uuid"`
+	InvestigationID uuid.UUID `gorm:"column:investigation_id;type:uuid;primaryKey"`
+	Number          int       `gorm:"column:issue_number"`
+	URL             string    `gorm:"column:issue_url"`
+	Repository      string    `gorm:"column:repository"`
+	CreatedAt       time.Time `gorm:"column:created_at"`
 }
 
-func NewGitHubIssueReference(number int, issueURL, repository string, createdAt time.Time) (GitHubIssueReference, error) {
+func NewGitHubIssueReference(incidentID, investigationID uuid.UUID, number int, issueURL, repository string, createdAt time.Time) (GitHubIssueReference, error) {
 	reference := GitHubIssueReference{
-		Number: number, URL: strings.TrimSpace(issueURL), Repository: strings.TrimSpace(repository), CreatedAt: createdAt,
+		IncidentID: incidentID, InvestigationID: investigationID, Number: number,
+		URL: strings.TrimSpace(issueURL), Repository: strings.TrimSpace(repository), CreatedAt: createdAt,
 	}
 	if err := reference.Validate(); err != nil {
 		return GitHubIssueReference{}, err
@@ -23,7 +28,7 @@ func NewGitHubIssueReference(number int, issueURL, repository string, createdAt 
 }
 
 func (r GitHubIssueReference) Validate() error {
-	if r.Number < 1 || !validHTTPURL(r.URL) || !nonBlank(r.Repository) || !validTime(r.CreatedAt) {
+	if r.IncidentID == uuid.Nil || r.InvestigationID == uuid.Nil || r.Number < 1 || !validHTTPURL(r.URL) || !nonBlank(r.Repository) || !validTime(r.CreatedAt) {
 		return ErrInvalidGitHubIssueReference.Wrap(validationCause("GitHub issue reference"))
 	}
 	return nil

@@ -52,6 +52,22 @@ Record durable project decisions here.
 - The requested GitHub `default_branch` must match provider metadata.
 - Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.
 
+## 2026-08-23 — GitHub Issue publication idempotency
+
+- H4 creates one GitHub Issue per completed `Investigation`, not one per `Incident`.
+- `GitHubIssueReference` is durable PostgreSQL state linked to both `Incident` and `Investigation`; a preexisting reference for the same Investigation is the idempotency boundary and prevents a second publish.
+- PostgreSQL enforces that `github_issue_references.incident_id` matches the `incident_id` of `github_issue_references.investigation_id` through a composite FK to `investigations(id, incident_id)`.
+- `Incident.github_issue_reference` remains a singular REST projection of the most recent Issue for that Incident.
+- `resolution_status = requires_human` completes the Incident after IssueReference persistence; `resolution_status = fixable` leaves the Incident in `publishing_issue` for H5 remediation.
+- GitHub publication happens outside PostgreSQL transactions. The workflow uses a transaction before the external call to persist QVAC completion and a second transaction after the call to persist IssueReference and Operation completion.
+
+## 2026-08-23 — Published evidence redaction
+
+- Secrets must be redacted before Evidence persistence and again before GitHub Issue title/body publication.
+- Redaction is defensive and case-insensitive for JSON string secrets, quoted assignments, values with spaces, authorization headers, GitHub tokens, JWT/session tokens, cookies, DSNs and PEM private keys.
+- Redaction markers must not include any fragment of the original secret value.
+- The Issue body keeps observed Evidence separate from QVAC-generated conclusions and preserves the stable Investigation marker.
+
 ## 2026-08-23 — Dokploy application and Compose sources
 
 - Project uses a discriminated `DokploySource`: `application` or `compose_service`.

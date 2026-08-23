@@ -5,9 +5,9 @@ import (
 	"gorm.io/gorm"
 )
 
-func SCHEMA_20260823_06_AddDokployComposeSources() *gormigrate.Migration {
+func SCHEMA_20260823_08_AddDokployComposeSources() *gormigrate.Migration {
 	return &gormigrate.Migration{
-		ID: "20260823_06_add_dokploy_compose_sources",
+		ID: "20260823_08_add_dokploy_compose_sources",
 		Migrate: func(tx *gorm.DB) error {
 			statements := []string{
 				"ALTER TABLE dokploy_servers ADD COLUMN compose_count integer NOT NULL DEFAULT 0 CHECK (compose_count >= 0)",

@@ -86,6 +86,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrAuthenticationRateLimited` | `0x501001R` | Auth usecase | Rate limited | Alcanzaste el límite de intentos. Probá nuevamente más tarde. |
 | `ErrInvestigationNotFound` | `0x504002N` | Investigation usecase | Not found | La investigación no existe. |
 | `ErrInvestigationAlreadyActive` | `0x504003C` | Investigation usecase | Conflict | Ya hay una investigación en curso para este incidente. |
+| `ErrGitHubIssueAlreadyPublished` | `0x504004C` | Investigation usecase | Conflict | La investigación ya tiene una Issue publicada. |
 | `ErrOperationNotFound` | `0x505001N` | Operation usecase | Not found | La operación no existe. |
 | `ErrIntegrationPersistence` | `0x202001I` | Integrations database | Internal | No se pudo guardar la integración. |
 | `ErrProjectPersistence` | `0x203001I` | Project database | Internal | No se pudo guardar el proyecto. |
@@ -94,6 +95,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrEvidencePersistence` | `0x206001I` | Evidence database | Internal | No se pudo guardar la evidencia. |
 | `ErrIncidentPersistence` | `0x207001I` | Incident database | Internal | No se pudo consultar el incidente. |
 | `ErrMonitoringPersistence` | `0x208001I` | Monitoring database | Internal | No se pudo guardar el estado de monitoreo. |
+| `ErrGitHubIssueReferencePersistence` | `0x209001I` | GitHub Issue database | Internal | No se pudo guardar la referencia a la Issue. |
 | `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
 | `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
 | `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |

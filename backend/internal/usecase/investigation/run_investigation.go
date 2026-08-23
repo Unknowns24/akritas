@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
 	"github.com/google/uuid"
 )
@@ -15,6 +16,7 @@ const (
 	maximumPersistedEvidence      = 25
 	maximumPersistedEvidenceBytes = 128 << 10
 	publicInvestigationFailure    = "No se pudo completar la investigación."
+	publicIssuePublicationFailure = "No se pudo publicar la Issue en GitHub."
 )
 
 // Execute performs database transitions atomically around a slow, bounded
@@ -66,7 +68,6 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 	}
 
 	completedInvestigation := *investigation
-	succeededOperation := *operation
 	if err = completedInvestigation.Complete(
 		finishedAt, result.Summary, result.RootCause, result.RootCauseStatus, result.ResolutionStatus,
 		result.Confidence, result.Hypotheses, result.RelevantFiles, result.RelevantCommits,
@@ -74,17 +75,60 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 	); err != nil {
 		return uc.failInvestigation(ctx, investigation, operation, finishedAt, err)
 	}
-	if err = succeededOperation.Succeed(finishedAt, "La investigación finalizó correctamente."); err != nil {
-		return uc.failInvestigation(ctx, investigation, operation, finishedAt, err)
-	}
+
+	var incident domain.Incident
 	err = uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		locked, lockErr := uc.incidents.Lock(txCtx, completedInvestigation.IncidentID)
+		if lockErr != nil {
+			return lockErr
+		}
+		incident = *locked
+		if updateErr := incident.StartIssuePublication(result.RootCauseStatus, result.ResolutionStatus, result.Confidence, result.Summary); updateErr != nil {
+			return updateErr
+		}
 		if updateErr := uc.investigations.Update(txCtx, &completedInvestigation); updateErr != nil {
 			return updateErr
 		}
-		return uc.operations.Update(txCtx, &succeededOperation)
+		return uc.incidents.Update(txCtx, &incident)
 	})
 	if err != nil {
 		return uc.failInvestigation(ctx, investigation, operation, finishedAt, err)
+	}
+
+	if existing, err := uc.issueRefs.FindByInvestigation(ctx, completedInvestigation.ID); err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	} else if existing != nil {
+		return uc.finalizeIssuePublication(ctx, &completedInvestigation, operation, *existing)
+	}
+
+	project, err := uc.projects.Get(ctx, incident.ProjectID)
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	account, err := uc.githubAccounts.Get(ctx, project.GitHubRepository.GitHubAccountID)
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	persistedEvidence, err := uc.evidence.ListByInvestigation(ctx, completedInvestigation.ID, paging.Params{Limit: maximumPersistedEvidence})
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	content, err := uc.issueContent.BuildIssueContent(portsout.IssueContentInput{
+		Project: *project, Incident: incident, Investigation: completedInvestigation, Evidence: persistedEvidence.Items,
+	})
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	published, err := uc.issuePublisher.PublishIssue(ctx, *account, project.GitHubRepository, content)
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	reference, err := domain.NewGitHubIssueReference(incident.ID, completedInvestigation.ID, published.Number, published.URL, project.GitHubRepository.FullName, published.CreatedAt)
+	if err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
+	}
+	if err = uc.persistNewIssueReference(ctx, &completedInvestigation, operation, reference); err != nil {
+		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
 	}
 	return nil
 }
@@ -155,6 +199,82 @@ func (uc *RunUseCase) failInvestigation(ctx context.Context, investigation *doma
 			return err
 		}
 		return uc.incidents.Update(txCtx, incident)
+	})
+	if persistErr != nil {
+		return persistErr
+	}
+	return cause
+}
+
+func (uc *RunUseCase) persistNewIssueReference(ctx context.Context, investigation *domain.Investigation, operation *domain.Operation, reference domain.GitHubIssueReference) error {
+	return uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		incident, err := uc.incidents.Lock(txCtx, investigation.IncidentID)
+		if err != nil {
+			return err
+		}
+		if err = uc.issueRefs.Create(txCtx, &reference); err != nil {
+			return err
+		}
+		return uc.finalizeIssuePublicationInTransaction(txCtx, incident, operation, reference)
+	})
+}
+
+func (uc *RunUseCase) finalizeIssuePublication(ctx context.Context, investigation *domain.Investigation, operation *domain.Operation, reference domain.GitHubIssueReference) error {
+	return uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		incident, err := uc.incidents.Lock(txCtx, investigation.IncidentID)
+		if err != nil {
+			return err
+		}
+		return uc.finalizeIssuePublicationInTransaction(txCtx, incident, operation, reference)
+	})
+}
+
+func (uc *RunUseCase) finalizeIssuePublicationInTransaction(ctx context.Context, incident *domain.Incident, operation *domain.Operation, reference domain.GitHubIssueReference) error {
+	at := uc.now().UTC()
+	if err := incident.AttachGitHubIssue(reference); err != nil {
+		return err
+	}
+	if incident.ResolutionStatus != nil && *incident.ResolutionStatus == domain.ResolutionRequiresHuman {
+		if err := incident.CompleteRequiresHuman(); err != nil {
+			return err
+		}
+	}
+	if err := operation.Succeed(at, "La Issue de GitHub fue publicada correctamente."); err != nil {
+		return err
+	}
+	if err := uc.incidents.Update(ctx, incident); err != nil {
+		return err
+	}
+	return uc.operations.Update(ctx, operation)
+}
+
+func (uc *RunUseCase) failIssuePublication(ctx context.Context, incident *domain.Incident, operation *domain.Operation, at time.Time, cause error) error {
+	message, failureCode := publicFailure(cause)
+	if message == publicInvestigationFailure {
+		message = publicIssuePublicationFailure
+	}
+	persistErr := uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		locked, err := uc.incidents.Lock(txCtx, incident.ID)
+		if err != nil {
+			return err
+		}
+		if locked.Phase == domain.IncidentPhasePublishingIssue {
+			if err = locked.FailIssuePublication(); err != nil {
+				return err
+			}
+			if err = uc.incidents.Update(txCtx, locked); err != nil {
+				return err
+			}
+		}
+		if operation.Status == domain.OperationStatusRunning {
+			if err = operation.Fail(at, message, failureCode); err != nil {
+				return err
+			}
+			if err = uc.operations.Update(txCtx, operation); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if persistErr != nil {
 		return persistErr

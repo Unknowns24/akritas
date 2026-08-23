@@ -23,7 +23,7 @@ export default function ErrorBoundary({ error, reset }: ErrorProps) {
   const errorCode = isApiError ? error.code : error.digest || "RUNTIME_ERROR";
   const userMessage = isApiError
     ? error.userMessage
-    : "Ocurrió un error inesperado al procesar la vista. Podés intentar nuevamente.";
+    : "An unexpected error occurred while processing the view. Please try again.";
   const requestId = isApiError ? error.requestId : null;
 
   return (
@@ -60,7 +60,7 @@ export default function ErrorBoundary({ error, reset }: ErrorProps) {
           </div>
           <div>
             <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--text-primary)" }}>
-              Error en la aplicación
+              Application Error
             </h2>
             <span
               style={{

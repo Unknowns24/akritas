@@ -42,7 +42,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             <span style={{ fontSize: "24px" }}>⚠️</span>
             <div>
               <h1 style={{ fontSize: "18px", fontWeight: 600, margin: 0 }}>
-                Error Crítico del Sistema
+                Critical System Error
               </h1>
               <span
                 style={{
@@ -57,7 +57,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           </div>
 
           <p style={{ fontSize: "14px", color: "#c4c7c8", lineHeight: 1.5, margin: 0 }}>
-            Se produjo un error irrecuperable en la capa raíz de la aplicación.
+            An unrecoverable error occurred at the root layer of the application.
           </p>
 
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
@@ -75,7 +75,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                 cursor: "pointer",
               }}
             >
-              Reiniciar Aplicación
+              Restart Application
             </button>
           </div>
         </div>

@@ -10,12 +10,7 @@ export async function testGitHubConnectionService(
   });
 
   if (error) throw error;
-  /* [MOCK DOCS]
-  if (error) {
-    console.warn("API failed, mocking test connection success");
-    return { success: true };
-  }
-  */
+  
 
   return { success: true };
 }

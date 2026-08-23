@@ -12,24 +12,7 @@ export async function createDokployServerService(
   });
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock created Dokploy server");
-    return {
-      data: {
-        id: "mock-new-dokploy-server-" + Date.now(),
-        name: payload.name,
-        base_url: payload.base_url,
-        server_identifier: payload.base_url.replace(/^https?:\/\//, ""),
-        connection_status: "pending",
-        credential_configured: !!payload.api_credential,
-        application_count: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-    };
-  }
-  */
+  
 
   return { data: data.data };
 }

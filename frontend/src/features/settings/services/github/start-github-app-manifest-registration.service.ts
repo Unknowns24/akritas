@@ -17,35 +17,7 @@ export async function startGitHubAppManifestRegistrationService(
   );
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock manifest registration");
-    return {
-      data: {
-        registration_id: "mock-registration-id",
-        form_action: "https://github.com/settings/apps/new",
-        manifest: JSON.stringify({
-          name: `akritas-mock-${Date.now()}`,
-          url: "http://localhost:3000",
-          hook_attributes: {
-            url: "http://localhost:3000/settings/github/callback"
-          },
-          redirect_url: "http://localhost:3000/settings/github/callback",
-          public: false,
-          default_permissions: {
-            contents: "write",
-            metadata: "read",
-            issues: "write",
-            pull_requests: "write"
-          },
-          default_events: []
-        }),
-        state: "mock-state-12345",
-        expires_at: new Date(Date.now() + 3600000).toISOString()
-      }
-    };
-  }
-  */
+  
   if (data?.data?.manifest) {
     try {
       const manifestObj = JSON.parse(data.data.manifest);

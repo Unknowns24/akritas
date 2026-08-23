@@ -11,38 +11,7 @@ export async function listDokployServersService(): Promise<{ data?: DokployServe
   });
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock Dokploy servers");
-    return {
-      data: [
-        {
-          id: "mock-dokploy-1",
-          name: "Production Server",
-          base_url: "https://dokploy.example.com",
-          server_identifier: "dokploy-example-com",
-          connection_status: "connected",
-          credential_configured: true,
-          application_count: 5,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_synced_at: new Date().toISOString(),
-        },
-        {
-          id: "mock-dokploy-2",
-          name: "Staging Server (Failing)",
-          base_url: "https://staging.dokploy.example.com",
-          server_identifier: "staging-dokploy-example-com",
-          connection_status: "authentication_failed",
-          credential_configured: true,
-          application_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ]
-    };
-  }
-  */
+  
 
   return { data: data.data };
 }

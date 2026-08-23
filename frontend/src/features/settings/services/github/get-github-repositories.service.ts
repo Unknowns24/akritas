@@ -13,23 +13,7 @@ export async function getGitHubRepositoriesService(
   });
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock repositories");
-    return {
-      data: Array.from({ length: 42 }).map((_, i) => ({
-        github_account_id: accountId,
-        repository_identifier: `repo-${i}`,
-        owner: "octocat",
-        name: `repository-${i}`,
-        full_name: `octocat/repository-${i}`,
-        default_branch: "main",
-        private: i % 3 === 0,
-        html_url: `https://github.com/octocat/repository-${i}`,
-      })) as GitHubRepository[]
-    };
-  }
-  */
+  
 
   return { data: data?.data };
 }

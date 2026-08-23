@@ -7,7 +7,9 @@ import (
 	"testing"
 
 	dberrors "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/errors"
+	gitworkspace "github.com/Unknowns24/akritas/backend/internal/adapter/external/git"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
+	validationrunner "github.com/Unknowns24/akritas/backend/internal/adapter/external/validationrunner"
 	resterrors "github.com/Unknowns24/akritas/backend/internal/adapter/rest/errors"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 )
@@ -21,7 +23,9 @@ func TestStableErrorCatalogsAreGloballyUniqueAndDocumentedOnce(t *testing.T) {
 	catalogs := []map[string]*domain.Error{
 		domain.DomainErrors(), domain.AuthenticationErrors(), domain.IntegrationErrors(), domain.ProjectErrors(),
 		domain.IncidentErrors(), domain.MonitoringErrors(), domain.InvestigationErrors(), domain.OperationErrors(),
+		domain.RemediationErrors(),
 		dberrors.Catalog(), resterrors.Catalog(), githubexternal.Catalog(),
+		gitworkspace.Catalog(), validationrunner.Catalog(),
 	}
 	pattern := regexp.MustCompile(`^[012F]x[0-9A-F]{6}[VUFCNIR]$`)
 	seenCode := make(map[string]string)

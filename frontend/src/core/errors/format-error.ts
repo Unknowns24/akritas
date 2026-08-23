@@ -80,3 +80,8 @@ export function getErrorDetailsMessage(error: unknown): string {
     .filter(Boolean)
     .join(", ");
 }
+
+export function isApiNotFoundError(error: unknown): boolean {
+  const message = getErrorMessage(error, "").toLowerCase();
+  return message.includes("404") || message.includes("page not found") || message.includes("not found");
+}

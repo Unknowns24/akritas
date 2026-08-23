@@ -26,7 +26,7 @@ services:
       AKRITAS_PUBLIC_URL: https://localhost:8443
       AKRITAS_ALLOWED_ORIGINS: https://localhost:8443,http://localhost:3000
       AKRITAS_SESSION_COOKIE_SECURE: "true"
-      AKRITAS_SESSION_COOKIE_SAME_SITE: none
+      AKRITAS_SESSION_COOKIE_SAME_SITE: lax
     depends_on:
       postgres:
         condition: service_healthy

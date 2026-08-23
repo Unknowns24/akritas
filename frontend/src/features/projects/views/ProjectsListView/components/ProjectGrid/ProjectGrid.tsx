@@ -1,0 +1,79 @@
+import Link from "next/link";
+import { GithubIcon, DokployIcon } from "@/core/ui/icons";
+import { Code2, Server } from "lucide-react";
+import { Badge } from "@/core/ui/primitives/Badge";
+import styles from "./ProjectGrid.module.css";
+import type { components } from "@/core/libs/api-client";
+
+type ProjectSummary = components["schemas"]["ProjectSummary"];
+
+interface ProjectGridProps {
+  projects: ProjectSummary[];
+}
+
+export function ProjectGrid({ projects }: ProjectGridProps) {
+  return (
+    <div className={styles.grid}>
+      {projects.map((project) => (
+        <ProjectCard key={project.id} project={project} />
+      ))}
+    </div>
+  );
+}
+
+function ProjectCard({ project }: { project: ProjectSummary }) {
+  const isHealthy = project.health_status === "healthy";
+  
+  return (
+    <Link href={`/projects/${project.id}`} className={`${styles.card} ${isHealthy ? styles.cardHealthy : styles.cardWarning}`}>
+      <div className={styles.header}>
+        <div>
+          <h3 className={styles.title}>{project.name}</h3>
+          {project.description && <p className={styles.description}>{project.description}</p>}
+        </div>
+        <Badge variant={isHealthy ? "success" : "warning"}>
+          {project.health_status.toUpperCase()}
+        </Badge>
+      </div>
+
+      <div className={styles.integrations}>
+        {project.github_repository ? (
+          <div className={styles.integrationItem}>
+            <GithubIcon size={14} className={styles.integrationIcon} />
+            <span className={styles.integrationText}>{project.github_repository.full_name}</span>
+          </div>
+        ) : (
+          <div className={styles.integrationItemEmpty}>
+            <GithubIcon size={14} className={styles.integrationIconEmpty} />
+            <span className={styles.integrationText}>No repository</span>
+          </div>
+        )}
+        
+        {project.dokploy_application ? (
+          <div className={styles.integrationItem}>
+            <DokployIcon size={14} className={styles.integrationIcon} />
+            <span className={styles.integrationText}>
+              {project.dokploy_application.display_name} 
+              <span className={styles.integrationEnv}>({project.dokploy_application.environment || "env"})</span>
+            </span>
+          </div>
+        ) : (
+          <div className={styles.integrationItemEmpty}>
+            <DokployIcon size={14} className={styles.integrationIconEmpty} />
+            <span className={styles.integrationText}>No application</span>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.footer}>
+        <div className={styles.stat}>
+          <span className={styles.statLabel}>Monitoring</span>
+          <span className={styles.statValue}>
+            <span className={`${styles.statusDot} ${styles[`status_${project.monitoring_status}`] || styles.status_inactive}`} />
+            {project.monitoring_status}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}

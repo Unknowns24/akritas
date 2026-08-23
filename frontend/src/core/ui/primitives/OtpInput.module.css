@@ -1,0 +1,30 @@
+.container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.input {
+  width: 48px;
+  height: 56px;
+  border-radius: var(--radius-md);
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  text-align: center;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.input:focus,
+.active {
+  border-color: var(--accent-indigo);
+  box-shadow: 0 0 0 1px var(--accent-indigo);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

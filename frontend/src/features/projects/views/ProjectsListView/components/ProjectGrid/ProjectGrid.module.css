@@ -1,0 +1,144 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.card {
+  background-color: var(--surface-1);
+  border: 1px solid var(--surface-2);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-left: 4px solid var(--surface-3);
+}
+
+.cardHealthy {
+  border-left-color: var(--green-500);
+}
+
+.cardWarning {
+  border-left-color: var(--yellow-500);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.header > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.description {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.integrations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.integrationItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.integrationItemEmpty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+.integrationIcon {
+  color: var(--text-secondary);
+}
+
+.integrationIconEmpty {
+  color: var(--text-tertiary);
+}
+
+.integrationText {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.integrationEnv {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.statLabel {
+  color: var(--text-secondary);
+}
+
+.statValue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status_monitoring {
+  background-color: var(--status-success);
+}
+
+.status_degraded {
+  background-color: var(--status-warning);
+}
+
+.status_error {
+  background-color: var(--status-error);
+}
+
+.status_inactive {
+  background-color: var(--text-tertiary);
+}

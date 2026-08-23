@@ -1,0 +1,25 @@
+---
+description: Frontend Next.js App Router feature-based; OpenAPI; sin secretos en el browser.
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# Frontend (harness)
+
+Stack: Next.js App Router en `src/app/`, TypeScript, features en `src/features/`, CSS Modules. No introducir Tailwind/shadcn/otro kit salvo que el repo ya lo use o la tarea lo pida.
+
+## Estructura
+
+- `src/app/`: solo routing (`page`, `layout`, `loading`, `error`). Páginas delgadas que importan views de features.
+- `src/features/<feature>/`: UI y lógica de un feature.
+- `src/core/`: solo código compartido entre features (api-client, auth, ui).
+
+## Contrato
+
+1. Consumir `backend/docs/openapi.yaml`; no adivinar payloads.
+2. DTOs con sufijo `Dto`; mapear a modelos de UI. No pasar DTOs crudos a charts/forms complejos.
+3. Zod para validar respuestas relevantes.
+4. Credenciales de GitHub/Dokploy/QVAC/TOTP nunca en el browser, `localStorage` ni logs de cliente.
+5. Un solo API client en `core`; no duplicar fetchers.
+
+Typecheck y lint son gates. Lógica de negocio no vive en `page.tsx`.

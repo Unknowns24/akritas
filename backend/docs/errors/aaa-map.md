@@ -101,6 +101,18 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |
 | `ErrOriginForbidden` | `0x102004F` | REST request | Forbidden | El origen de la solicitud no está permitido. |
 | `ErrInvalidGitHubAppPrivateKey` | `0x302001I` | GitHub adapter | Internal | La clave privada de la GitHub App no pudo utilizarse. |
+| `ErrRemediationNotFound` | `0x506001N` | Remediation usecase | Not found | La remediación no existe. |
+| `ErrValidationStackUnsupported` | `0x506002V` | Remediation usecase | Validation | El stack del repositorio no es compatible con las validaciones automáticas. |
+| `ErrRemediationPersistence` | `0x209001I` | Remediation database | Internal | No se pudo guardar la remediación. |
+| `ErrValidationResultPersistence` | `0x210001I` | Validation result database | Internal | No se pudo guardar el resultado de validación. |
+| `ErrGitBinaryUnavailable` | `0x303001I` | Git workspace adapter | Internal | No se pudo ejecutar Git para preparar el workspace. |
+| `ErrInvalidWorkspace` | `0x303002V` | Git workspace adapter | Validation | El workspace de Git no es válido. |
+| `ErrBaseBranchNotFound` | `0x303003N` | Git workspace adapter | Not found | La rama base no existe en el repositorio. |
+| `ErrBranchAlreadyExists` | `0x303004C` | Git workspace adapter | Conflict | La rama de remediación ya existe. |
+| `ErrProtectedBranchTarget` | `0x303005F` | Git workspace adapter | Forbidden | No se puede operar directamente sobre la rama base/protegida. |
+| `ErrGitCommandFailed` | `0x303006I` | Git workspace adapter | Internal | El comando de Git falló inesperadamente. |
+| `ErrValidationToolUnavailable` | `0x304001I` | Validation runner adapter | Internal | La herramienta de validación no está disponible. |
+| `ErrValidationExecutionFailed` | `0x304002I` | Validation runner adapter | Internal | No se pudo ejecutar la validación. |
 
 Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401, `F` a 403, `N` a 404, `C` a 409, `R` a 429 e `I` a 500.
 

@@ -21,3 +21,4 @@
 | AKR-GITHUB-REPO-TOOLS | complete | backend-service-feature | PB-030/031: search_code/read_file/commits/diffs vía adapter GitHub |
 | AKR-H2-DETECTION-INCIDENTS | complete | backend-api-feature | Ingesta incremental, Detection Engine determinístico, LogEvents e Incidents |
 | AKR-REST-CORS | complete | backend-api-feature | CORS credentialed global mediante middleware oficial de Chi |
+| AKR-H5-WORKSPACE-VALIDATION | complete | backend-service-feature | PB-041/044/045: branch dedicada, ejecución y persistencia de validaciones, aislado de H4 |

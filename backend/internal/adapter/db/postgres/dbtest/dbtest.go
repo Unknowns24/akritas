@@ -37,6 +37,8 @@ func Connect(t *testing.T) *gorm.DB {
 
 	if err := db.Exec(`
     TRUNCATE TABLE
+      validation_results,
+      remediations,
       evidence,
       github_issue_references,
       operations,

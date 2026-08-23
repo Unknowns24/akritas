@@ -2,6 +2,7 @@ package monitoring
 
 import (
 	"context"
+	"log"
 	"reflect"
 	"time"
 
@@ -21,10 +22,13 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 		if getErr != nil {
 			return s.recordFailure(ctx, project, getErr)
 		}
-		raw, err = s.logs.FetchLogs(ctx, portsout.LogFetchRequest{Server: *server, Source: project.DokploySource, Tail: maximumFetchRecords, Since: fetchSince(checkpoint, now)})
+		since := fetchSince(checkpoint, now)
+		log.Printf("monitoring: fetching logs project_id=%s project_name=%q source_type=%s resource_id=%s service=%s instance=%s runtime=%s since=%s tail=%d", project.ID, project.Name, project.DokploySource.Type, project.DokploySource.ResourceIdentifier, project.DokploySource.ServiceName, project.DokploySource.InstanceIdentifier, project.DokploySource.RuntimeType, since, maximumFetchRecords)
+		raw, err = s.logs.FetchLogs(ctx, portsout.LogFetchRequest{Server: *server, Source: project.DokploySource, Tail: maximumFetchRecords, Since: since})
 		if err != nil {
 			return s.recordFailure(ctx, project, err)
 		}
+		log.Printf("monitoring: fetched logs project_id=%s project_name=%q records=%d since=%s", project.ID, project.Name, len(raw), since)
 		raw, err = recordsAfter(checkpoint, raw)
 		if err != nil {
 			return s.recordFailure(ctx, project, err)

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/url"
 	"sort"
 	"strconv"
@@ -40,27 +41,70 @@ func (c *Client) FetchLogs(ctx context.Context, request portsout.LogFetchRequest
 	}
 	body, err := c.do(ctx, base+endpoint+"?"+query.Encode(), string(credential))
 	if err != nil {
+		log.Printf("dokploy: read logs request failed source_type=%s resource_id=%s service=%s instance=%s endpoint=%s error=%v", request.Source.Type, request.Source.ResourceIdentifier, request.Source.ServiceName, request.Source.InstanceIdentifier, endpoint, err)
 		return nil, normalizeProviderError(err)
 	}
 	records, err := ParseLogs(body)
 	if err != nil {
+		log.Printf("dokploy: parse logs failed source_type=%s resource_id=%s service=%s instance=%s endpoint=%s bytes=%d error=%v", request.Source.Type, request.Source.ResourceIdentifier, request.Source.ServiceName, request.Source.InstanceIdentifier, endpoint, len(body), err)
 		return nil, domain.ErrIntegrationUnavailable.Wrap(err)
 	}
+	log.Printf("dokploy: parsed logs source_type=%s resource_id=%s service=%s instance=%s endpoint=%s records=%d", request.Source.Type, request.Source.ResourceIdentifier, request.Source.ServiceName, request.Source.InstanceIdentifier, endpoint, len(records))
 	return records, nil
 }
 
 type containerDTO struct {
-	ID     string            `json:"Id"`
-	IDAlt  string            `json:"ID"`
-	State  string            `json:"State"`
-	Labels map[string]string `json:"Labels"`
+	ID     string
+	State  string
+	Labels map[string]string
 }
 
 func (c containerDTO) identifier() string {
-	if c.ID != "" {
-		return c.ID
+	return c.ID
+}
+
+func (c *containerDTO) UnmarshalJSON(body []byte) error {
+	var fields map[string]any
+	if err := json.Unmarshal(body, &fields); err != nil {
+		return err
 	}
-	return c.IDAlt
+	c.ID = firstString(fields, "Id", "ID", "id", "containerId", "containerID")
+	c.State = firstString(fields, "State", "state", "status", "Status")
+	c.Labels = firstStringMap(fields, "Labels", "labels")
+	return nil
+}
+
+func firstString(fields map[string]any, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := fields[key].(string); ok {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func firstStringMap(fields map[string]any, keys ...string) map[string]string {
+	for _, key := range keys {
+		raw, ok := fields[key]
+		if !ok {
+			continue
+		}
+		result := map[string]string{}
+		switch value := raw.(type) {
+		case map[string]string:
+			return value
+		case map[string]any:
+			for label, labelValue := range value {
+				if text, ok := labelValue.(string); ok {
+					result[label] = text
+				}
+			}
+		}
+		if len(result) > 0 {
+			return result
+		}
+	}
+	return nil
 }
 
 func (c *Client) resolveComposeContainer(ctx context.Context, base, credential string, source domain.DokploySource) (string, error) {
@@ -68,42 +112,112 @@ func (c *Client) resolveComposeContainer(ctx context.Context, base, credential s
 	if source.ProviderServerID != "" {
 		values.Set("serverId", source.ProviderServerID)
 	}
+	log.Printf("dokploy: resolving compose container compose_id=%s service=%s app_name=%s runtime=%s provider_server_id_configured=%t", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, source.RuntimeType, source.ProviderServerID != "")
 	body, err := c.do(ctx, base+"/api/docker.getContainersByAppNameMatch?"+values.Encode(), credential)
 	if err != nil {
+		log.Printf("dokploy: resolve compose container request failed compose_id=%s service=%s app_name=%s error=%v", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, err)
 		return "", normalizeProviderError(err)
 	}
-	var containers []containerDTO
-	if json.Unmarshal(body, &containers) != nil {
-		var wrapper struct {
-			Items []containerDTO `json:"items"`
-		}
-		if json.Unmarshal(body, &wrapper) != nil {
-			return "", domain.ErrIntegrationUnavailable
-		}
-		containers = wrapper.Items
+	containers, err := decodeContainers(body)
+	if err != nil {
+		log.Printf("dokploy: resolve compose container response was not parseable compose_id=%s service=%s app_name=%s bytes=%d", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, len(body))
+		return "", domain.ErrIntegrationUnavailable.Wrap(err)
 	}
-	candidates := make([]string, 0)
+	matchingCandidates := make([]string, 0)
+	runningMatchingCandidates := make([]string, 0)
+	allCandidates := make([]string, 0)
+	runningCandidates := make([]string, 0)
+	serviceLabels := make([]string, 0)
+	states := make([]string, 0)
+	running := 0
+	matching := 0
 	for _, container := range containers {
-		if !strings.EqualFold(strings.TrimSpace(container.State), "running") || !matchesComposeService(container.Labels, source) {
-			continue
+		state := strings.TrimSpace(container.State)
+		identifier := strings.TrimSpace(container.identifier())
+		if identifier != "" {
+			allCandidates = append(allCandidates, identifier)
 		}
-		if identifier := strings.TrimSpace(container.identifier()); identifier != "" {
-			candidates = append(candidates, identifier)
+		if label := composeServiceLabel(container.Labels, source); label != "" {
+			serviceLabels = append(serviceLabels, label)
+		}
+		if state != "" {
+			states = append(states, state)
+		}
+		isRunning := strings.EqualFold(state, "running")
+		if isRunning {
+			running++
+			if identifier != "" {
+				runningCandidates = append(runningCandidates, identifier)
+			}
+		}
+		if matchesComposeService(container.Labels, source) {
+			matching++
+			if identifier != "" {
+				matchingCandidates = append(matchingCandidates, identifier)
+				if isRunning {
+					runningMatchingCandidates = append(runningMatchingCandidates, identifier)
+				}
+			}
 		}
 	}
-	if len(candidates) == 0 {
-		return "", domain.ErrDokployContainerUnavailable
+	if len(runningMatchingCandidates) > 0 {
+		sort.Strings(runningMatchingCandidates)
+		log.Printf("dokploy: resolved running compose container compose_id=%s service=%s app_name=%s containers=%d running=%d service_matches=%d selected_container=%s states=%q service_labels=%q", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, len(containers), running, matching, runningMatchingCandidates[0], strings.Join(states, ","), strings.Join(serviceLabels, ","))
+		return runningMatchingCandidates[0], nil
 	}
-	sort.Strings(candidates)
-	return candidates[0], nil
+	if len(matchingCandidates) > 0 {
+		sort.Strings(matchingCandidates)
+		log.Printf("dokploy: resolved non-running compose container for logs compose_id=%s service=%s app_name=%s containers=%d running=%d service_matches=%d selected_container=%s states=%q service_labels=%q", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, len(containers), running, matching, matchingCandidates[0], strings.Join(states, ","), strings.Join(serviceLabels, ","))
+		return matchingCandidates[0], nil
+	}
+	if len(runningCandidates) == 1 {
+		log.Printf("dokploy: using single running compose container fallback compose_id=%s service=%s app_name=%s selected_container=%s states=%q service_labels=%q", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, runningCandidates[0], strings.Join(states, ","), strings.Join(serviceLabels, ","))
+		return runningCandidates[0], nil
+	}
+	if len(allCandidates) == 1 {
+		log.Printf("dokploy: using single compose container fallback for logs compose_id=%s service=%s app_name=%s selected_container=%s states=%q service_labels=%q", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, allCandidates[0], strings.Join(states, ","), strings.Join(serviceLabels, ","))
+		return allCandidates[0], nil
+	}
+	log.Printf("dokploy: no compose container could be selected compose_id=%s service=%s app_name=%s containers=%d running=%d service_matches=%d states=%q service_labels=%q", source.ResourceIdentifier, source.ServiceName, source.InstanceIdentifier, len(containers), running, matching, strings.Join(states, ","), strings.Join(serviceLabels, ","))
+	return "", domain.ErrDokployContainerUnavailable
+}
+
+func decodeContainers(body []byte) ([]containerDTO, error) {
+	var containers []containerDTO
+	if err := json.Unmarshal(body, &containers); err == nil {
+		return containers, nil
+	}
+	var wrapper struct {
+		Items      []containerDTO `json:"items"`
+		Data       []containerDTO `json:"data"`
+		Containers []containerDTO `json:"containers"`
+	}
+	if err := json.Unmarshal(body, &wrapper); err != nil {
+		return nil, err
+	}
+	switch {
+	case wrapper.Items != nil:
+		return wrapper.Items, nil
+	case wrapper.Data != nil:
+		return wrapper.Data, nil
+	default:
+		return wrapper.Containers, nil
+	}
 }
 
 func matchesComposeService(labels map[string]string, source domain.DokploySource) bool {
+	service := composeServiceLabel(labels, source)
 	if source.RuntimeType == domain.DokployRuntimeStack {
-		return labels["com.docker.stack.namespace"] == source.InstanceIdentifier &&
-			labels["com.docker.swarm.service.name"] == source.InstanceIdentifier+"_"+source.ServiceName
+		return service == source.InstanceIdentifier+"_"+source.ServiceName || service == source.ServiceName
 	}
-	return labels["com.docker.compose.project"] == source.InstanceIdentifier && labels["com.docker.compose.service"] == source.ServiceName
+	return service == source.ServiceName
+}
+
+func composeServiceLabel(labels map[string]string, source domain.DokploySource) string {
+	if source.RuntimeType == domain.DokployRuntimeStack {
+		return strings.TrimSpace(labels["com.docker.swarm.service.name"])
+	}
+	return strings.TrimSpace(labels["com.docker.compose.service"])
 }
 
 func ParseLogs(body []byte) ([]portsout.RawLogRecord, error) {

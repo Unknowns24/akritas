@@ -35,6 +35,20 @@ func TestRecordsAfterFailsClosedWhenSaturatedWindowCannotProveContinuity(t *test
 	}
 }
 
+func TestRecordsAfterFiltersByTimestampWhenUnsaturatedWindowMissesExactCursor(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	checkpoint := &domain.MonitoringCheckpoint{CursorTimestamp: &now, CursorOrdinal: 0, CursorContentHash: "missing"}
+	records := []portsout.RawLogRecord{
+		{Timestamp: now.Add(-time.Second), Ordinal: 0, ContentHash: "old"},
+		{Timestamp: now, Ordinal: 0, ContentHash: "same-time-different-content"},
+		{Timestamp: now.Add(time.Second), Ordinal: 0, ContentHash: "new"},
+	}
+	got, err := recordsAfter(checkpoint, records)
+	if err != nil || len(got) != 1 || got[0].ContentHash != "new" {
+		t.Fatalf("recordsAfter = %+v, %v", got, err)
+	}
+}
+
 func TestFromNowAnchorFailsClosedWhenMoreThanTailArrivedBeforeFirstPoll(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	checkpoint := &domain.MonitoringCheckpoint{CursorTimestamp: &now, CursorContentHash: "anchor"}

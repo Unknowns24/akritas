@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -34,17 +35,17 @@ func (c *Client) do(ctx context.Context, requestURL, credential string) ([]byte,
 	}
 	response, err := clientCopy.Do(request)
 	if err != nil {
-		return nil, &providerError{Cause: err}
+		return nil, &providerError{Path: request.URL.Path, Cause: err}
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maximumBodyBytes))
-		return nil, &providerError{Status: response.StatusCode}
+		return nil, &providerError{Path: request.URL.Path, Status: response.StatusCode}
 	}
 	var buffer bytes.Buffer
 	read, err := io.Copy(&buffer, io.LimitReader(response.Body, maximumBodyBytes+1))
 	if err != nil || read > maximumBodyBytes {
-		return nil, &providerError{Status: response.StatusCode}
+		return nil, &providerError{Path: request.URL.Path, Status: response.StatusCode, Cause: err}
 	}
 	return buffer.Bytes(), nil
 }
@@ -84,11 +85,26 @@ func (c *Client) transportForRequest(scheme string) (*http.Transport, error) {
 }
 
 type providerError struct {
+	Path   string
 	Status int
 	Cause  error
 }
 
-func (e *providerError) Error() string { return "Dokploy provider request failed" }
+func (e *providerError) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Status != 0 && e.Path != "" {
+		return fmt.Sprintf("Dokploy provider request failed: path=%s status=%d", e.Path, e.Status)
+	}
+	if e.Status != 0 {
+		return fmt.Sprintf("Dokploy provider request failed: status=%d", e.Status)
+	}
+	if e.Path != "" && e.Cause != nil {
+		return fmt.Sprintf("Dokploy provider request failed: path=%s cause=%v", e.Path, e.Cause)
+	}
+	return "Dokploy provider request failed"
+}
 func (e *providerError) Unwrap() error { return e.Cause }
 
 func normalizeProviderError(err error) error {

@@ -46,8 +46,16 @@ func recordsAfter(checkpoint *domain.MonitoringCheckpoint, records []portsout.Ra
 	if len(records) == 0 {
 		return nil, nil
 	}
-	if len(records) < maximumFetchRecords && records[0].Timestamp.After(cursor.Timestamp) {
-		return records, nil
+	if len(records) < maximumFetchRecords {
+		return recordsStrictlyAfter(cursor.Timestamp, records), nil
 	}
 	return nil, domain.ErrMonitoringContinuityLost
+}
+
+func recordsStrictlyAfter(timestamp time.Time, records []portsout.RawLogRecord) []portsout.RawLogRecord {
+	index := 0
+	for index < len(records) && !records[index].Timestamp.After(timestamp) {
+		index++
+	}
+	return records[index:]
 }

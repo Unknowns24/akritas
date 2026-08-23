@@ -10,7 +10,7 @@ import (
 
 func (r *Repository) Update(ctx context.Context, server *domain.DokployServer, secret *portsout.SecretValue) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		result := tx.Table("dokploy_servers").Model(&domain.DokployServer{}).Where("id = ?", server.ID).Select("name", "base_url", "server_identifier", "connection_status", "credential_configured", "application_count", "last_synced_at", "updated_at").Updates(server)
+		result := tx.Table("dokploy_servers").Model(&domain.DokployServer{}).Where("id = ?", server.ID).Select("name", "base_url", "server_identifier", "connection_status", "credential_configured", "application_count", "compose_count", "last_synced_at", "updated_at").Updates(server)
 		if result.Error != nil {
 			return mapError(result.Error)
 		}

@@ -16,7 +16,7 @@ func (r *Repository) OccurrenceExists(ctx context.Context, projectID uuid.UUID, 
 }
 
 func (r *Repository) CreateLogEvent(ctx context.Context, event *domain.LogEvent) error {
-	if event == nil || event.IncidentID == uuid.Nil || strings.TrimSpace(event.SourceApplicationID) == "" || strings.TrimSpace(event.SourceInstanceID) == "" || strings.TrimSpace(event.OccurrenceKey) == "" || event.Validate() != nil {
+	if event == nil || event.IncidentID == uuid.Nil || event.SourceType.Validate() != nil || strings.TrimSpace(event.SourceResourceID) == "" || strings.TrimSpace(event.SourceInstanceID) == "" || strings.TrimSpace(event.OccurrenceKey) == "" || event.Validate() != nil {
 		return domain.ErrInvalidLogEvent
 	}
 	if err := txcontext.From(ctx, r.db).WithContext(ctx).Table("log_events").Create(event).Error; err != nil {

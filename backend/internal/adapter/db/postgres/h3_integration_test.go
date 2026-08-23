@@ -109,7 +109,7 @@ func TestH2IncidentToPersistedH3ResultAgainstPostgreSQL(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := event.AssociateOccurrence(incident.ID, "dokploy-app", "instance-a", "occurrence-1"); err != nil {
+	if err := event.AssociateOccurrence(incident.ID, project.DokploySource, "occurrence-1"); err != nil {
 		t.Fatal(err)
 	}
 	if err := monitoring.CreateLogEvent(ctx, event); err != nil {
@@ -230,7 +230,8 @@ func insertH3Project(t *testing.T, db *gorm.DB, now time.Time) (*domain.GitHubAc
 	}
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service-a", "main", true, "https://github.com/acme/service-a")
 	application, _ := domain.NewDokployApplication(server.ID, "dokploy-app", "instance-a", "Service A", "production", domain.DokployApplicationRunning)
-	project, err := domain.NewProject(uuid.New(), "Service A", "", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, _ := domain.SourceFromApplication(application)
+	project, err := domain.NewProject(uuid.New(), "Service A", "", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}

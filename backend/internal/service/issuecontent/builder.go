@@ -41,7 +41,7 @@ func (b *Builder) Build(input Input) (portsout.IssueContent, error) {
 		return portsout.IssueContent{}, ErrInvalidInput
 	}
 
-	title := bounded(evidencesafety.Redact(fmt.Sprintf("[%s] %s", input.Incident.Key, input.Incident.Title)), maximumTitleBytes)
+	title := safeBounded(fmt.Sprintf("[%s] %s", input.Incident.Key, input.Incident.Title), maximumTitleBytes)
 	var body strings.Builder
 	fmt.Fprintf(&body, "<!-- akritas:investigation_id=%s -->\n", input.Investigation.ID)
 	body.WriteString("# Incident " + scalar(input.Incident.Key) + "\n\n")
@@ -92,7 +92,7 @@ func (b *Builder) Build(input Input) (portsout.IssueContent, error) {
 	list(&body, "Relevant Commits", input.Investigation.RelevantCommits)
 	list(&body, "Recommended Actions", input.Investigation.RecommendedActions)
 
-	return portsout.IssueContent{Title: title, Body: bounded(evidencesafety.Redact(body.String()), maximumBodyBytes)}, nil
+	return portsout.IssueContent{Title: title, Body: safeBounded(body.String(), maximumBodyBytes)}, nil
 }
 
 func orderedEvidence(items []domain.Evidence, cited []uuid.UUID) []domain.Evidence {
@@ -216,4 +216,8 @@ func bounded(value string, maximum int) string {
 		value = value[:len(value)-1]
 	}
 	return value + suffix
+}
+
+func safeBounded(value string, maximum int) string {
+	return bounded(evidencesafety.Redact(bounded(evidencesafety.Redact(value), maximum)), maximum)
 }

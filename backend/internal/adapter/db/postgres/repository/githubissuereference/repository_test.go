@@ -18,7 +18,7 @@ func TestRepositoryPersistsIdempotentInvestigationReferenceAndFindsLatestInciden
 	db := dbtest.ConnectContainer(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Second)
-	incidentID, firstInvestigationID, secondInvestigationID := insertReferenceFixture(t, db, now)
+	incidentID, firstInvestigationID, secondInvestigationID, otherInvestigationID := insertReferenceFixture(t, db, now)
 	repository, err := New(db)
 	if err != nil {
 		t.Fatal(err)
@@ -30,6 +30,12 @@ func TestRepositoryPersistsIdempotentInvestigationReferenceAndFindsLatestInciden
 	}
 	if err := repository.Create(ctx, &second); err != nil {
 		t.Fatal(err)
+	}
+	mismatched, _ := domain.NewGitHubIssueReference(incidentID, otherInvestigationID, 9, "https://github.com/acme/service/issues/9", "acme/service", now.Add(2*time.Minute))
+	if err := repository.Create(ctx, &mismatched); err == nil {
+		t.Fatal("PostgreSQL accepted an IssueReference whose Investigation belongs to another Incident")
+	} else if errors.Is(err, domain.ErrGitHubIssueAlreadyPublished) {
+		t.Fatal("mismatched Incident/Investigation must not be reported as idempotent publication")
 	}
 	if err := repository.Create(ctx, &second); !errors.Is(err, domain.ErrGitHubIssueAlreadyPublished) {
 		t.Fatalf("expected duplicate Investigation conflict, got %v", err)
@@ -48,14 +54,16 @@ func TestRepositoryPersistsIdempotentInvestigationReferenceAndFindsLatestInciden
 	}
 }
 
-func insertReferenceFixture(t *testing.T, db *gorm.DB, now time.Time) (uuid.UUID, uuid.UUID, uuid.UUID) {
+func insertReferenceFixture(t *testing.T, db *gorm.DB, now time.Time) (uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID) {
 	t.Helper()
 	accountID := uuid.New()
 	serverID := uuid.New()
 	projectID := uuid.New()
 	incidentID := uuid.New()
+	otherIncidentID := uuid.New()
 	firstInvestigationID := uuid.New()
 	secondInvestigationID := uuid.New()
+	otherInvestigationID := uuid.New()
 
 	statements := []struct {
 		sql  string
@@ -98,6 +106,13 @@ func insertReferenceFixture(t *testing.T, db *gorm.DB, now time.Time) (uuid.UUID
 			args: []any{incidentID, projectID, now.Add(-time.Hour), now},
 		},
 		{
+			sql: `INSERT INTO incidents (
+				id, key, project_id, fingerprint, severity, phase, first_seen_at, last_seen_at,
+				occurrence_count, title, summary
+			) VALUES (?, 'AKR-2', ?, 'other-fingerprint', 'error', 'publishing_issue', ?, ?, 1, 'Other Incident', '')`,
+			args: []any{otherIncidentID, projectID, now.Add(-time.Hour), now},
+		},
+		{
 			sql: `INSERT INTO investigations (
 				id, incident_id, status, created_at, started_at, finished_at, summary,
 				root_cause, root_cause_status, resolution_status, confidence, evidence_count
@@ -111,11 +126,18 @@ func insertReferenceFixture(t *testing.T, db *gorm.DB, now time.Time) (uuid.UUID
 			) VALUES (?, ?, 'completed', ?, ?, ?, 'summary', 'cause', 'identified', 'requires_human', 0.75, 0)`,
 			args: []any{secondInvestigationID, incidentID, now.Add(-10 * time.Minute), now.Add(-9 * time.Minute), now.Add(-5 * time.Minute)},
 		},
+		{
+			sql: `INSERT INTO investigations (
+				id, incident_id, status, created_at, started_at, finished_at, summary,
+				root_cause, root_cause_status, resolution_status, confidence, evidence_count
+			) VALUES (?, ?, 'completed', ?, ?, ?, 'summary', 'cause', 'identified', 'requires_human', 0.75, 0)`,
+			args: []any{otherInvestigationID, otherIncidentID, now.Add(-10 * time.Minute), now.Add(-9 * time.Minute), now.Add(-5 * time.Minute)},
+		},
 	}
 	for _, statement := range statements {
 		if err := db.Exec(statement.sql, statement.args...).Error; err != nil {
 			t.Fatal(err)
 		}
 	}
-	return incidentID, firstInvestigationID, secondInvestigationID
+	return incidentID, firstInvestigationID, secondInvestigationID, otherInvestigationID
 }

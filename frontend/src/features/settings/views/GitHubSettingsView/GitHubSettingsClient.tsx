@@ -13,6 +13,7 @@ import { updateGitHubPatService } from "../../services/github/update-github-pat.
 import { deleteGitHubAccountService } from "../../services/github/delete-github-account.service";
 import { testGitHubConnectionService } from "../../services/github/test-github-connection.service";
 import { getGitHubRepositoriesService } from "../../services/github/get-github-repositories.service";
+import { startGitHubAppManifestRegistrationService } from "../../services/github/start-github-app-manifest-registration.service";
 
 interface GitHubSettingsClientProps {
   initialAccounts: GitHubAccount[];
@@ -80,9 +81,46 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
     setIsModalOpen(true);
   };
 
-  const handleSubmit = async (formData: { account_type: "personal" | "organization"; display_name: string; account_identifier: string; personal_access_token: string }) => {
+  const handleSubmit = async (formData: { 
+    auth_method: "personal_access_token" | "github_app";
+    account_type: "personal" | "organization"; 
+    display_name: string; 
+    account_identifier: string; 
+    personal_access_token?: string; 
+  }) => {
     setIsLoading(true);
     setError(null);
+
+    if (formData.auth_method === "github_app") {
+      const res = await startGitHubAppManifestRegistrationService({
+        display_name: formData.display_name,
+        owner_type: formData.account_type,
+        organization: formData.account_type === "organization" ? formData.account_identifier : undefined,
+      });
+
+      if (res.error || !res.data) {
+        setError(res.error?.message || "Failed to start GitHub App registration");
+        setIsLoading(false);
+        return;
+      }
+
+      // Dynamically submit the form to GitHub
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = res.data.form_action;
+      
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "manifest";
+      input.value = res.data.manifest;
+      
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      
+      // We don't set isLoading(false) here because the browser will navigate away
+      return;
+    }
 
     let res;
     if (editingAccount) {
@@ -91,12 +129,12 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
       if (formData.personal_access_token) body.personal_access_token = formData.personal_access_token;
       res = await updateGitHubPatService(editingAccount.id!, body);
     } else {
-      // Create
+      // Create PAT
       res = await createGitHubPatService({
         account_type: formData.account_type,
         display_name: formData.display_name,
         account_identifier: formData.account_identifier,
-        personal_access_token: formData.personal_access_token
+        personal_access_token: formData.personal_access_token!
       });
     }
 

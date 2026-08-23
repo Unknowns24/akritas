@@ -2,7 +2,7 @@ import { api } from "@/core/libs/api-client";
 
 export async function deleteGitHubAccountService(
   accountId: string
-): Promise<{ error?: Error | any }> {
+): Promise<void> {
   const { error } = await api.DELETE("/integrations/github/accounts/{account_id}", {
     params: {
       path: { account_id: accountId },
@@ -10,7 +10,4 @@ export async function deleteGitHubAccountService(
   });
 
   if (error) throw error;
-  
-
-  return {};
 }

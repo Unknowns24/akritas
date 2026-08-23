@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import styles from "./DokploySettingsClient.module.css";
 import { Button } from "@/core/ui/primitives/Button";
 import { Modal } from "@/core/ui/primitives/Modal";
@@ -13,6 +13,7 @@ import { DokployServer, listDokployServersService } from "../../services/dokploy
 import { createDokployServerService } from "../../services/dokploy/create-dokploy-server.service";
 import { updateDokployServerService } from "../../services/dokploy/update-dokploy-server.service";
 import { deleteDokployServerService } from "../../services/dokploy/delete-dokploy-server.service";
+import { getErrorMessage } from "@/core/errors";
 
 export const DokploySettingsClient: React.FC = () => {
   const [servers, setServers] = useState<DokployServer[]>([]);
@@ -21,14 +22,20 @@ export const DokploySettingsClient: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    refreshServers();
+  const refreshServers = useCallback(async () => {
+    const { data } = await listDokployServersService();
+    setServers(data);
   }, []);
 
-  const refreshServers = async () => {
-    const { data } = await listDokployServersService();
-    if (data) setServers(data);
-  };
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      refreshServers().catch((refreshError: unknown) => {
+        setError(getErrorMessage(refreshError, "Failed to load Dokploy servers"));
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshServers]);
 
   const handleOpenCreate = () => {
     setEditingServer(undefined);
@@ -46,33 +53,32 @@ export const DokploySettingsClient: React.FC = () => {
     setIsLoading(true);
     setError(null);
 
-    let res;
-    if (editingServer) {
-      res = await updateDokployServerService(editingServer.id, formData);
-    } else {
-      if (!formData.api_credential) {
-        setError("API Credential is required for new servers.");
-        setIsLoading(false);
-        return;
+    try {
+      if (editingServer) {
+        await updateDokployServerService(editingServer.id, formData);
+      } else {
+        if (!formData.api_credential) {
+          setError("API Credential is required for new servers.");
+          setIsLoading(false);
+          return;
+        }
+        await createDokployServerService({
+          name: formData.name,
+          base_url: formData.base_url,
+          api_credential: formData.api_credential
+        });
       }
-      res = await createDokployServerService({
-        name: formData.name,
-        base_url: formData.base_url,
-        api_credential: formData.api_credential
-      });
-    }
 
-    if (res.error) {
-      setError(res.error.message || "An error occurred");
-      toast.error(res.error.message || "An error occurred");
+      await refreshServers();
+      toast.success(`Dokploy server ${editingServer ? "updated" : "connected"} successfully`);
+      setIsModalOpen(false);
+    } catch (submitError: unknown) {
+      const message = getErrorMessage(submitError, "An error occurred");
+      setError(message);
+      toast.error(message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    await refreshServers();
-    toast.success(`Dokploy server ${editingServer ? "updated" : "connected"} successfully`);
-    setIsLoading(false);
-    setIsModalOpen(false);
   };
 
   const handleDelete = async (server: DokployServer) => {
@@ -83,9 +89,13 @@ export const DokploySettingsClient: React.FC = () => {
       if (!confirm("Are you sure you want to remove this Dokploy server?")) return;
     }
 
-    await deleteDokployServerService(server.id);
-    await refreshServers();
-    toast.success("Dokploy server removed");
+    try {
+      await deleteDokployServerService(server.id);
+      await refreshServers();
+      toast.success("Dokploy server removed");
+    } catch (deleteError: unknown) {
+      toast.error(getErrorMessage(deleteError, "Failed to remove Dokploy server"));
+    }
   };
 
   return (

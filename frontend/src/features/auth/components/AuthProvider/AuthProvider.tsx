@@ -46,12 +46,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             return;
           }
-        } catch (e) {
-          console.warn("Failed to check setup status", e);
+        } catch (error: unknown) {
+          console.warn("Failed to check setup status", error);
         }
 
         // 2. Check session
-        const isAuthRoute = Object.values(APP_ROUTES.AUTH).includes(pathname as any);
+        const authRoutes: string[] = Object.values(APP_ROUTES.AUTH);
+        const isAuthRoute = authRoutes.includes(pathname);
         try {
           const fetchedSession = await getCurrentSessionService();
           if (fetchedSession && fetchedSession.administrator) {
@@ -68,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (mounted) setAuthorized(true);
             }
           }
-        } catch (error) {
+        } catch {
           if (!isAuthRoute) {
             if (mounted) router.replace(APP_ROUTES.AUTH.LOGIN);
           } else {

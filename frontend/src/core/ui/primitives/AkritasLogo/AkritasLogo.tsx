@@ -33,7 +33,6 @@ export const AkritasLogo: React.FC<AkritasLogoProps> = ({
         className={className}
         style={{ display: "block", ...style }}
         alt={`${variant} logo`}
-        {...(props as any)}
       />
     );
   }

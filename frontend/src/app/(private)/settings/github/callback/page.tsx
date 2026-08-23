@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { env } from "@/core/config/env.config";
 import { RefreshCw } from "lucide-react";
@@ -8,7 +8,12 @@ import styles from "./CallbackPage.module.css";
 
 export default function GitHubCallbackPage() {
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const hasValidCallback = useMemo(() => {
+    return Boolean(
+      (searchParams.get("code") && searchParams.get("state")) ||
+        searchParams.get("installation_id"),
+    );
+  }, [searchParams]);
 
   useEffect(() => {
     // We are on the client, let's process the URL
@@ -32,16 +37,14 @@ export default function GitHubCallbackPage() {
       if (setup_action) url.searchParams.set("setup_action", setup_action);
       if (state) url.searchParams.set("state", state);
       window.location.href = url.toString();
-    } else {
-      setError("No valid callback parameters found in URL.");
     }
   }, [searchParams]);
 
-  if (error) {
+  if (!hasValidCallback) {
     return (
       <div className={styles.container}>
         <h2>Error in GitHub Integration</h2>
-        <p className={styles.error}>{error}</p>
+        <p className={styles.error}>No valid callback parameters found in URL.</p>
         <a href="/settings/github" className={styles.link}>Return to GitHub Settings</a>
       </div>
     );

@@ -60,23 +60,28 @@ export const GitHubRepositorySelector: React.FC<GitHubRepositorySelectorProps> =
   // 2. Fetch repos when account changes or connection succeeds
   useEffect(() => {
     if (!selectedAccountId) {
-      setRepositories([]);
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setRepositories([]);
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
     
-    // reset status when changing account
-    setConnectionStatus("idle");
-    
-    const fetchRepos = async () => {
-      setIsLoadingRepos(true);
-      const { data } = await getGitHubRepositoriesService(selectedAccountId);
-      if (data) {
+    const timeoutId = window.setTimeout(() => {
+      // reset status when changing account
+      setConnectionStatus("idle");
+      
+      const fetchRepos = async () => {
+        setIsLoadingRepos(true);
+        const { data } = await getGitHubRepositoriesService(selectedAccountId);
         setRepositories(data);
-      }
-      setIsLoadingRepos(false);
-    };
-    
-    fetchRepos();
+        setIsLoadingRepos(false);
+      };
+      
+      void fetchRepos();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [selectedAccountId]);
 
   const handleTestConnection = async () => {

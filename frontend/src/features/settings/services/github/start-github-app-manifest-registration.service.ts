@@ -1,4 +1,5 @@
 import { api } from "@/core/libs/api-client";
+import { requireApiData, type ServiceData } from "@/core/libs/api-client";
 import type { components } from "@/core/libs/api-client";
 
 export type GitHubManifestRegistrationRequest =
@@ -8,19 +9,18 @@ export type GitHubManifestRegistration =
 
 export async function startGitHubAppManifestRegistrationService(
   payload: GitHubManifestRegistrationRequest,
-): Promise<{ data?: GitHubManifestRegistration; error?: Error | any }> {
-  const { data, error } = await api.POST(
+): Promise<ServiceData<GitHubManifestRegistration>> {
+  const response = await api.POST(
     "/integrations/github/app-manifest/registrations",
     {
       body: payload,
     },
   );
+  const envelope = requireApiData(response.data, response.error);
 
-  if (error || !data) throw error || new Error("No data returned");
-  
-  if (data?.data?.manifest) {
+  if (envelope.data.manifest) {
     try {
-      const manifestObj = JSON.parse(data.data.manifest);
+      const manifestObj: Record<string, unknown> = JSON.parse(envelope.data.manifest);
 
       const baseUrl =
         typeof window !== "undefined"
@@ -30,15 +30,18 @@ export async function startGitHubAppManifestRegistrationService(
       // Aggressively inject all required URLs for GitHub App Manifest
       manifestObj.url = manifestObj.url || baseUrl;
 
-      if (!manifestObj.hook_attributes) {
+      if (
+        typeof manifestObj.hook_attributes !== "object" ||
+        manifestObj.hook_attributes === null
+      ) {
         manifestObj.hook_attributes = {};
       }
+      const hookAttributes = manifestObj.hook_attributes as Record<string, unknown>;
 
       // GitHub strictly rejects 'localhost' for webhook URLs.
       // We use a dummy public URL for local development so the app creation succeeds.
       // The user can update it later in GitHub settings if they set up ngrok.
-      manifestObj.hook_attributes.url =
-        "https://example.com/webhook-placeholder";
+      hookAttributes.url = "https://example.com/webhook-placeholder";
 
       // GitHub DOES allow localhost for the OAuth redirect callback
       manifestObj.redirect_url =
@@ -54,14 +57,14 @@ export async function startGitHubAppManifestRegistrationService(
       // Return a completely new object to avoid read-only mutation issues
       return {
         data: {
-          ...data.data,
+          ...envelope.data,
           manifest: finalManifestStr,
         },
       };
-    } catch (e) {
-      console.warn("Could not parse or mutate manifest JSON", e);
+    } catch (error) {
+      console.warn("Could not parse or mutate manifest JSON", error);
     }
   }
 
-  return { data: data?.data };
+  return { data: envelope.data };
 }

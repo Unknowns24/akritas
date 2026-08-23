@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/core/ui/primitives/Button";
 import { AlertTriangle, Copy } from "lucide-react";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+import { getErrorMessage } from "@/core/errors";
 import { OtpInput } from "@/core/ui/primitives/OtpInput";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -52,8 +53,8 @@ export const RecoveryView = () => {
       const result = await startAdministratorRecoveryService(formData);
       setEnrollment(result);
       setStep(2);
-    } catch (err: any) {
-      setError(err.message || "Failed to start recovery process");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to start recovery process"));
     } finally {
       setIsSubmitting(false);
     }
@@ -68,8 +69,8 @@ export const RecoveryView = () => {
     try {
       await verifyAdministratorRecoveryService(totpCode, enrollment.enrollment_id);
       router.replace(APP_ROUTES.AUTH.LOGIN);
-    } catch (err: any) {
-      setError(err.message || "Invalid authenticator code");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Invalid authenticator code"));
     } finally {
       setIsSubmitting(false);
     }

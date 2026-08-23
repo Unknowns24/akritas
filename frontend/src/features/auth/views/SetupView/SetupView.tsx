@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/core/ui/primitives/Button";
 import { Info, AlertTriangle, ShieldCheck, Copy } from "lucide-react";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+import { getErrorMessage } from "@/core/errors";
 import { OtpInput } from "@/core/ui/primitives/OtpInput";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -74,8 +75,8 @@ export const SetupView = () => {
       const result = await startAdministratorSetupService(formData);
       setEnrollment(result);
       setStep(2);
-    } catch (err: any) {
-      setError(err.message || "Failed to initialize Akritas");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to initialize Akritas"));
     } finally {
       setIsSubmitting(false);
     }
@@ -91,8 +92,8 @@ export const SetupView = () => {
       await verifyAdministratorSetupService(totpCode, enrollment.enrollment_id);
       // Success! Redirect to the authenticated app
       router.replace(APP_ROUTES.OVERVIEW);
-    } catch (err: any) {
-      setError(err.message || "Invalid authenticator code");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Invalid authenticator code"));
     } finally {
       setIsSubmitting(false);
     }

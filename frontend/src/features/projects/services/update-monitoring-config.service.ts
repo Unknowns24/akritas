@@ -1,4 +1,5 @@
 import { api } from "@/core/libs/api-client";
+import { requireApiData, type ServiceData } from "@/core/libs/api-client";
 import type { components } from "@/core/libs/api-client";
 
 export type MonitoringConfiguration = components["schemas"]["MonitoringConfiguration"];
@@ -7,7 +8,7 @@ export type MonitoringConfigurationResponse = components["schemas"]["MonitoringC
 export async function updateMonitoringConfigService(
   projectId: string,
   config: MonitoringConfiguration
-): Promise<{ data?: MonitoringConfiguration; error?: Error | any }> {
+): Promise<ServiceData<MonitoringConfiguration>> {
   const { data, error } = await api.PUT("/projects/{project_id}/monitoring-configuration", {
     params: {
       path: { project_id: projectId },
@@ -15,8 +16,5 @@ export async function updateMonitoringConfigService(
     body: config,
   });
 
-  if (error || !data) throw error || new Error("No data returned");
-  
-
-  return { data: data.data };
+  return { data: requireApiData(data, error).data };
 }

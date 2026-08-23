@@ -1,4 +1,5 @@
 import { api } from "@/core/libs/api-client";
+import { requireApiData } from "@/core/libs/api-client";
 import type { components } from "@/core/libs/api-client";
 
 export type TimelineEventListResponse =
@@ -14,37 +15,5 @@ export async function getIncidentTimelineService(
     },
   });
 
-  if (error) {
-    if (typeof window === "undefined") {
-      return {
-        data: [],
-        paging: {
-          limit: 10,
-          total: 0,
-          has_more: false,
-          next_cursor: "",
-          prev_cursor: "",
-        },
-      } as unknown as TimelineEventListResponse;
-    }
-    throw error;
-  }
-
-  if (!data) {
-    if (typeof window === "undefined") {
-      return {
-        data: [],
-        paging: {
-          limit: 10,
-          total: 0,
-          has_more: false,
-          next_cursor: "",
-          prev_cursor: "",
-        },
-      } as unknown as TimelineEventListResponse;
-    }
-    throw new Error("No data returned");
-  }
-
-  return data;
+  return requireApiData(data, error);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import styles from "./GitHubSettingsClient.module.css";
 import { Button } from "@/core/ui/primitives/Button";
 import { Modal } from "@/core/ui/primitives/Modal";
@@ -15,6 +15,8 @@ import { deleteGitHubAccountService } from "../../services/github/delete-github-
 import { testGitHubConnectionService } from "../../services/github/test-github-connection.service";
 import { getGitHubRepositoriesService } from "../../services/github/get-github-repositories.service";
 import { startGitHubAppManifestRegistrationService } from "../../services/github/start-github-app-manifest-registration.service";
+import { getErrorMessage } from "@/core/errors";
+import type { components } from "@/core/libs/api-client";
 
 interface GitHubSettingsClientProps {
   initialAccounts: GitHubAccount[];
@@ -48,27 +50,35 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const refreshAccounts = useCallback(async () => {
+    const { data } = await getGitHubAccountsService();
+    setAccounts(data);
+  }, []);
+
   // Fetch accounts on mount in case initial is empty or we want to ensure freshness
   useEffect(() => {
-    refreshAccounts();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      refreshAccounts().catch((refreshError: unknown) => {
+        setError(getErrorMessage(refreshError, "Failed to load GitHub accounts"));
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [refreshAccounts]);
 
   // Fetch repo counts whenever accounts change
   useEffect(() => {
     accounts.forEach(async (acc) => {
       if (!repoCounts[acc.id] && acc.id) {
-        const { data } = await getGitHubRepositoriesService(acc.id);
-        if (data) {
+        try {
+          const { data } = await getGitHubRepositoriesService(acc.id);
           setRepoCounts((prev) => ({ ...prev, [acc.id]: data.length }));
+        } catch {
+          setRepoCounts((prev) => ({ ...prev, [acc.id]: 0 }));
         }
       }
     });
-  }, [accounts]);
-
-  const refreshAccounts = async () => {
-    const { data } = await getGitHubAccountsService();
-    if (data) setAccounts(data);
-  };
+  }, [accounts, repoCounts]);
 
   const handleOpenCreate = () => {
     setEditingAccount(undefined);
@@ -93,76 +103,85 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
     setError(null);
 
     if (formData.auth_method === "github_app") {
-      const res = await startGitHubAppManifestRegistrationService({
-        display_name: formData.display_name,
-        owner_type: formData.account_type,
-        organization: formData.account_type === "organization" ? formData.account_identifier : undefined,
-      });
+      try {
+        const res = await startGitHubAppManifestRegistrationService({
+          display_name: formData.display_name,
+          owner_type: formData.account_type,
+          organization: formData.account_type === "organization" ? formData.account_identifier : undefined,
+        });
 
-      if (res.error || !res.data) {
-        setError(res.error?.message || "Failed to start GitHub App registration");
+        // Dynamically submit the form to GitHub
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = res.data.form_action;
+        
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = "manifest";
+        input.value = res.data.manifest;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+        
+        // We don't set isLoading(false) here because the browser will navigate away
+        return;
+      } catch (registrationError: unknown) {
+        setError(getErrorMessage(registrationError, "Failed to start GitHub App registration"));
         setIsLoading(false);
         return;
       }
-
-      // Dynamically submit the form to GitHub
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = res.data.form_action;
-      
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = "manifest";
-      input.value = res.data.manifest;
-      
-      form.appendChild(input);
-      document.body.appendChild(form);
-      form.submit();
-      
-      // We don't set isLoading(false) here because the browser will navigate away
-      return;
     }
 
-    let res;
-    if (editingAccount) {
-      // Update
-      const body: any = { display_name: formData.display_name };
-      if (formData.personal_access_token) body.personal_access_token = formData.personal_access_token;
-      res = await updateGitHubPatService(editingAccount.id!, body);
-    } else {
-      // Create PAT
-      res = await createGitHubPatService({
-        account_type: formData.account_type,
-        display_name: formData.display_name,
-        account_identifier: formData.account_identifier,
-        personal_access_token: formData.personal_access_token!
-      });
-    }
+    try {
+      if (editingAccount) {
+        const body: components["schemas"]["UpdateGitHubAccountRequest"] = {
+          display_name: formData.display_name,
+          ...(formData.personal_access_token
+            ? { personal_access_token: formData.personal_access_token }
+            : {}),
+        };
+        await updateGitHubPatService(editingAccount.id, body);
+      } else {
+        await createGitHubPatService({
+          account_type: formData.account_type,
+          display_name: formData.display_name,
+          account_identifier: formData.account_identifier,
+          personal_access_token: formData.personal_access_token!
+        });
+      }
 
-    if (res.error) {
-      setError(res.error.message || "An error occurred");
-      toast.error(res.error.message || "An error occurred");
+      await refreshAccounts();
+      toast.success(`GitHub account ${editingAccount ? "updated" : "connected"} successfully`);
+      setIsModalOpen(false);
+    } catch (submitError: unknown) {
+      const message = getErrorMessage(submitError, "An error occurred");
+      setError(message);
+      toast.error(message);
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    await refreshAccounts();
-    toast.success(`GitHub account ${editingAccount ? "updated" : "connected"} successfully`);
-    setIsLoading(false);
-    setIsModalOpen(false);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to remove this GitHub account?")) return;
-    await deleteGitHubAccountService(id);
-    await refreshAccounts();
-    toast.success("GitHub account removed");
+    try {
+      await deleteGitHubAccountService(id);
+      await refreshAccounts();
+      toast.success("GitHub account removed");
+    } catch (deleteError: unknown) {
+      toast.error(getErrorMessage(deleteError, "Failed to remove GitHub account"));
+    }
   };
 
   const handleTestConnection = async (id: string) => {
     setConnectionStatuses((prev) => ({ ...prev, [id]: "testing" }));
-    const { success } = await testGitHubConnectionService(id);
-    setConnectionStatuses((prev) => ({ ...prev, [id]: success ? "success" : "error" }));
+    try {
+      const { success } = await testGitHubConnectionService(id);
+      setConnectionStatuses((prev) => ({ ...prev, [id]: success ? "success" : "error" }));
+    } catch {
+      setConnectionStatuses((prev) => ({ ...prev, [id]: "error" }));
+    }
   };
 
   return (

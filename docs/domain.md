@@ -213,6 +213,22 @@ Campos conceptuales:
 - `relevant_commits`
 - `recommended_actions`
 
+## Operation
+
+Infraestructura genérica de comando asíncrono: rastrea una tarea encolada hasta
+su resolución, sin ser exclusiva de ningún recurso. Investigation la usa hoy;
+remediation y pull_request están pensados para reutilizarla más adelante.
+Campos conceptuales:
+
+- `id`
+- `type` (`system_diagnostics`, `investigation`, `remediation`, `pull_request`)
+- `status` (`queued`, `running`, `succeeded`, `failed`)
+- `resource_type`, `resource_id` (opcionales, identifican qué recurso originó
+  la operación)
+- `user_message`
+- `failure_code`
+- `created_at`, `updated_at`, `finished_at`
+
 ## Evidence
 
 Unidad de información usada para justificar una conclusión.

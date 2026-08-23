@@ -77,11 +77,15 @@ func testRepository(t *testing.T, accountID uuid.UUID, identifier string) GitHub
 	return value
 }
 
-func testApplication(t *testing.T, serverID uuid.UUID, identifier string) DokployApplication {
+func testApplication(t *testing.T, serverID uuid.UUID, identifier string) DokploySource {
 	t.Helper()
 	value, err := NewDokployApplication(serverID, identifier, "instance-1", "Akritas", "production", DokployApplicationRunning)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return value
+	source, err := SourceFromApplication(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return source
 }

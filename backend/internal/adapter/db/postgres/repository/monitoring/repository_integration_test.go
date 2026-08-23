@@ -158,8 +158,9 @@ func insertProject(t *testing.T, db *gorm.DB, now time.Time) domain.Project {
 	}
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
 	application, _ := domain.NewDokployApplication(server.ID, "app", "instance", "service", "production", domain.DokployApplicationRunning)
+	source, _ := domain.SourceFromApplication(application)
 	configuration, _ := domain.NewMonitoringConfiguration(true, []string{}, []string{}, 30*time.Minute, 2, 2)
-	project, err := domain.NewProject(uuid.New(), "Service", "", repository, application, configuration, now)
+	project, err := domain.NewProject(uuid.New(), "Service", "", repository, source, configuration, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +185,7 @@ func newEvent(t *testing.T, incidentID uuid.UUID, project domain.Project, occurr
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := value.AssociateOccurrence(incidentID, "app", "instance", occurrenceKey); err != nil {
+	if err := value.AssociateOccurrence(incidentID, project.DokploySource, occurrenceKey); err != nil {
 		t.Fatal(err)
 	}
 	return value

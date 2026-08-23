@@ -2,6 +2,7 @@
 
 | ID | Estado | Tipo | Descripción |
 | --- | --- | --- | --- |
+| AKR-DOKPLOY-COMPOSE-SOURCES | complete | backend-api-feature | Fuentes Dokploy application/compose_service, discovery y logs Compose |
 | AKR-GITHUB-APP-MANIFEST-STATE | complete | backend-api-feature | Incluir el state en form_action del handoff GitHub App Manifest |
 | AKR-68-69-AUTH-RECOVERY-HARDENING | complete | backend-api-feature | Recovery password/TOTP, rate limiting acotado y sesiones robustas |
 | AKR-AUTH-INTEGRATION | complete | backend-api-feature | Integración limpia de autenticación sobre el backend milestone |

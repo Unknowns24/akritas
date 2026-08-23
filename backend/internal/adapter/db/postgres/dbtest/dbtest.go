@@ -40,6 +40,7 @@ func Connect(t *testing.T) *gorm.DB {
       validation_results,
       remediations,
       evidence,
+      github_issue_references,
       operations,
       investigations,
       log_events,

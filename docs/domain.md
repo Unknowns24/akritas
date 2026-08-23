@@ -179,7 +179,7 @@ Campos conceptuales:
 - `root_cause_status`
 - `resolution_status`
 - `confidence`
-- `github_issue_reference`
+- `github_issue_reference` (proyeccion de la Issue mas reciente)
 - `pull_request_reference` opcional
 
 Valores conceptuales posibles para `phase`:
@@ -266,12 +266,17 @@ Estados posibles conceptuales:
 
 ## GitHubIssueReference
 
-Referencia a la Issue creada para el Incident.
+Referencia persistible a la Issue creada para una Investigation completada.
 Campos conceptuales:
 
+- `incident_id`
+- `investigation_id`
 - `number`
 - `url`
 - `repository`
+- `created_at`
+
+Cada Investigation puede tener como maximo una referencia. Un mismo Incident puede acumular multiples referencias si se investiga mas de una vez; la proyeccion singular del Incident expone la Issue mas reciente.
 
 ## PullRequestReference
 
@@ -299,7 +304,7 @@ Project
  └── Incident *
        ├── LogEvent *
        ├── Investigation 1..*
-       ├── GitHubIssueReference 1
+       ├── GitHubIssueReference 0..*
        └── Remediation 0..1
               └── PullRequestReference 0..1
 ```
@@ -318,6 +323,7 @@ Project
 - Un `LogEvent` no implica necesariamente la existencia de un nuevo `Incident`.
 - Los LogEvents equivalentes pueden agruparse dentro de un mismo `Incident` mediante su fingerprint.
 - Un `Incident` puede ser investigado múltiples veces.
-- Todo Incident debe producir una GitHub Issue.
-- Una `Remediation` solo existe cuando Akritas intenta resolver el Incident mediante cambios de código.
+- Toda Investigation completada debe producir una GitHub Issue auditable antes de cerrar su Operation.
+- Para `resolution_status = fixable`, H4 deja el Incident en `publishing_issue`; H5 toma esa fase y decide la transicion a `remediating`.
+- Una `Remediation` solo existe cuando Akritas intenta resolver el Incident mediante cambios de codigo.
 - Una Pull Request solo existe como resultado de una Remediation.

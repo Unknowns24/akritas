@@ -36,6 +36,9 @@ var ErrRemediationPersistence = &domain.Error{
 
 var ErrValidationResultPersistence = &domain.Error{
 	Code: "0x210001I", Message: "validation result persistence failure", UserMessage: "No se pudo guardar el resultado de validación.",
+
+  var ErrGitHubIssueReferencePersistence = &domain.Error{
+	Code: "0x211001I", Message: "GitHub issue reference persistence failure", UserMessage: "No se pudo guardar la referencia a la Issue.",
 }
 
 func Catalog() map[string]*domain.Error {
@@ -49,5 +52,6 @@ func Catalog() map[string]*domain.Error {
 		"ErrMonitoringPersistence":       ErrMonitoringPersistence,
 		"ErrRemediationPersistence":      ErrRemediationPersistence,
 		"ErrValidationResultPersistence": ErrValidationResultPersistence,
+		"ErrGitHubIssueReferencePersistence": ErrGitHubIssueReferencePersistence,
 	}
 }

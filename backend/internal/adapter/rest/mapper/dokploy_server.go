@@ -11,7 +11,7 @@ func DokployServerToDTO(value domain.DokployServer) dokploydto.DokployServerDTO 
 	result := dokploydto.DokployServerDTO{
 		ID: value.ID.String(), Name: value.Name, BaseURL: value.BaseURL, ServerIdentifier: value.ServerIdentifier,
 		ConnectionStatus: string(value.ConnectionStatus), CredentialConfigured: value.CredentialConfigured,
-		ApplicationCount: value.ApplicationCount, CreatedAt: value.CreatedAt.UTC().Format(time.RFC3339), UpdatedAt: value.UpdatedAt.UTC().Format(time.RFC3339),
+		ApplicationCount: value.ApplicationCount, ComposeCount: value.ComposeCount, CreatedAt: value.CreatedAt.UTC().Format(time.RFC3339), UpdatedAt: value.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 	if value.LastSyncedAt != nil {
 		formatted := value.LastSyncedAt.UTC().Format(time.RFC3339)

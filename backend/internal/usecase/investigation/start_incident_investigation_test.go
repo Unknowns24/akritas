@@ -8,6 +8,7 @@ import (
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
+	out "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/google/uuid"
 )
 
@@ -19,6 +20,8 @@ type startDeps struct {
 	runner         *fakeInvestigationRunner
 	evidence       *fakeEvidenceStore
 	assembler      *fakeEvidenceAssembler
+	issueRefs      *fakeIssueReferenceStore
+	publisher      *fakeIssuePublisher
 	now            time.Time
 }
 
@@ -31,6 +34,8 @@ func newStartDeps() *startDeps {
 		runner:         &fakeInvestigationRunner{},
 		evidence:       &fakeEvidenceStore{},
 		assembler:      &fakeEvidenceAssembler{},
+		issueRefs:      &fakeIssueReferenceStore{},
+		publisher:      &fakeIssuePublisher{result: out.PublishedIssue{Number: 7, URL: "https://github.com/acme/service/issues/7", CreatedAt: time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)}},
 		now:            time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC),
 	}
 }
@@ -51,7 +56,22 @@ func (d *startDeps) usecase() *UseCase {
 }
 
 func (d *startDeps) runUseCase() *RunUseCase {
-	return NewRunUseCase(d.incidents, d.investigations, d.operations, d.evidence, d.assembler, d.runner, fakeTransactor{}, func() time.Time { return d.now })
+	project, account := fakeProject(d.now)
+	return NewRunUseCase(
+		d.incidents,
+		d.investigations,
+		d.operations,
+		d.evidence,
+		fakeProjectStore{project: project},
+		fakeGitHubAccountReader{account: account},
+		d.issueRefs,
+		d.publisher,
+		fakeIssueContentBuilder{content: out.IssueContent{Title: "issue", Body: "body"}},
+		d.assembler,
+		d.runner,
+		fakeTransactor{},
+		func() time.Time { return d.now },
+	)
 }
 
 func TestStartIncidentInvestigationHappyPathQueuesAndDispatches(t *testing.T) {

@@ -13,7 +13,7 @@ func TestBuildDraftsPersistsBoundedBeforeAndDelayedAfterContext(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	project := monitoringProject(t, now)
 	checkpoint := &domain.MonitoringCheckpoint{
-		ID: uuid.New(), ProjectID: project.ID, SourceApplicationID: "app", SourceInstanceID: "instance",
+		ID: uuid.New(), ProjectID: project.ID, SourceType: domain.DokploySourceApplication, SourceResourceID: "app", SourceInstanceID: "instance",
 		State: domain.MonitoringAssemblyState{RecentRecords: []domain.SanitizedLogRecord{sanitized(t, now.Add(-2*time.Second), "before-1"), sanitized(t, now.Add(-time.Second), "before-2")}},
 	}
 	first := []portsout.RawLogRecord{

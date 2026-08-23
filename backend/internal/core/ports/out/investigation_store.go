@@ -12,8 +12,13 @@ type InvestigationGetter interface {
 	FindByID(context.Context, uuid.UUID) (*domain.Investigation, error)
 }
 
+type LatestInvestigationFinder interface {
+	FindLatestByIncident(context.Context, uuid.UUID) (*domain.Investigation, error)
+}
+
 type InvestigationStore interface {
 	InvestigationGetter
+	LatestInvestigationFinder
 	Create(context.Context, *domain.Investigation) error
 	Update(context.Context, *domain.Investigation) error
 	ListByIncident(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Investigation], error)

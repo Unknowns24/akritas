@@ -112,6 +112,9 @@ func (*fakeIncidents) List(context.Context, paging.Params) (paging.Slice[domain.
 func (*fakeIncidents) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
 	return paging.Slice[domain.LogEvent]{}, nil
 }
+func (*fakeIncidents) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
+}
 
 func (f *fakeProjects) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
 	f.createCalls++
@@ -159,6 +162,12 @@ func (f *fakeDokployServers) TestConnection(context.Context, uuid.UUID) (portsin
 
 func (f *fakeDokployServers) ListApplications(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployApplication], error) {
 	return paging.Slice[domain.DokployApplication]{}, nil
+}
+func (f *fakeDokployServers) ListComposes(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployCompose], error) {
+	return paging.Slice[domain.DokployCompose]{}, nil
+}
+func (f *fakeDokployServers) ListComposeServices(context.Context, uuid.UUID, string, bool) ([]domain.DokployComposeService, error) {
+	return nil, nil
 }
 
 type fakeInvestigations struct {
@@ -358,9 +367,12 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/incidents",
 		"GET /api/v1/incidents/{incident_id}",
 		"GET /api/v1/incidents/{incident_id}/log-events",
+		"GET /api/v1/incidents/{incident_id}/timeline",
 		"GET /api/v1/integrations/dokploy/servers",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}/applications",
+		"GET /api/v1/integrations/dokploy/servers/{server_id}/composes",
+		"GET /api/v1/integrations/dokploy/servers/{server_id}/composes/{compose_id}/services",
 		"GET /api/v1/integrations/github/accounts",
 		"GET /api/v1/integrations/github/accounts/{account_id}",
 		"GET /api/v1/integrations/github/accounts/{account_id}/repositories",

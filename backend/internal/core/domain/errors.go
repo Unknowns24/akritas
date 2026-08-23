@@ -60,6 +60,9 @@ var (
 	ErrInvalidDokployServer              = newDomainError("0x402004V", "invalid Dokploy server", "El servidor Dokploy no es válido.")
 	ErrInvalidDokployApplication         = newDomainError("0x402005V", "invalid Dokploy application", "La aplicación Dokploy no es válida.")
 	ErrInvalidConnectionTestStatus       = newDomainError("0x402006V", "invalid connection test status", "El resultado de conexión no es válido.")
+	ErrInvalidDokploySource              = newDomainError("0x402007V", "invalid Dokploy source", "La fuente Dokploy no es válida.")
+	ErrInvalidDokployCompose             = newDomainError("0x402008V", "invalid Dokploy compose", "El Compose Dokploy no es válido.")
+	ErrInvalidDokployComposeService      = newDomainError("0x402009V", "invalid Dokploy compose service", "El servicio Compose Dokploy no es válido.")
 	ErrInvalidMonitoringStatus           = newDomainError("0x403001V", "invalid monitoring status", "El estado de monitoreo no es válido.")
 	ErrInvalidProjectHealthStatus        = newDomainError("0x403002V", "invalid project health status", "El estado de salud del proyecto no es válido.")
 	ErrInvalidProject                    = newDomainError("0x403003V", "invalid project", "El proyecto no es válido.")
@@ -100,6 +103,7 @@ var (
 	ErrManifestStateInvalid              = newDomainError("0x502006V", "invalid GitHub manifest state", "El intento de conexión con GitHub no es válido.")
 	ErrManifestStateConflict             = newDomainError("0x502007C", "GitHub manifest state conflict", "El intento de conexión con GitHub ya fue utilizado o expiró.")
 	ErrIntegrationUnavailable            = newDomainError("0x502008I", "integration unavailable", "No se pudo contactar la integración.")
+	ErrDokployContainerUnavailable       = newDomainError("0x502009I", "Dokploy container unavailable", "El servicio no tiene un contenedor activo disponible.")
 	ErrProjectNotFound                   = newDomainError("0x503001N", "project not found", "El proyecto no existe.")
 	ErrProjectRepositoryNotFound         = newDomainError("0x503002N", "project repository not found", "El repositorio seleccionado no existe o no pertenece a la integración.")
 	ErrProjectApplicationNotFound        = newDomainError("0x503003N", "project application not found", "La aplicación seleccionada no existe.")
@@ -116,11 +120,14 @@ var (
 	ErrInvalidOperation             = newDomainError("0x407004V", "invalid operation", "La operación no es válida.")
 	ErrOperationTransition          = newDomainError("0x407005C", "invalid operation transition", "La operación no puede cambiar a ese estado.")
 
-	ErrInvalidInitialLogIngestion = newDomainError("0x50300AV", "invalid initial log ingestion", "La opción de ingesta inicial no es válida.")
+	ErrInvalidInitialLogIngestion   = newDomainError("0x50300AV", "invalid initial log ingestion", "La opción de ingesta inicial no es válida.")
+	ErrProjectDokploySourceNotFound = newDomainError("0x50300BN", "project Dokploy source not found", "La fuente Dokploy seleccionada no existe.")
+	ErrProjectDokploySourceConflict = newDomainError("0x50300CC", "project Dokploy source conflict", "La fuente Dokploy ya está asociada a otro proyecto.")
 
-	ErrIncidentNotFound           = newDomainError("0x504001N", "incident not found", "El incidente no existe.")
-	ErrInvestigationNotFound      = newDomainError("0x504002N", "investigation not found", "La investigación no existe.")
-	ErrInvestigationAlreadyActive = newDomainError("0x504003C", "investigation already active", "Ya hay una investigación en curso para este incidente.")
+	ErrIncidentNotFound            = newDomainError("0x504001N", "incident not found", "El incidente no existe.")
+	ErrInvestigationNotFound       = newDomainError("0x504002N", "investigation not found", "La investigación no existe.")
+	ErrInvestigationAlreadyActive  = newDomainError("0x504003C", "investigation already active", "Ya hay una investigación en curso para este incidente.")
+	ErrGitHubIssueAlreadyPublished = newDomainError("0x504004C", "GitHub issue already published", "La investigación ya tiene una Issue publicada.")
 
 	ErrOperationNotFound                = newDomainError("0x505001N", "operation not found", "La operación no existe.")
 	ErrMonitoringContinuityLost         = newDomainError("0x505001I", "monitoring log continuity lost", "No se pudo verificar la continuidad de los logs.")
@@ -146,6 +153,9 @@ func DomainErrors() map[string]*Error {
 		"ErrInvalidGitHubRepository":           ErrInvalidGitHubRepository,
 		"ErrInvalidDokployServer":              ErrInvalidDokployServer,
 		"ErrInvalidDokployApplication":         ErrInvalidDokployApplication,
+		"ErrInvalidDokploySource":              ErrInvalidDokploySource,
+		"ErrInvalidDokployCompose":             ErrInvalidDokployCompose,
+		"ErrInvalidDokployComposeService":      ErrInvalidDokployComposeService,
 		"ErrInvalidConnectionTestStatus":       ErrInvalidConnectionTestStatus,
 		"ErrInvalidMonitoringStatus":           ErrInvalidMonitoringStatus,
 		"ErrInvalidProjectHealthStatus":        ErrInvalidProjectHealthStatus,
@@ -190,14 +200,15 @@ func DomainErrors() map[string]*Error {
 // IntegrationErrors returns stable errors introduced by the integration application boundary.
 func IntegrationErrors() map[string]*Error {
 	return map[string]*Error{
-		"ErrIntegrationNotFound":       ErrIntegrationNotFound,
-		"ErrIntegrationConflict":       ErrIntegrationConflict,
-		"ErrIntegrationInUse":          ErrIntegrationInUse,
-		"ErrGitHubCredentialRejected":  ErrGitHubCredentialRejected,
-		"ErrDokployCredentialRejected": ErrDokployCredentialRejected,
-		"ErrManifestStateInvalid":      ErrManifestStateInvalid,
-		"ErrManifestStateConflict":     ErrManifestStateConflict,
-		"ErrIntegrationUnavailable":    ErrIntegrationUnavailable,
+		"ErrIntegrationNotFound":         ErrIntegrationNotFound,
+		"ErrIntegrationConflict":         ErrIntegrationConflict,
+		"ErrIntegrationInUse":            ErrIntegrationInUse,
+		"ErrGitHubCredentialRejected":    ErrGitHubCredentialRejected,
+		"ErrDokployCredentialRejected":   ErrDokployCredentialRejected,
+		"ErrManifestStateInvalid":        ErrManifestStateInvalid,
+		"ErrManifestStateConflict":       ErrManifestStateConflict,
+		"ErrIntegrationUnavailable":      ErrIntegrationUnavailable,
+		"ErrDokployContainerUnavailable": ErrDokployContainerUnavailable,
 	}
 }
 
@@ -219,6 +230,8 @@ func ProjectErrors() map[string]*Error {
 		"ErrProjectDefaultBranchMismatch":  ErrProjectDefaultBranchMismatch,
 		"ErrProjectHasDependencies":        ErrProjectHasDependencies,
 		"ErrInvalidInitialLogIngestion":    ErrInvalidInitialLogIngestion,
+		"ErrProjectDokploySourceNotFound":  ErrProjectDokploySourceNotFound,
+		"ErrProjectDokploySourceConflict":  ErrProjectDokploySourceConflict,
 	}
 }
 
@@ -236,8 +249,9 @@ func MonitoringErrors() map[string]*Error {
 // InvestigationErrors returns stable errors introduced by the investigation application boundary.
 func InvestigationErrors() map[string]*Error {
 	return map[string]*Error{
-		"ErrInvestigationNotFound":      ErrInvestigationNotFound,
-		"ErrInvestigationAlreadyActive": ErrInvestigationAlreadyActive,
+		"ErrInvestigationNotFound":       ErrInvestigationNotFound,
+		"ErrInvestigationAlreadyActive":  ErrInvestigationAlreadyActive,
+		"ErrGitHubIssueAlreadyPublished": ErrGitHubIssueAlreadyPublished,
 	}
 }
 

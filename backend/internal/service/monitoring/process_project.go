@@ -17,11 +17,11 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 	}
 	raw := []portsout.RawLogRecord{}
 	if project.MonitoringConfiguration.Enabled {
-		server, getErr := s.servers.Get(ctx, project.DokployApplication.DokployServerID)
+		server, getErr := s.servers.Get(ctx, project.DokploySource.DokployServerID)
 		if getErr != nil {
 			return s.recordFailure(ctx, project, getErr)
 		}
-		raw, err = s.logs.FetchLogs(ctx, portsout.LogFetchRequest{Server: *server, Application: project.DokployApplication, Tail: maximumFetchRecords, Since: fetchSince(checkpoint, now)})
+		raw, err = s.logs.FetchLogs(ctx, portsout.LogFetchRequest{Server: *server, Source: project.DokploySource, Tail: maximumFetchRecords, Since: fetchSince(checkpoint, now)})
 		if err != nil {
 			return s.recordFailure(ctx, project, err)
 		}
@@ -53,7 +53,9 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 		if getErr != nil {
 			return getErr
 		}
-		if lockedCheckpoint == nil || lockedCheckpoint.ID != checkpoint.ID || lockedCheckpoint.Version != expectedVersion || lockedCheckpoint.SourceApplicationID != project.DokployApplication.ApplicationIdentifier || !reflect.DeepEqual(lockedProject.MonitoringConfiguration, project.MonitoringConfiguration) {
+		if lockedCheckpoint == nil || lockedCheckpoint.ID != checkpoint.ID || lockedCheckpoint.Version != expectedVersion ||
+			lockedCheckpoint.SourceType != project.DokploySource.Type || lockedCheckpoint.SourceResourceID != project.DokploySource.ResourceIdentifier ||
+			lockedCheckpoint.SourceServiceName != project.DokploySource.ServiceName || !reflect.DeepEqual(lockedProject.MonitoringConfiguration, project.MonitoringConfiguration) {
 			return domain.ErrMonitoringConcurrentModification
 		}
 		for index := range ready {

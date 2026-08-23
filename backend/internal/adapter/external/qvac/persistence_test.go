@@ -35,6 +35,14 @@ func (s *memInvestigationStore) FindByID(ctx context.Context, id uuid.UUID) (*do
 	}
 	return cloneInvestigation(value), nil
 }
+func (s *memInvestigationStore) FindLatestByIncident(ctx context.Context, incidentID uuid.UUID) (*domain.Investigation, error) {
+	for _, value := range s.byID {
+		if value.IncidentID == incidentID {
+			return cloneInvestigation(value), nil
+		}
+	}
+	return nil, domain.ErrInvestigationNotFound
+}
 func (s *memInvestigationStore) ListByIncident(ctx context.Context, incidentID uuid.UUID, params paging.Params) (paging.Slice[domain.Investigation], error) {
 	return paging.Slice[domain.Investigation]{}, nil
 }
@@ -103,7 +111,61 @@ func (s *memIncidentStore) Get(context.Context, uuid.UUID) (*domain.Incident, er
 func (s *memIncidentStore) Lock(context.Context, uuid.UUID) (*domain.Incident, error) {
 	return s.incident, nil
 }
-func (s *memIncidentStore) Update(context.Context, *domain.Incident) error { return nil }
+func (s *memIncidentStore) Update(_ context.Context, value *domain.Incident) error {
+	copied := *value
+	s.incident = &copied
+	return nil
+}
+
+type memProjectStore struct{ project *domain.Project }
+
+func (s memProjectStore) Create(context.Context, *domain.Project) error { return nil }
+func (s memProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, error) {
+	return s.project, nil
+}
+func (s memProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (s memProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (s memProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
+	return paging.Slice[domain.Project]{}, nil
+}
+func (s memProjectStore) Update(context.Context, *domain.Project, time.Time) error { return nil }
+func (s memProjectStore) Delete(context.Context, uuid.UUID) error                  { return nil }
+
+type memGitHubAccountReader struct{ account *domain.GitHubAccount }
+
+func (s memGitHubAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
+	return s.account, nil
+}
+
+type memIssueReferenceStore struct{ reference *domain.GitHubIssueReference }
+
+func (s *memIssueReferenceStore) Create(ctx context.Context, value *domain.GitHubIssueReference) error {
+	copied := *value
+	s.reference = &copied
+	return nil
+}
+func (s *memIssueReferenceStore) FindByInvestigation(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return nil, nil
+}
+func (s *memIssueReferenceStore) FindLatestByIncident(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return s.reference, nil
+}
+
+type memIssuePublisher struct{}
+
+func (memIssuePublisher) PublishIssue(context.Context, domain.GitHubAccount, domain.GitHubRepository, portsout.IssueContent) (portsout.PublishedIssue, error) {
+	return portsout.PublishedIssue{Number: 9, URL: "https://github.com/acme/service/issues/9", CreatedAt: time.Date(2026, 8, 23, 12, 10, 0, 0, time.UTC)}, nil
+}
+
+type memIssueContentBuilder struct{}
+
+func (memIssueContentBuilder) BuildIssueContent(portsout.IssueContentInput) (portsout.IssueContent, error) {
+	return portsout.IssueContent{Title: "issue", Body: "body"}, nil
+}
 
 type passthroughTransactor struct{}
 
@@ -152,8 +214,18 @@ func TestRunUseCasePersistsStructuredQVACResult(t *testing.T) {
 	}
 	investigations := &memInvestigationStore{byID: map[uuid.UUID]*domain.Investigation{investigation.ID: investigation}}
 	operations := &memOperationStore{byID: map[uuid.UUID]*domain.Operation{operation.ID: operation}}
-	incident := &domain.Incident{ID: investigation.IncidentID, Phase: domain.IncidentPhaseInvestigating}
-	uc := investigationusecase.NewRunUseCase(&memIncidentStore{incident: incident}, investigations, operations, &memEvidenceStore{}, emptyAssembler{}, runner, passthroughTransactor{}, func() time.Time { return now.Add(time.Second) })
+	account, _ := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, now)
+	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
+	application, _ := domain.NewDokployApplication(uuid.New(), "app", "instance", "Service", "prod", domain.DokployApplicationRunning)
+	source, _ := domain.SourceFromApplication(application)
+	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, source, domain.DefaultMonitoringConfiguration(), now)
+	incident := &domain.Incident{ID: investigation.IncidentID, ProjectID: project.ID, Phase: domain.IncidentPhaseInvestigating}
+	uc := investigationusecase.NewRunUseCase(
+		&memIncidentStore{incident: incident}, investigations, operations, &memEvidenceStore{},
+		memProjectStore{project: project}, memGitHubAccountReader{account: account}, &memIssueReferenceStore{},
+		memIssuePublisher{}, memIssueContentBuilder{}, emptyAssembler{}, runner, passthroughTransactor{},
+		func() time.Time { return now.Add(time.Second) },
+	)
 	if err := uc.Execute(context.Background(), investigation.ID, operation.ID); err != nil {
 		t.Fatal(err)
 	}

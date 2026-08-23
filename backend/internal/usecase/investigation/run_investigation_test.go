@@ -85,8 +85,11 @@ func TestRunInvestigationCompletesOnRunnerSuccess(t *testing.T) {
 	if len(final.EvidenceIDs) != 1 || final.EvidenceIDs[0] != evidenceID {
 		t.Fatalf("cited Evidence was not persisted: %+v", final.EvidenceIDs)
 	}
-	if deps.incidents.getResult.Phase != domain.IncidentPhaseInvestigating {
-		t.Fatalf("H3 must not start H4 publication, phase=%s", deps.incidents.getResult.Phase)
+	if deps.incidents.getResult.Phase != domain.IncidentPhasePublishingIssue {
+		t.Fatalf("fixable incident must wait for H5 after Issue publication, phase=%s", deps.incidents.getResult.Phase)
+	}
+	if deps.issueRefs.created == nil || deps.issueRefs.created.InvestigationID != investigationID || deps.publisher.calls != 1 {
+		t.Fatalf("expected one durable issue reference, reference=%+v publisher_calls=%d", deps.issueRefs.created, deps.publisher.calls)
 	}
 }
 
@@ -119,6 +122,11 @@ func TestRunInvestigationFinalPersistenceFailureTransitionsToFailed(t *testing.T
 	}
 	useCase := NewRunUseCase(
 		deps.incidents, deps.investigations, deps.operations, deps.evidence,
+		fakeProjectStore{project: projectForIncident(deps.incidents.getResult, now)},
+		fakeGitHubAccountReader{account: accountForProject(projectForIncident(deps.incidents.getResult, now), now)},
+		&fakeIssueReferenceStore{},
+		&fakeIssuePublisher{result: out.PublishedIssue{Number: 7, URL: "https://github.com/acme/service/issues/7", CreatedAt: now}},
+		fakeIssueContentBuilder{content: out.IssueContent{Title: "issue", Body: "body"}},
 		deps.assembler, deps.runner, transactor, func() time.Time { return now },
 	)
 

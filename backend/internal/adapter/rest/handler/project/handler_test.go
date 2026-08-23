@@ -24,11 +24,11 @@ func TestCreateReturnsSafeStableProjectEnvelope(t *testing.T) {
 	useCase.createResult = &portsin.ProjectResult{Project: &project, BuiltInDetectionRules: domain.AllBuiltInDetectionRules()}
 	body := fmt.Sprintf(`{
 		"name":"Akritas","description":"demo","github_account_id":%q,
-		"repository_identifier":"42","default_branch":"main","dokploy_server_id":%q,
-		"application_identifier":"app-1","initial_log_ingestion":"last_10000","monitoring_configuration":{
+		"repository_identifier":"42","default_branch":"main","dokploy_source":{"type":"application","dokploy_server_id":%q,"resource_identifier":"app-1"},
+		"initial_log_ingestion":"last_10000","monitoring_configuration":{
 			"enabled":false,"error_patterns":["panic"],"ignored_patterns":[],
 			"grouping_window":"PT30M","context_before":20,"context_after":20}}
-	`, project.GitHubRepository.GitHubAccountID, project.DokployApplication.DokployServerID)
+	`, project.GitHubRepository.GitHubAccountID, project.DokploySource.DokployServerID)
 
 	recorder := httptest.NewRecorder()
 	handler.Create(recorder, httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(body)))
@@ -49,7 +49,7 @@ func TestCreateReturnsSafeStableProjectEnvelope(t *testing.T) {
 			ID                      string `json:"id"`
 			Name                    string `json:"name"`
 			GitHubRepository        any    `json:"github_repository"`
-			DokployApplication      any    `json:"dokploy_application"`
+			DokploySource           any    `json:"dokploy_source"`
 			MonitoringConfiguration any    `json:"monitoring_configuration"`
 			BuiltInDetectionRules   []any  `json:"built_in_detection_rules"`
 		} `json:"data"`
@@ -57,7 +57,7 @@ func TestCreateReturnsSafeStableProjectEnvelope(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
 		t.Fatal(err)
 	}
-	if envelope.Data.ID != project.ID.String() || envelope.Data.Name != "Akritas" || envelope.Data.GitHubRepository == nil || envelope.Data.DokployApplication == nil || envelope.Data.MonitoringConfiguration == nil || len(envelope.Data.BuiltInDetectionRules) != 7 {
+	if envelope.Data.ID != project.ID.String() || envelope.Data.Name != "Akritas" || envelope.Data.GitHubRepository == nil || envelope.Data.DokploySource == nil || envelope.Data.MonitoringConfiguration == nil || len(envelope.Data.BuiltInDetectionRules) != 7 {
 		t.Fatalf("incomplete Project response: %+v", envelope.Data)
 	}
 }
@@ -74,7 +74,7 @@ func TestProjectHandlersRejectInvalidInputAndReturnStableConflicts(t *testing.T)
 	})
 
 	t.Run("invalid initial ingestion enum", func(t *testing.T) {
-		body := fmt.Sprintf(`{"name":"Akritas","github_account_id":%q,"repository_identifier":"42","default_branch":"main","dokploy_server_id":%q,"application_identifier":"app","initial_log_ingestion":"all","monitoring_configuration":{"enabled":false,"error_patterns":[],"ignored_patterns":[],"grouping_window":"PT30M","context_before":20,"context_after":20}}`, uuid.New(), uuid.New())
+		body := fmt.Sprintf(`{"name":"Akritas","github_account_id":%q,"repository_identifier":"42","default_branch":"main","dokploy_source":{"type":"application","dokploy_server_id":%q,"resource_identifier":"app"},"initial_log_ingestion":"all","monitoring_configuration":{"enabled":false,"error_patterns":[],"ignored_patterns":[],"grouping_window":"PT30M","context_before":20,"context_after":20}}`, uuid.New(), uuid.New())
 		recorder := httptest.NewRecorder()
 		handler.Create(recorder, httptest.NewRequest(http.MethodPost, "/projects", strings.NewReader(body)))
 		if recorder.Code != http.StatusBadRequest || useCase.createCalls != 0 {
@@ -178,7 +178,11 @@ func projectFixture(t *testing.T, offset int) domain.Project {
 	if err != nil {
 		t.Fatal(err)
 	}
-	value, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, err := domain.SourceFromApplication(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}

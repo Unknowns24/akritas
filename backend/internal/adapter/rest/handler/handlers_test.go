@@ -124,6 +124,12 @@ func (dokployServerStub) TestConnection(context.Context, uuid.UUID) (portsin.Con
 func (dokployServerStub) ListApplications(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployApplication], error) {
 	return paging.Slice[domain.DokployApplication]{}, nil
 }
+func (dokployServerStub) ListComposes(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployCompose], error) {
+	return paging.Slice[domain.DokployCompose]{}, nil
+}
+func (dokployServerStub) ListComposeServices(context.Context, uuid.UUID, string, bool) ([]domain.DokployComposeService, error) {
+	return nil, nil
+}
 
 type projectStub struct{}
 
@@ -185,6 +191,10 @@ func (incidentStub) List(context.Context, paging.Params) (paging.Slice[domain.In
 
 func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
 	return paging.Slice[domain.LogEvent]{}, nil
+}
+
+func (incidentStub) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
 }
 
 type startAdministratorRecoveryStub struct{}

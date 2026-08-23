@@ -5,7 +5,7 @@ Record durable project decisions here.
 ## 2026-08-22 — API contract v1
 
 - `backend/docs/openapi.yaml` is the canonical frontend/backend contract.
-- The contract uses OpenAPI 3.1.0, API version 1.4.0 and base `/api/v1`. Version 1.4.0 completes the Project lifecycle, including hard deletion while monitoring is disabled; existing paths and payloads remain compatible.
+- The contract uses OpenAPI 3.1.0, API version 2.0.0 and base `/api/v1`. Version 2.0.0 replaces the Project Dokploy application selector with the discriminated `dokploy_source` contract.
 - A GitHub Pull Request is the human-control boundary. The API does not merge, deploy or claim that production is resolved.
 
 ## 2026-08-22 — Single-administrator authentication
@@ -47,8 +47,8 @@ Record durable project decisions here.
 
 ## 2026-08-22 — Project lifecycle and integration snapshots
 
-- Project names are unique case-insensitively and a Dokploy application can be associated with only one Project.
-- Repository/application snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
+- Project names are unique case-insensitively and a Dokploy source can be associated with only one Project. Different services from the same Compose are distinct sources.
+- Repository/source snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
 - The requested GitHub `default_branch` must match provider metadata.
 - Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.
 
@@ -59,3 +59,25 @@ Record durable project decisions here.
 - `internal/usecase/remediation.ExecuteRemediationValidations` never calls `Remediation.MarkValidated` or `.Fail`: `MarkValidated` requires `len(Changes) > 0` (AKR-51, not yet implemented), and deciding a Remediation's fate from validation results is AKR-55's responsibility. `Remediation.Status` stays `in_progress` after this task's usecases run.
 - A minimal `remediations` table (Create+Get only, component errors `0x506`) was added now — ahead of AKR-49's trigger and AKR-55's full lifecycle persistence — purely so `validation_results.remediation_id` has a real FK from day one, following the same "build shared infra ahead of its full consumer" precedent as `operations`.
 - Migrations `20260823_06_add_remediations`/`20260823_07_add_validation_results` were added on the same date H4 is expected to add its own — flagged as a probable renumbering point on rebase, not resolved here.
+## 2026-08-23 — GitHub Issue publication idempotency
+
+- H4 creates one GitHub Issue per completed `Investigation`, not one per `Incident`.
+- `GitHubIssueReference` is durable PostgreSQL state linked to both `Incident` and `Investigation`; a preexisting reference for the same Investigation is the idempotency boundary and prevents a second publish.
+- PostgreSQL enforces that `github_issue_references.incident_id` matches the `incident_id` of `github_issue_references.investigation_id` through a composite FK to `investigations(id, incident_id)`.
+- `Incident.github_issue_reference` remains a singular REST projection of the most recent Issue for that Incident.
+- `resolution_status = requires_human` completes the Incident after IssueReference persistence; `resolution_status = fixable` leaves the Incident in `publishing_issue` for H5 remediation.
+- GitHub publication happens outside PostgreSQL transactions. The workflow uses a transaction before the external call to persist QVAC completion and a second transaction after the call to persist IssueReference and Operation completion.
+
+## 2026-08-23 — Published evidence redaction
+
+- Secrets must be redacted before Evidence persistence and again before GitHub Issue title/body publication.
+- Redaction is defensive and case-insensitive for JSON string secrets, quoted assignments, values with spaces, authorization headers, GitHub tokens, JWT/session tokens, cookies, DSNs and PEM private keys.
+- Redaction markers must not include any fragment of the original secret value.
+- The Issue body keeps observed Evidence separate from QVAC-generated conclusions and preserves the stable Investigation marker.
+
+## 2026-08-23 — Dokploy application and Compose sources
+
+- Project uses a discriminated `DokploySource`: `application` or `compose_service`.
+- Compose service identity is server + composeId + service name; container IDs are resolved for every fetch and never persisted.
+- Both docker-compose and stack labels are supported. One running replica is selected deterministically; multi-replica aggregation is deferred.
+- Compose service discovery uses cached source data by default and refreshes only when explicitly requested.

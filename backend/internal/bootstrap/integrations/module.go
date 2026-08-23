@@ -12,11 +12,13 @@ import (
 	evidencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/evidence"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
 	githubapprepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubapp"
+	githubissuereferencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubissuereference"
 	incidentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/incident"
 	investigationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/investigation"
 	monitoringrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/monitoring"
 	operationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/operation"
 	projectrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/project"
+	timelinerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/timeline"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/external/qvac"
@@ -25,6 +27,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
 	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
+	"github.com/Unknowns24/akritas/backend/internal/service/issuecontent"
 	monitoringservice "github.com/Unknowns24/akritas/backend/internal/service/monitoring"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
@@ -138,6 +141,16 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		return nil, err
 	}
 
+	issueReferences, err := githubissuereferencerepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	timeline, err := timelinerepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
 	transactor := postgres.NewTransactor(dependencies.DB)
 
 	//
@@ -218,7 +231,7 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		time.Now,
 	)
 
-	incidentUseCase := incidentusecase.New(incidents)
+	incidentUseCase := incidentusecase.New(incidents, investigations, issueReferences, timeline)
 
 	monitoringService, err := monitoringservice.New(
 		monitoringStore,
@@ -269,6 +282,11 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		investigations,
 		operations,
 		evidences,
+		projects,
+		githubAccounts,
+		issueReferences,
+		githubClient,
+		issuecontent.New(),
 		evidenceAssembler,
 		investigationRunner,
 		transactor,
@@ -318,20 +336,20 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	useCases.GitHubApp = githubAppUseCase
 	useCases.DokployServer = dokployUseCase
 	useCases.Project = projectUseCase
-  useCases.Incident = incidentUseCase
+	useCases.Incident = incidentUseCase
 
-  useCases.Investigation = investigationUseCase
-  useCases.Operation = operationUseCase
-  useCases.Evidence = evidenceUseCase
+	useCases.Investigation = investigationUseCase
+	useCases.Operation = operationUseCase
+	useCases.Evidence = evidenceUseCase
 
-  handlers, err := resthandler.NewHandlers(
-    resthandler.HandlersConfig{
-      UseCases:              &useCases,
-      Pagination:            pagingConfig,
-      SessionCookieSecure:   configuration.SessionCookieSecure,
-      SessionCookieSameSite: configuration.SessionCookieSameSite,
-    },
-  )
+	handlers, err := resthandler.NewHandlers(
+		resthandler.HandlersConfig{
+			UseCases:              &useCases,
+			Pagination:            pagingConfig,
+			SessionCookieSecure:   configuration.SessionCookieSecure,
+			SessionCookieSameSite: configuration.SessionCookieSameSite,
+		},
+	)
 
 	if err != nil {
 		return nil, err

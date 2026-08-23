@@ -45,6 +45,11 @@ type RunUseCase struct {
 	investigations portsout.InvestigationStore
 	operations     portsout.OperationStore
 	evidence       portsout.EvidenceStore
+	projects       portsout.ProjectStore
+	githubAccounts portsout.GitHubAccountReader
+	issueRefs      portsout.GitHubIssueReferenceStore
+	issuePublisher portsout.IssuePublisher
+	issueContent   portsout.IssueContentBuilder
 	assembler      portsout.InvestigationContextAssembler
 	runner         portsout.InvestigationRunner
 	transactor     portsout.Transactor
@@ -56,6 +61,11 @@ func NewRunUseCase(
 	investigations portsout.InvestigationStore,
 	operations portsout.OperationStore,
 	evidence portsout.EvidenceStore,
+	projects portsout.ProjectStore,
+	githubAccounts portsout.GitHubAccountReader,
+	issueRefs portsout.GitHubIssueReferenceStore,
+	issuePublisher portsout.IssuePublisher,
+	issueContent portsout.IssueContentBuilder,
 	assembler portsout.InvestigationContextAssembler,
 	runner portsout.InvestigationRunner,
 	transactor portsout.Transactor,
@@ -63,6 +73,8 @@ func NewRunUseCase(
 ) *RunUseCase {
 	return &RunUseCase{
 		incidents: incidents, investigations: investigations, operations: operations,
-		evidence: evidence, assembler: assembler, runner: runner, transactor: transactor, now: now,
+		evidence: evidence, projects: projects, githubAccounts: githubAccounts, issueRefs: issueRefs,
+		issuePublisher: issuePublisher, issueContent: issueContent, assembler: assembler, runner: runner,
+		transactor: transactor, now: now,
 	}
 }

@@ -141,6 +141,68 @@ func TestGetApplicationNormalizesCredentialRejection(t *testing.T) {
 	}
 }
 
+func TestListComposesMapsProviderPayloadAndPagination(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/compose.search" || r.URL.Query().Get("q") != "api" || r.URL.Query().Get("limit") != "20" || r.URL.Query().Get("offset") != "40" {
+			t.Fatalf("request = %s", r.URL.String())
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"items": []map[string]any{{
+			"composeId": "compose-1", "appName": "stack-prod", "name": "Platform", "environmentId": "env-1", "composeStatus": "running",
+		}}, "total": 61})
+	}))
+	defer server.Close()
+	entity := dokployServer(t, server.URL)
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	page, err := client.ListComposes(context.Background(), entity, paging.Params{Limit: 20, Filters: map[string]string{"name_like": "api"}, Cursor: &ukerpagination.CursorPayload{After: map[string]string{"provider_offset": "40"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ComposeIdentifier != "compose-1" || page.Items[0].InstanceIdentifier != "stack-prod" || page.Items[0].Status != domain.DokploySourceRunning {
+		t.Fatalf("ListComposes() = %+v", page)
+	}
+	if page.NextBoundary["provider_offset"] != "41" || page.PrevBoundary["provider_offset"] != "20" {
+		t.Fatalf("boundaries = %+v / %+v", page.NextBoundary, page.PrevBoundary)
+	}
+}
+
+func TestListComposeServicesUsesExplicitRefreshAndSorts(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/compose.loadServices" || r.URL.Query().Get("composeId") != "compose-1" || r.URL.Query().Get("type") != "fetch" {
+			t.Fatalf("request = %s", r.URL.String())
+		}
+		_ = json.NewEncoder(w).Encode([]string{" worker ", "api", "api", ""})
+	}))
+	defer server.Close()
+	entity := dokployServer(t, server.URL)
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	services, err := client.ListComposeServices(context.Background(), entity, "compose-1", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(services) != 2 || services[0].ServiceName != "api" || services[1].ServiceName != "worker" {
+		t.Fatalf("services = %+v", services)
+	}
+}
+
+func TestGetComposeMapsRuntimeAndRemoteServer(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/compose.one" || r.URL.Query().Get("composeId") != "compose-1" {
+			t.Fatalf("request = %s", r.URL.String())
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"composeId": "compose-1", "appName": "stack-prod", "name": "Platform", "composeType": "stack", "serverId": "remote-1", "composeStatus": "error", "environment": map[string]any{"name": "production"}})
+	}))
+	defer server.Close()
+	entity := dokployServer(t, server.URL)
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	compose, err := client.GetCompose(context.Background(), entity, "compose-1")
+	if err != nil || compose.RuntimeType != domain.DokployRuntimeStack || compose.ProviderServerID != "remote-1" || compose.Status != domain.DokploySourceDegraded || compose.Environment != "production" {
+		t.Fatalf("GetCompose() = %+v, %v", compose, err)
+	}
+}
+
 func newDokployTestClient(t *testing.T, rawURL string, resolver Resolver) *Client {
 	return newDokployTestClientWithCredentials(t, rawURL, resolver, dokployCredentialStoreFake{})
 }

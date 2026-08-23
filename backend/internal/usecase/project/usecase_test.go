@@ -78,7 +78,7 @@ func TestProjectUseCaseRejectsExclusiveApplicationAndDefaultBranchMismatch(t *te
 	if _, err := fixture.uc.Create(context.Background(), fixture.command("Akritas", "app-1")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fixture.uc.Create(context.Background(), fixture.command("Another", "app-1")); !errors.Is(err, domain.ErrProjectApplicationConflict) {
+	if _, err := fixture.uc.Create(context.Background(), fixture.command("Another", "app-1")); !errors.Is(err, domain.ErrProjectDokploySourceConflict) {
 		t.Fatalf("exclusive application = %v", err)
 	}
 
@@ -122,12 +122,13 @@ func TestProjectUseCaseReadsAndUpdatesDisabledProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	name, description, applicationIdentifier := "Renamed", "updated", "app-2"
-	updated, err := fixture.uc.Update(context.Background(), portsin.UpdateProjectCommand{ID: created.Project.ID, Name: &name, Description: &description, ApplicationIdentifier: &applicationIdentifier})
+	name, description := "Renamed", "updated"
+	selector := domain.DokploySourceSelector{Type: domain.DokploySourceApplication, DokployServerID: fixture.server.ID, ResourceIdentifier: "app-2"}
+	updated, err := fixture.uc.Update(context.Background(), portsin.UpdateProjectCommand{ID: created.Project.ID, Name: &name, Description: &description, DokploySource: &selector})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if updated.Project.Name != name || updated.Project.Description != description || updated.Project.DokployApplication.ApplicationIdentifier != applicationIdentifier {
+	if updated.Project.Name != name || updated.Project.Description != description || updated.Project.DokploySource.ResourceIdentifier != "app-2" {
 		t.Fatalf("updated Project = %+v", updated.Project)
 	}
 	got, err := fixture.uc.Get(context.Background(), created.Project.ID)
@@ -151,6 +152,29 @@ func TestProjectUseCaseReadsAndUpdatesDisabledProject(t *testing.T) {
 	}
 	if fixture.store.updates != updatesBefore || fixture.store.value.GitHubRepository.RepositoryIdentifier != "42" {
 		t.Fatal("failed provider resolution mutated persistence")
+	}
+}
+
+func TestProjectUseCaseCreatesComposeServiceAndRejectsMissingService(t *testing.T) {
+	fixture := newFixture(t)
+	command := fixture.command("Compose API", "unused")
+	command.DokploySource = domain.DokploySourceSelector{Type: domain.DokploySourceComposeService, DokployServerID: fixture.server.ID, ResourceIdentifier: "compose-1", ServiceName: "api"}
+	created, err := fixture.uc.Create(context.Background(), command)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.Project.DokploySource.Type != domain.DokploySourceComposeService || created.Project.DokploySource.ServiceName != "api" || created.Project.DokploySource.RuntimeType != domain.DokployRuntimeCompose {
+		t.Fatalf("source = %+v", created.Project.DokploySource)
+	}
+
+	missing := newFixture(t)
+	missingCommand := missing.command("Missing", "unused")
+	missingCommand.DokploySource = domain.DokploySourceSelector{Type: domain.DokploySourceComposeService, DokployServerID: missing.server.ID, ResourceIdentifier: "compose-1", ServiceName: "worker"}
+	if _, err := missing.uc.Create(context.Background(), missingCommand); !errors.Is(err, domain.ErrProjectDokploySourceNotFound) {
+		t.Fatalf("missing service = %v", err)
+	}
+	if missing.store.value != nil {
+		t.Fatal("missing service persisted Project")
 	}
 }
 
@@ -182,7 +206,7 @@ func newFixture(t *testing.T) fixture {
 }
 
 func (f fixture) command(name, app string) portsin.CreateProjectCommand {
-	return portsin.CreateProjectCommand{Name: name, GitHubAccountID: f.account.ID, RepositoryIdentifier: "42", DefaultBranch: "main", DokployServerID: f.server.ID, ApplicationIdentifier: app, MonitoringConfiguration: domain.DefaultMonitoringConfiguration()}
+	return portsin.CreateProjectCommand{Name: name, GitHubAccountID: f.account.ID, RepositoryIdentifier: "42", DefaultBranch: "main", DokploySource: domain.DokploySourceSelector{Type: domain.DokploySourceApplication, DokployServerID: f.server.ID, ResourceIdentifier: app}, MonitoringConfiguration: domain.DefaultMonitoringConfiguration()}
 }
 
 type accountReader struct{ value *domain.GitHubAccount }
@@ -228,6 +252,15 @@ func (r *applicationResolver) GetApplication(_ context.Context, server domain.Do
 	return domain.NewDokployApplication(server.ID, identifier, "instance-"+identifier, identifier, "production", domain.DokployApplicationRunning)
 }
 
+func (r *applicationResolver) GetCompose(_ context.Context, server domain.DokployServer, identifier string) (domain.DokployCompose, error) {
+	return domain.NewDokployCompose(server.ID, identifier, "stack-"+identifier, identifier, "env", "production", domain.DokploySourceRunning, domain.DokployRuntimeCompose, "")
+}
+
+func (r *applicationResolver) ListComposeServices(_ context.Context, server domain.DokployServer, identifier string, _ bool) ([]domain.DokployComposeService, error) {
+	service, err := domain.NewDokployComposeService(server.ID, identifier, "api")
+	return []domain.DokployComposeService{service}, err
+}
+
 type memoryStore struct {
 	value   *domain.Project
 	updates int
@@ -252,8 +285,8 @@ func (s *memoryStore) FindByNormalizedName(_ context.Context, name string) (*dom
 	}
 	return nil, domain.ErrProjectNotFound
 }
-func (s *memoryStore) FindByDokployApplication(_ context.Context, serverID uuid.UUID, identifier string) (*domain.Project, error) {
-	if s.value != nil && s.value.DokployApplication.DokployServerID == serverID && s.value.DokployApplication.ApplicationIdentifier == identifier {
+func (s *memoryStore) FindByDokploySource(_ context.Context, selector domain.DokploySourceSelector) (*domain.Project, error) {
+	if s.value != nil && s.value.DokploySource.IdentityKey() == selector.IdentityKey() {
 		copy := *s.value
 		return &copy, nil
 	}

@@ -7,7 +7,7 @@ export function RemediationCard({ incident }: { incident: Incident }) {
   const remediation = incident.remediation;
   if (!remediation) return null;
 
-  const diffLines = remediation.patch_diff?.split("\n") || [];
+  const diffLines = remediation.changes?.[0]?.patch?.split("\n") || [];
 
   return (
     <div className={styles.card} style={{ height: "100%", justifyContent: "space-between" }}>
@@ -18,12 +18,12 @@ export function RemediationCard({ incident }: { incident: Incident }) {
         </div>
         
         <div className={styles.remediationMeta} style={{ marginTop: "16px" }}>
-          Files inspected: {incident.latest_investigation?.files_analyzed?.join(", ")}
+          Files inspected: {incident.latest_investigation?.relevant_files?.join(", ")}
         </div>
 
         {diffLines.length > 0 && (
           <div className={styles.diffViewer}>
-            {diffLines.map((line, i) => {
+            {diffLines.map((line: string, i: number) => {
               const isMeta = line.startsWith("@@");
               const isAdded = line.startsWith("+");
               
@@ -52,13 +52,7 @@ export function RemediationCard({ incident }: { incident: Incident }) {
         </div>
         
         <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-          {remediation.tests_passed && (
-            <div className={styles.validationTag}>
-              <CheckCircle2 size={12} />
-              Tests Passed
-            </div>
-          )}
-          {remediation.validation_passed && (
+          {remediation.validation_summary && remediation.validation_summary.passed > 0 && remediation.validation_summary.failed === 0 && (
             <div className={styles.validationTag}>
               <CheckCircle2 size={12} />
               Validation Passed

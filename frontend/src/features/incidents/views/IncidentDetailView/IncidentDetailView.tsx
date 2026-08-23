@@ -4,6 +4,7 @@ import { IncidentHeader } from "./components/IncidentHeader";
 import { RootCauseCard } from "./components/RootCauseCard";
 import { StackTraceCard } from "./components/StackTraceCard";
 import { ContextCards } from "./components/ContextCards";
+import { LogEventsCard } from "./components/LogEventsCard";
 import { RemediationCard } from "./components/RemediationCard";
 import styles from "./IncidentDetailView.module.css";
 
@@ -25,6 +26,7 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
           <RootCauseCard incident={incident} />
           <StackTraceCard incident={incident} />
           <ContextCards incident={incident} />
+          <LogEventsCard incidentId={id} />
         </div>
         
         <div className={styles.rightColumn}>

@@ -100,6 +100,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
             context_before: contextBefore,
             context_after: contextAfter,
           },
+          initial_log_ingestion: "from_now",
         });
 
         if (createError) throw createError;

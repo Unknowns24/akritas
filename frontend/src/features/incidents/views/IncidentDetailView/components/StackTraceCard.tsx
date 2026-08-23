@@ -4,7 +4,7 @@ import type { Incident } from "../../../services/get-incident.service";
 import styles from "../IncidentDetailView.module.css";
 
 export function StackTraceCard({ incident }: { incident: Incident }) {
-  const trace = incident.latest_investigation?.stack_traces?.[0];
+  const trace = (incident.latest_investigation as any)?.stack_traces?.[0];
   if (!trace) return null;
 
   const lines = trace.raw_content.split("\n");
@@ -16,7 +16,7 @@ export function StackTraceCard({ incident }: { incident: Incident }) {
         Stack Trace
       </div>
       <div className={styles.stackTraceContent}>
-        {lines.map((line, i) => {
+        {lines.map((line: string, i: number) => {
           if (line.trim().startsWith("//")) {
             return <div key={i} className={styles.traceComment}>{line}</div>;
           }

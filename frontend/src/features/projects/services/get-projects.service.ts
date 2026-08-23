@@ -6,7 +6,37 @@ export type ProjectListResponse = components["schemas"]["ProjectListResponse"];
 export async function getProjectsService(): Promise<ProjectListResponse> {
   const { data, error } = await api.GET("/projects");
 
-  if (error || !data) throw error || new Error("No data returned");
+  if (error) {
+    if (typeof window === "undefined") {
+      return {
+        data: [],
+        paging: {
+          limit: 10,
+          total: 0,
+          has_more: false,
+          next_cursor: "",
+          prev_cursor: "",
+        },
+      } as unknown as ProjectListResponse;
+    }
+    throw error;
+  }
+
+  if (!data) {
+    if (typeof window === "undefined") {
+      return {
+        data: [],
+        paging: {
+          limit: 10,
+          total: 0,
+          has_more: false,
+          next_cursor: "",
+          prev_cursor: "",
+        },
+      } as unknown as ProjectListResponse;
+    }
+    throw new Error("No data returned");
+  }
   /* [MOCK DOCS]
   if (error || !data) {
     console.warn("Failed to fetch projects, returning mock data:", error);

@@ -10,12 +10,23 @@ export async function getIncidentService(id: string): Promise<Incident> {
     },
   });
 
-  if (error || !data) throw error || new Error("No data returned");
+  if (error) {
+    if (typeof window === "undefined") {
+      return {} as unknown as Incident;
+    }
+    throw error;
+  }
+
+  if (!data) {
+    if (typeof window === "undefined") {
+      return {} as unknown as Incident;
+    }
+    throw new Error("No data returned");
+  }
+
   /* [MOCK DOCS]
   if (error || !data) {
-    console.warn(`Failed to fetch incident ${id}, returning mock data:`, error);
-    
-    // Return mock data for AKR-184
+    // Return mock data for local testing
     return {
       id: "inc-1",
       key: "AKR-184",
@@ -35,8 +46,7 @@ export async function getIncidentService(id: string): Promise<Incident> {
         id: "dep-123",
         deployment_id: "abc1234",
         first_incident_at: new Date(Date.now() - 5 * 60000).toISOString(),
-        minutes_since_deployment: 3,
-        correlation_score: 0.9,
+        occurred_before_incident_seconds: 180,
       },
       latest_investigation: {
         id: "inv-1",
@@ -61,18 +71,18 @@ export async function getIncidentService(id: string): Promise<Incident> {
         id: "rem-1",
         status: "draft",
         patch_diff: `@@ -78,6 +78,9 @@
-  78 user, err := s.repo.FindByID(ctx, id)
-  79 if err != nil {
-  80 return "", err
-  81 }
-+ 82 + if user == nil {
-+ 83 + return "", errors.New("user not found")
-+ 84 + }
-  85 return user.Name, nil`,
+    78 user, err := s.repo.FindByID(ctx, id)
+    79 if err != nil {
+    80 return "", err
+    81 }
+  + 82 + if user == nil {
+  + 83 + return "", errors.New("user not found")
+  + 84 + }
+    85 return user.Name, nil`,
         tests_passed: true,
         validation_passed: true,
       }
-    } as unknown as Incident;
+    } as any;
   }
   */
 

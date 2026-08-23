@@ -7,7 +7,8 @@ import { Modal } from "@/core/ui/primitives/Modal";
 import { Badge } from "@/core/ui/primitives/Badge";
 import { toast } from "sonner";
 import { DokployServerForm } from "./components/DokployServerForm";
-import { Server, Plus, Trash2, Edit2, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { Plus, Trash2, Edit2, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { DokployIcon } from "@/core/ui/icons";
 import { DokployServer, listDokployServersService } from "../../services/dokploy/list-dokploy-servers.service";
 import { createDokployServerService } from "../../services/dokploy/create-dokploy-server.service";
 import { updateDokployServerService } from "../../services/dokploy/update-dokploy-server.service";
@@ -104,7 +105,7 @@ export const DokploySettingsClient: React.FC = () => {
       <div className={styles.list}>
         {servers.length === 0 ? (
           <div className={styles.emptyState}>
-            <Server size={48} className={styles.emptyIcon} />
+            <DokployIcon size={48} className={styles.emptyIcon} />
             <p>No Dokploy servers connected yet.</p>
           </div>
         ) : (
@@ -112,7 +113,7 @@ export const DokploySettingsClient: React.FC = () => {
             <div key={server.id} className={styles.serverCard}>
               <div className={styles.serverInfo}>
                 <div className={styles.avatar}>
-                  <Server size={24} />
+                  <DokployIcon size={24} />
                 </div>
                 <div className={styles.details}>
                   <div className={styles.nameRow}>

@@ -68,6 +68,7 @@
 
 .connected {
   color: var(--blue-400);
+  white-space: nowrap;
 }
 
 .mono {

@@ -47,6 +47,28 @@ type fakeLoginAdministratorUseCase struct {
 	receivedArgs in.LoginAdministratorInput
 }
 
+type fakeStartAdministratorRecoveryUseCase struct {
+	output       in.StartAdministratorRecoveryOutput
+	err          error
+	receivedArgs in.StartAdministratorRecoveryInput
+}
+
+func (f *fakeStartAdministratorRecoveryUseCase) Execute(ctx context.Context, input in.StartAdministratorRecoveryInput) (in.StartAdministratorRecoveryOutput, error) {
+	f.receivedArgs = input
+	return f.output, f.err
+}
+
+type fakeVerifyAdministratorRecoveryUseCase struct {
+	output       in.VerifyAdministratorRecoveryOutput
+	err          error
+	receivedArgs in.VerifyAdministratorRecoveryInput
+}
+
+func (f *fakeVerifyAdministratorRecoveryUseCase) Execute(ctx context.Context, input in.VerifyAdministratorRecoveryInput) (in.VerifyAdministratorRecoveryOutput, error) {
+	f.receivedArgs = input
+	return f.output, f.err
+}
+
 func (f *fakeLoginAdministratorUseCase) Execute(ctx context.Context, input in.LoginAdministratorInput) (in.LoginAdministratorOutput, error) {
 	f.receivedArgs = input
 	return f.output, f.err

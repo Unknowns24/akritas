@@ -17,5 +17,7 @@ type AdministratorSessionRepository interface {
 	// FindByTokenHash returns (nil, nil) when no session with that hash exists.
 	FindByTokenHash(ctx context.Context, tokenHash string) (*domain.AdministratorSession, error)
 	UpdateIdleExpiry(ctx context.Context, id uuid.UUID, idleExpiresAt time.Time) error
+	RefreshActive(ctx context.Context, tokenHash string, now, requestedIdleExpiry time.Time) (*domain.AdministratorSession, error)
 	Revoke(ctx context.Context, id uuid.UUID, revokedAt time.Time) error
+	RevokeAll(ctx context.Context, administratorID uuid.UUID, revokedAt time.Time) error
 }

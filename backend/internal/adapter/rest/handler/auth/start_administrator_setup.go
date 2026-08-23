@@ -44,6 +44,10 @@ func (h *Handler) StartAdministratorSetup(w http.ResponseWriter, r *http.Request
 }
 
 func writeStartAdministratorSetupError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, domain.ErrInvalidBootstrapToken) {
+		response.Invalid(w, r)
+		return
+	}
 	var domainErr *domain.Error
 	if errors.As(err, &domainErr) {
 		response.WriteDomainError(w, r, domainErr)

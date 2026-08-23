@@ -5,13 +5,32 @@ import (
 )
 
 type Handler struct {
-	getSetupStatus           in.GetSetupStatusUseCase
-	startAdministratorSetup  in.StartAdministratorSetupUseCase
-	verifyAdministratorSetup in.VerifyAdministratorSetupUseCase
-	loginAdministrator       in.LoginAdministratorUseCase
-	getCurrentSession        in.GetCurrentSessionUseCase
-	logoutAdministrator      in.LogoutAdministratorUseCase
-	sessionCookieSecure      bool
+	getSetupStatus              in.GetSetupStatusUseCase
+	startAdministratorSetup     in.StartAdministratorSetupUseCase
+	verifyAdministratorSetup    in.VerifyAdministratorSetupUseCase
+	loginAdministrator          in.LoginAdministratorUseCase
+	startAdministratorRecovery  in.StartAdministratorRecoveryUseCase
+	verifyAdministratorRecovery in.VerifyAdministratorRecoveryUseCase
+	getCurrentSession           in.GetCurrentSessionUseCase
+	logoutAdministrator         in.LogoutAdministratorUseCase
+	sessionCookieSecure         bool
+}
+
+func NewHandlerWithRecovery(
+	getSetupStatus in.GetSetupStatusUseCase,
+	startAdministratorSetup in.StartAdministratorSetupUseCase,
+	verifyAdministratorSetup in.VerifyAdministratorSetupUseCase,
+	loginAdministrator in.LoginAdministratorUseCase,
+	startAdministratorRecovery in.StartAdministratorRecoveryUseCase,
+	verifyAdministratorRecovery in.VerifyAdministratorRecoveryUseCase,
+	getCurrentSession in.GetCurrentSessionUseCase,
+	logoutAdministrator in.LogoutAdministratorUseCase,
+	sessionCookieSecure bool,
+) *Handler {
+	handler := NewHandler(getSetupStatus, startAdministratorSetup, verifyAdministratorSetup, loginAdministrator, getCurrentSession, logoutAdministrator, sessionCookieSecure)
+	handler.startAdministratorRecovery = startAdministratorRecovery
+	handler.verifyAdministratorRecovery = verifyAdministratorRecovery
+	return handler
 }
 
 func NewHandler(

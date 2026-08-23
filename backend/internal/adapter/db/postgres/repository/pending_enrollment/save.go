@@ -17,6 +17,9 @@ func (r *repository) Replace(ctx context.Context, enrollment *domain.PendingEnro
 	var previousID *uuid.UUID
 	db := txcontext.From(ctx, r.db).WithContext(ctx)
 	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("LOCK TABLE pending_enrollments IN EXCLUSIVE MODE").Error; err != nil {
+			return err
+		}
 		var ids []uuid.UUID
 		if err := tx.Table("pending_enrollments").Pluck("id", &ids).Error; err != nil {
 			return err

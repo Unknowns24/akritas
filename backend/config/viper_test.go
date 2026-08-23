@@ -32,6 +32,9 @@ func TestLoadFromViperAppliesDefaultsAndValidatesSecurityValues(t *testing.T) {
 	if configuration.SessionIdleTTL != 12*time.Hour || configuration.SessionAbsoluteTTL != 7*24*time.Hour || !configuration.SessionCookieSecure {
 		t.Fatalf("unexpected session defaults: %+v", configuration)
 	}
+	if configuration.AuthRateLimitAttempts != 5 || configuration.AuthRateLimitWindow != 15*time.Minute || configuration.AuthRateLimitMaxKeys != 4096 {
+		t.Fatalf("unexpected auth rate-limit defaults: %+v", configuration)
+	}
 	if configuration.MonitoringPollInterval != 10*time.Second || configuration.MonitoringConcurrency != 4 {
 		t.Fatalf("unexpected monitoring defaults: %+v", configuration)
 	}
@@ -63,6 +66,12 @@ func TestLoadFromViperRejectsUnsafeSessionAndOrigins(t *testing.T) {
 		"zero monitor interval":      func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_POLL_INTERVAL", 0) },
 		"zero monitor concurrency":   func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_CONCURRENCY", 0) },
 		"excess monitor concurrency": func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_CONCURRENCY", 5) },
+		"zero auth attempts":         func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS", 0) },
+		"excess auth attempts":       func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS", 101) },
+		"zero auth window":           func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_WINDOW", 0) },
+		"excess auth window":         func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_WINDOW", 25*time.Hour) },
+		"zero auth keys":             func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS", 0) },
+		"excess auth keys":           func(v *viper.Viper) { v.Set("AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS", 100001) },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -86,6 +95,9 @@ func TestConfigurationDoesNotAcceptLegacyDatabaseDSN(t *testing.T) {
 
 func TestViperEnvironmentOverridesOptionalConfigFile(t *testing.T) {
 	t.Setenv("AKRITAS_PUBLIC_URL", "https://environment.example.com")
+	t.Setenv("AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS", "7")
+	t.Setenv("AKRITAS_AUTH_RATE_LIMIT_WINDOW", "5m")
+	t.Setenv("AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS", "512")
 
 	v := viper.New()
 	v.SetConfigType("env")
@@ -108,5 +120,8 @@ func TestViperEnvironmentOverridesOptionalConfigFile(t *testing.T) {
 	}
 	if configuration.PublicURL != "https://environment.example.com" {
 		t.Fatalf("PublicURL = %q, environment must override app.env", configuration.PublicURL)
+	}
+	if configuration.AuthRateLimitAttempts != 7 || configuration.AuthRateLimitWindow != 5*time.Minute || configuration.AuthRateLimitMaxKeys != 512 {
+		t.Fatalf("rate-limit environment overrides not applied: %+v", configuration)
 	}
 }

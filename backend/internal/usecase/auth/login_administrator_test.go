@@ -53,6 +53,7 @@ func (d loginDeps) useCase() in.LoginAdministratorUseCase {
 		d.rateLimiter, d.administrators, d.passwordHasher, d.credentials,
 		d.totpVerifier, d.tokens, d.sessions, d.transactor, func() time.Time { return d.now },
 		12*time.Hour, 7*24*time.Hour,
+		"dummy-password-hash",
 	)
 }
 

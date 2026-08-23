@@ -149,6 +149,18 @@ func (projectStub) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringCo
 
 type incidentStub struct{}
 
+type startAdministratorRecoveryStub struct{}
+
+func (startAdministratorRecoveryStub) Execute(context.Context, portsin.StartAdministratorRecoveryInput) (portsin.StartAdministratorRecoveryOutput, error) {
+	return portsin.StartAdministratorRecoveryOutput{}, nil
+}
+
+type verifyAdministratorRecoveryStub struct{}
+
+func (verifyAdministratorRecoveryStub) Execute(context.Context, portsin.VerifyAdministratorRecoveryInput) (portsin.VerifyAdministratorRecoveryOutput, error) {
+	return portsin.VerifyAdministratorRecoveryOutput{}, nil
+}
+
 func (incidentStub) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
 	return &domain.Incident{}, nil
 }
@@ -161,18 +173,20 @@ func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (pa
 
 func completeUseCases() *portsin.UseCases {
 	return &portsin.UseCases{
-		GetSetupStatus:           getSetupStatusStub{},
-		StartAdministratorSetup:  startAdministratorSetupStub{},
-		VerifyAdministratorSetup: verifyAdministratorSetupStub{},
-		LoginAdministrator:       loginAdministratorStub{},
-		AuthenticateSession:      authenticateSessionStub{},
-		GetCurrentSession:        getCurrentSessionStub{},
-		LogoutAdministrator:      logoutAdministratorStub{},
-		GitHubAccount:            githubAccountStub{},
-		GitHubApp:                githubAppStub{},
-		DokployServer:            dokployServerStub{},
-		Project:                  projectStub{},
-		Incident:                 incidentStub{},
+		GetSetupStatus:              getSetupStatusStub{},
+		StartAdministratorSetup:     startAdministratorSetupStub{},
+		VerifyAdministratorSetup:    verifyAdministratorSetupStub{},
+		LoginAdministrator:          loginAdministratorStub{},
+		StartAdministratorRecovery:  startAdministratorRecoveryStub{},
+		VerifyAdministratorRecovery: verifyAdministratorRecoveryStub{},
+		AuthenticateSession:         authenticateSessionStub{},
+		GetCurrentSession:           getCurrentSessionStub{},
+		LogoutAdministrator:         logoutAdministratorStub{},
+		GitHubAccount:               githubAccountStub{},
+		GitHubApp:                   githubAppStub{},
+		DokployServer:               dokployServerStub{},
+		Project:                     projectStub{},
+		Incident:                    incidentStub{},
 	}
 }
 
@@ -207,6 +221,8 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing start setup", mutate: func(config *HandlersConfig) { config.UseCases.StartAdministratorSetup = nil }},
 		{name: "missing verify setup", mutate: func(config *HandlersConfig) { config.UseCases.VerifyAdministratorSetup = nil }},
 		{name: "missing login", mutate: func(config *HandlersConfig) { config.UseCases.LoginAdministrator = nil }},
+		{name: "missing recovery start", mutate: func(config *HandlersConfig) { config.UseCases.StartAdministratorRecovery = nil }},
+		{name: "missing recovery verify", mutate: func(config *HandlersConfig) { config.UseCases.VerifyAdministratorRecovery = nil }},
 		{name: "missing authentication", mutate: func(config *HandlersConfig) { config.UseCases.AuthenticateSession = nil }},
 		{name: "missing current session", mutate: func(config *HandlersConfig) { config.UseCases.GetCurrentSession = nil }},
 		{name: "missing logout", mutate: func(config *HandlersConfig) { config.UseCases.LogoutAdministrator = nil }},

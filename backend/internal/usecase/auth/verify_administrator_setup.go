@@ -54,12 +54,14 @@ func NewVerifyAdministratorSetupUseCase(
 }
 
 func (uc *verifyAdministratorSetupUseCase) Execute(ctx context.Context, input in.VerifyAdministratorSetupInput) (in.VerifyAdministratorSetupOutput, error) {
-	allowed, err := uc.rateLimiter.Allow(ctx, input.RateLimitKey)
-	if err != nil {
-		return in.VerifyAdministratorSetupOutput{}, err
-	}
-	if !allowed {
-		return in.VerifyAdministratorSetupOutput{}, domain.ErrAuthenticationRateLimited
+	for _, key := range []string{"ip:" + input.RateLimitKey, "enrollment:" + input.EnrollmentID} {
+		allowed, err := uc.rateLimiter.Allow(ctx, key)
+		if err != nil {
+			return in.VerifyAdministratorSetupOutput{}, err
+		}
+		if !allowed {
+			return in.VerifyAdministratorSetupOutput{}, domain.ErrAuthenticationRateLimited
+		}
 	}
 
 	enrollmentID, err := uuid.Parse(input.EnrollmentID)
@@ -71,18 +73,15 @@ func (uc *verifyAdministratorSetupUseCase) Execute(ctx context.Context, input in
 	if err != nil {
 		return in.VerifyAdministratorSetupOutput{}, err
 	}
-	if enrollment == nil {
-		return in.VerifyAdministratorSetupOutput{}, domain.ErrInvalidTotpEnrollmentVerification
-	}
-
 	now := uc.now().UTC()
-	if enrollment.Enrollment.IsExpired(now) {
-		return in.VerifyAdministratorSetupOutput{}, domain.ErrInvalidTotpEnrollmentVerification
-	}
-
-	secret, err := uc.credentialStore.Get(ctx, out.CredentialOwnerPendingEnrollment, enrollmentID, out.SecretKindAdministratorTOTP)
-	if err != nil {
-		return in.VerifyAdministratorSetupOutput{}, domain.ErrInvalidTotpEnrollmentVerification
+	secret := []byte(dummyTOTPSecret)
+	credentialOK := false
+	if enrollment != nil && !enrollment.Enrollment.IsExpired(now) {
+		storedSecret, getErr := uc.credentialStore.Get(ctx, out.CredentialOwnerPendingEnrollment, enrollmentID, out.SecretKindAdministratorTOTP)
+		if getErr == nil {
+			secret = storedSecret
+			credentialOK = true
+		}
 	}
 	defer clear(secret)
 
@@ -90,7 +89,7 @@ func (uc *verifyAdministratorSetupUseCase) Execute(ctx context.Context, input in
 	if err != nil {
 		return in.VerifyAdministratorSetupOutput{}, err
 	}
-	if !valid {
+	if enrollment == nil || enrollment.Enrollment.IsExpired(now) || !credentialOK || !valid {
 		return in.VerifyAdministratorSetupOutput{}, domain.ErrInvalidTotpEnrollmentVerification
 	}
 

@@ -55,11 +55,13 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 	}
 
 	return &Handlers{
-		AuthHandler: authhandler.NewHandler(
+		AuthHandler: authhandler.NewHandlerWithRecovery(
 			config.UseCases.GetSetupStatus,
 			config.UseCases.StartAdministratorSetup,
 			config.UseCases.VerifyAdministratorSetup,
 			config.UseCases.LoginAdministrator,
+			config.UseCases.StartAdministratorRecovery,
+			config.UseCases.VerifyAdministratorRecovery,
 			config.UseCases.GetCurrentSession,
 			config.UseCases.LogoutAdministrator,
 			config.SessionCookieSecure,
@@ -77,6 +79,8 @@ func validUseCases(useCases *portsin.UseCases) bool {
 		useCases.StartAdministratorSetup != nil &&
 		useCases.VerifyAdministratorSetup != nil &&
 		useCases.LoginAdministrator != nil &&
+		useCases.StartAdministratorRecovery != nil &&
+		useCases.VerifyAdministratorRecovery != nil &&
 		useCases.AuthenticateSession != nil &&
 		useCases.GetCurrentSession != nil &&
 		useCases.LogoutAdministrator != nil &&

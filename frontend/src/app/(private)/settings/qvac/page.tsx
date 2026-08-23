@@ -1,9 +1,5 @@
+import { QvacSettingsView } from "@/features/settings/views/QvacSettingsView/QvacSettingsView";
+
 export default function QVACSettingsPage() {
-  return (
-    <div>
-      <p style={{ color: "var(--text-dim)", fontSize: "14px" }}>
-        QVAC integration configuration will be implemented here.
-      </p>
-    </div>
-  );
+  return <QvacSettingsView />;
 }

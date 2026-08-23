@@ -9,7 +9,7 @@ const SETTINGS_LINKS = [
   { name: "General", href: APP_ROUTES.SETTINGS.ROOT },
   { name: "GitHub", href: "/settings/github" },
   { name: "Dokploy", href: "/settings/dokploy" },
-  { name: "Automation", href: "/settings/automation" },
+  { name: "QVAC", href: "/settings/qvac" },
 ];
 
 export function SettingsNav() {

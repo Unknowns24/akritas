@@ -1,2 +1,4 @@
 app.env
 config/app.env
+.env.*
+!.env.example

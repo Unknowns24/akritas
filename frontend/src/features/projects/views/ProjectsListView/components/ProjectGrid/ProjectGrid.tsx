@@ -59,12 +59,11 @@ function ProjectCard({ project }: { project: ProjectSummary }) {
           </div>
         )}
         
-        {project.dokploy_application ? (
+        {project.dokploy_source ? (
           <div className={styles.integrationItem}>
             <DokployIcon size={14} className={styles.integrationIcon} />
             <span className={styles.integrationText}>
-              {project.dokploy_application.display_name} 
-              <span className={styles.integrationEnv}>({project.dokploy_application.environment || "env"})</span>
+              {project.dokploy_source.display_name}
             </span>
           </div>
         ) : (

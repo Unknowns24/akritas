@@ -11,7 +11,9 @@ export async function createProjectService(
     body: request,
   });
 
-  if (error || !data) throw error || new Error("No data returned");
+  if (error || !data) {
+    return { error: error || new Error("No data returned") };
+  }
   /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock created project");
@@ -32,14 +34,7 @@ export async function createProjectService(
         name: "mock",
         html_url: "https://github.com",
       },
-      dokploy_application: {
-        dokploy_server_id: request.dokploy_server_id,
-        application_identifier: request.application_identifier,
-        instance_identifier: request.application_identifier,
-        display_name: request.name,
-        environment: "production",
-        status: "running",
-      },
+      dokploy_source: request.dokploy_source,
       monitoring_configuration: request.monitoring_configuration,
       monitoring_status: "monitoring",
       built_in_detection_rules: [],

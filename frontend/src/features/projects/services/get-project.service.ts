@@ -32,13 +32,14 @@ export async function getProjectService(id: string): Promise<ProjectResponse> {
           private: true,
           html_url: `https://github.com/akritas/${id === "1" ? "ecommerce" : "payments"}`,
         },
-        dokploy_application: {
+        dokploy_source: {
+          type: "application",
           dokploy_server_id: "server-1",
-          application_identifier: "app-1",
-          instance_identifier: "inst-1",
-          display_name: id === "1" ? "ecommerce-api" : "payments-api",
+          resource_identifier: "app-1",
+          instance_identifier: "app-1",
+          display_name: "Frontend Service",
+          environment: "production",
           status: "running",
-          environment: "production"
         },
         monitoring_configuration: {
           enabled: true,

@@ -1,10 +1,27 @@
 import { api } from "@/core/libs/api-client";
 import type { components } from "@/core/libs/api-client";
 
-export type ProjectListResponse = components["schemas"]["ProjectListResponse"];
+export type ProjectListResponse =
+  components["schemas"]["ProjectListResponse"];
 
-export async function getProjectsService(): Promise<ProjectListResponse> {
-  const { data, error } = await api.GET("/projects");
+export interface GetProjectsParams {
+  limit?: number;
+  cursor?: string;
+  name_like?: string;
+}
+
+export async function getProjectsService(
+  params?: GetProjectsParams,
+): Promise<ProjectListResponse> {
+  const queryParams = params ? {
+    ...(params.limit !== undefined ? { limit: params.limit } : {}),
+    ...(params.cursor ? { cursor: params.cursor } : {}),
+    ...(params.name_like ? { name_like: params.name_like } : {}),
+  } : undefined;
+
+  const { data, error } = await api.GET("/projects", {
+    ...(queryParams && Object.keys(queryParams).length > 0 ? { params: { query: queryParams } } : {}),
+  });
 
   if (error) {
     if (typeof window === "undefined") {
@@ -37,7 +54,10 @@ export async function getProjectsService(): Promise<ProjectListResponse> {
     }
     throw new Error("No data returned");
   }
-  /* [MOCK DOCS]
+
+  return data;
+}
+/* [MOCK DOCS]
   if (error || !data) {
     console.warn("Failed to fetch projects, returning mock data:", error);
     return {
@@ -58,13 +78,15 @@ export async function getProjectsService(): Promise<ProjectListResponse> {
             private: true,
             html_url: "https://github.com/akritas/ecommerce",
           },
-          dokploy_application: {
-            dokploy_server_id: "server-1",
-            application_identifier: "app-1",
-            instance_identifier: "inst-1",
-            display_name: "ecommerce-api",
-            status: "running",
-          },
+            dokploy_source: {
+              type: "application",
+              dokploy_server_id: "server-1",
+              resource_identifier: "app-1",
+              instance_identifier: "app-1",
+              display_name: "Frontend Service",
+              environment: "production",
+              status: "running",
+            },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -84,14 +106,15 @@ export async function getProjectsService(): Promise<ProjectListResponse> {
             private: true,
             html_url: "https://github.com/akritas/payments",
           },
-          dokploy_application: {
-            dokploy_server_id: "server-1",
-            application_identifier: "app-2",
-            instance_identifier: "inst-2",
-            display_name: "payments-api",
-            status: "running",
-          },
-          created_at: new Date().toISOString(),
+            dokploy_source: {
+              type: "application",
+              dokploy_server_id: "server-1",
+              resource_identifier: "app-2",
+              instance_identifier: "app-2",
+              display_name: "Backend API",
+              environment: "production",
+              status: "degraded",
+            },created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
       ],
@@ -105,6 +128,3 @@ export async function getProjectsService(): Promise<ProjectListResponse> {
     };
   }
   */
-
-  return data;
-}

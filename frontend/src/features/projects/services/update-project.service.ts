@@ -15,7 +15,9 @@ export async function updateProjectService(
     body: request,
   });
 
-  if (error || !data) throw error || new Error("No data returned");
+  if (error || !data) {
+    return { error: error || new Error("No data returned") };
+  }
   /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock updated project");
@@ -45,21 +47,27 @@ export async function updateProjectService(
         name: "mock",
         html_url: "https://github.com",
       },
-      dokploy_application: request.dokploy_server_id ? {
-        dokploy_server_id: request.dokploy_server_id,
-        application_identifier: request.application_identifier || "app",
-        instance_identifier: request.application_identifier || "app",
-        display_name: "Mock App",
+      dokploy_source: request.dokploy_source ? {
+        type: request.dokploy_source.type,
+        dokploy_server_id: request.dokploy_source.dokploy_server_id,
+        resource_identifier: request.dokploy_source.resource_identifier,
+        instance_identifier: request.dokploy_source.resource_identifier,
+        display_name: "Mock Source",
         environment: "production",
         status: "running",
-      } : {
+        ...(request.dokploy_source.type === "compose_service" ? {
+          service_name: (request.dokploy_source as any).service_name,
+          runtime_type: "docker-compose"
+        } : {})
+      } as any : {
+        type: "application",
         dokploy_server_id: "mock",
-        application_identifier: "app",
+        resource_identifier: "app",
         instance_identifier: "app",
-        display_name: "Mock App",
+        display_name: "Mock Source",
         environment: "production",
         status: "running",
-      },
+      } as any,
       monitoring_configuration: {
         enabled: true,
         error_patterns: [],

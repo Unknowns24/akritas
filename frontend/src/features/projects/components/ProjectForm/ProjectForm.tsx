@@ -6,10 +6,11 @@ import styles from "./ProjectForm.module.css";
 import { Button } from "@/core/ui/primitives/Button";
 import { AlertTriangle } from "lucide-react";
 import { GitHubRepositorySelector } from "@/features/projects/components/GitHubRepositorySelector/GitHubRepositorySelector";
-import { DokployApplicationSelector } from "@/features/projects/components/DokployApplicationSelector/DokployApplicationSelector";
+import { DokploySourceSelector } from "@/features/projects/components/DokploySourceSelector/DokploySourceSelector";
 import type { Project } from "@/features/projects/services/get-project.service";
 import type { GitHubRepository } from "@/features/settings/services/github/get-github-repositories.service";
-import type { DokployApplication } from "@/features/settings/services/dokploy/get-dokploy-applications.service";
+import type { components } from "@/core/libs/api-client";
+type DokploySourceSelectorType = components["schemas"]["DokploySourceSelector"];
 import { createProjectService } from "@/features/projects/services/create-project.service";
 import { updateProjectService } from "@/features/projects/services/update-project.service";
 import { toast } from "sonner";
@@ -31,8 +32,18 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
   const [defaultBranch, setDefaultBranch] = useState(initialData?.github_repository?.default_branch || "main");
 
   // Dokploy State
-  const [dokployServerId, setDokployServerId] = useState(initialData?.dokploy_application?.dokploy_server_id || "");
-  const [applicationId, setApplicationId] = useState(initialData?.dokploy_application?.application_identifier || "");
+  const [dokploySource, setDokploySource] = useState<DokploySourceSelectorType | undefined>(
+    initialData?.dokploy_source?.type === "application" ? {
+      type: "application",
+      dokploy_server_id: initialData.dokploy_source.dokploy_server_id,
+      resource_identifier: initialData.dokploy_source.resource_identifier
+    } : initialData?.dokploy_source?.type === "compose_service" ? {
+      type: "compose_service",
+      dokploy_server_id: initialData.dokploy_source.dokploy_server_id,
+      resource_identifier: initialData.dokploy_source.resource_identifier,
+      service_name: initialData.dokploy_source.service_name
+    } : undefined
+  );
 
   // Monitoring Config State
   const [monitoringEnabled, setMonitoringEnabled] = useState(initialData?.monitoring_configuration?.enabled ?? true);
@@ -45,7 +56,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isMissingIntegrations = !githubAccountId || !repositoryId || !dokployServerId || !applicationId;
+  const isMissingIntegrations = !githubAccountId || !repositoryId || !dokploySource;
   const isFormValid = name.trim().length > 0 && !isMissingIntegrations;
 
   const handleGitHubSelect = (repo: GitHubRepository) => {
@@ -54,9 +65,8 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
     setDefaultBranch(repo.default_branch || "main");
   };
 
-  const handleDokploySelect = (app: DokployApplication) => {
-    setDokployServerId(app.dokploy_server_id || "");
-    setApplicationId(app.application_identifier || "");
+  const handleDokploySelect = (source: DokploySourceSelectorType) => {
+    setDokploySource(source);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -67,15 +77,17 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
     setError(null);
 
     try {
+      const trimmedName = name.trim();
+      const trimmedDesc = description.trim();
+
       if (isEditing) {
         const { data, error: updateError } = await updateProjectService(initialData.id, {
-          name,
-          description,
+          name: trimmedName,
+          description: trimmedDesc ? trimmedDesc : undefined,
           github_account_id: githubAccountId,
           repository_identifier: repositoryId,
           default_branch: defaultBranch,
-          dokploy_server_id: dokployServerId,
-          application_identifier: applicationId,
+          dokploy_source: dokploySource as any,
         });
 
         if (updateError) throw updateError;
@@ -85,16 +97,15 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
         }
       } else {
         const { data, error: createError } = await createProjectService({
-          name,
-          description,
+          name: trimmedName,
+          description: trimmedDesc ? trimmedDesc : undefined,
           github_account_id: githubAccountId,
           repository_identifier: repositoryId,
           default_branch: defaultBranch,
-          dokploy_server_id: dokployServerId,
-          application_identifier: applicationId,
+          dokploy_source: dokploySource as any,
           monitoring_configuration: {
             enabled: monitoringEnabled,
-            grouping_window: groupingWindow,
+            grouping_window: groupingWindow.trim() || "PT30M",
             error_patterns: errorPatterns,
             ignored_patterns: ignoredPatterns,
             context_before: contextBefore,
@@ -110,7 +121,18 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
         }
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred while saving the project.");
+      console.error("Failed to save project:", err);
+      const details = err?.error?.details || err?.details;
+      const detailsMsg = Array.isArray(details)
+        ? details.map((d: any) => (d.field ? `${d.field}: ${d.reason}` : d.reason || JSON.stringify(d))).join(", ")
+        : "";
+      const baseMsg =
+        err?.error?.user_message ||
+        err?.error?.message ||
+        err?.userMessage ||
+        err?.message ||
+        "An error occurred while saving the project.";
+      setError(detailsMsg ? `${baseMsg} (${detailsMsg})` : baseMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -169,9 +191,9 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
 
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Dokploy Integration</h3>
-        <DokployApplicationSelector 
+        <DokploySourceSelector 
           onSelect={handleDokploySelect} 
-          selectedAppId={applicationId}
+          selectedSource={dokploySource}
         />
       </div>
 

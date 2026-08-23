@@ -5,14 +5,16 @@ import { getProjectService } from "@/features/projects/services";
 export default async function ProjectDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  // En Next.js 15, los params en app router deben tratarse de forma síncrona si los consumimos directamente, o usar page props
-  // Para simplificar, accedemos directo a params.id
-  const projectId = params.id;
+  const { id } = await params;
 
-  // Obtenemos el proyecto usando el mock o API
-  const projectData = await getProjectService(projectId);
+  let projectData;
+  try {
+    projectData = await getProjectService(id);
+  } catch (error) {
+    console.error(`[ProjectDetailPage] Failed to fetch project ${id}:`, error);
+  }
 
-  return <ProjectDetailClient initialProject={projectData} />;
+  return <ProjectDetailClient initialProject={projectData} projectId={id} />;
 }

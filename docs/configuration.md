@@ -16,13 +16,15 @@ The URL is secret deployment configuration and must never be logged.
 
 ### `AKRITAS_PUBLIC_URL`
 
-Canonical HTTPS origin used for redirects, Origin validation and GitHub manifest
-URLs.
+Canonical public origin used for redirects, Origin validation and GitHub
+manifest URLs. Production deployments must use HTTPS. Local development may use
+HTTP only with loopback hosts such as `localhost`, `127.0.0.1` or `::1`.
 
 Example:
 
 ```text
 https://akritas.example.com
+http://localhost:8080
 ```
 
 The value must not include credentials, query parameters or fragments.
@@ -87,8 +89,10 @@ HttpOnly; Secure; SameSite=Lax; Path=/
 `AKRITAS_SESSION_COOKIE_SAME_SITE` accepts `lax`, `strict` or `none` (case
 insensitive) and defaults to `lax`. The selected mode is used both when issuing
 and expiring the session cookie. Startup fails closed for any other value or
-when `Secure` is disabled; therefore `none` still requires HTTPS. Local
-development must use HTTPS or an equivalent secure reverse proxy.
+when `Secure` is disabled; therefore `none` still requires HTTPS for browsers to
+store and send the session cookie. Local development may configure
+`AKRITAS_PUBLIC_URL` with HTTP loopback, but authenticated browser flows that
+need `SameSite=None` still require HTTPS or an equivalent secure reverse proxy.
 
 Authentication entry points use separate in-memory fixed-window limiters for
 setup, enrollment verification, login and recovery. The MVP runtime is a single

@@ -9,15 +9,10 @@ import (
 	"strings"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 )
 
-type CommitSummary struct {
-	SHA     string
-	Message string
-	Author  string
-	Date    string
-	URL     string
-}
+type CommitSummary = portsout.RepositoryCommitSummary
 
 func (c *Client) ListRecentCommits(ctx context.Context, account domain.GitHubAccount, owner, repo, branch string, limit int) ([]CommitSummary, error) {
 	owner = strings.TrimSpace(owner)

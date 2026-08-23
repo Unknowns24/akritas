@@ -22,14 +22,6 @@ var ErrEvidencePersistence = &domain.Error{
 	Code: "0x206001I", Message: "evidence persistence failure", UserMessage: "No se pudo guardar la evidencia.",
 }
 
-func Catalog() map[string]*domain.Error {
-	return map[string]*domain.Error{
-		"ErrIntegrationPersistence":   ErrIntegrationPersistence,
-		"ErrProjectPersistence":       ErrProjectPersistence,
-		"ErrInvestigationPersistence": ErrInvestigationPersistence,
-		"ErrOperationPersistence":     ErrOperationPersistence,
-		"ErrEvidencePersistence":      ErrEvidencePersistence,
-	}
 var ErrIncidentPersistence = &domain.Error{
 	Code: "0x207001I", Message: "incident persistence failure", UserMessage: "No se pudo consultar el incidente.",
 }
@@ -39,5 +31,13 @@ var ErrMonitoringPersistence = &domain.Error{
 }
 
 func Catalog() map[string]*domain.Error {
-	return map[string]*domain.Error{"ErrIntegrationPersistence": ErrIntegrationPersistence, "ErrProjectPersistence": ErrProjectPersistence, "ErrIncidentPersistence": ErrIncidentPersistence, "ErrMonitoringPersistence": ErrMonitoringPersistence}
+	return map[string]*domain.Error{
+		"ErrIntegrationPersistence":   ErrIntegrationPersistence,
+		"ErrProjectPersistence":       ErrProjectPersistence,
+		"ErrInvestigationPersistence": ErrInvestigationPersistence,
+		"ErrOperationPersistence":     ErrOperationPersistence,
+		"ErrEvidencePersistence":      ErrEvidencePersistence,
+		"ErrIncidentPersistence":      ErrIncidentPersistence,
+		"ErrMonitoringPersistence":    ErrMonitoringPersistence,
+	}
 }

@@ -41,6 +41,9 @@ func (s *memInvestigationStore) ListByIncident(ctx context.Context, incidentID u
 func (s *memInvestigationStore) ExistsActiveForIncident(ctx context.Context, incidentID uuid.UUID) (bool, error) {
 	return false, nil
 }
+func (s *memInvestigationStore) ListOpen(context.Context) ([]domain.Investigation, error) {
+	return nil, nil
+}
 
 func cloneInvestigation(value *domain.Investigation) *domain.Investigation {
 	cloned := *value
@@ -72,6 +75,9 @@ func (s *memOperationStore) FindByID(ctx context.Context, id uuid.UUID) (*domain
 func (s *memOperationStore) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Operation, error) {
 	return nil, domain.ErrOperationNotFound
 }
+func (s *memOperationStore) FindByResource(context.Context, domain.OperationResourceType, uuid.UUID) (*domain.Operation, error) {
+	return nil, domain.ErrOperationNotFound
+}
 
 type memEvidenceStore struct{ created []domain.Evidence }
 
@@ -85,8 +91,24 @@ func (s *memEvidenceStore) ListByInvestigation(ctx context.Context, investigatio
 
 type emptyAssembler struct{}
 
-func (emptyAssembler) Assemble(ctx context.Context, investigation domain.Investigation) ([]domain.Evidence, error) {
-	return nil, nil
+func (emptyAssembler) Assemble(ctx context.Context, investigation domain.Investigation) (portsout.InvestigationRunContext, error) {
+	return portsout.InvestigationRunContext{Investigation: investigation}, nil
+}
+
+type memIncidentStore struct{ incident *domain.Incident }
+
+func (s *memIncidentStore) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
+	return s.incident, nil
+}
+func (s *memIncidentStore) Lock(context.Context, uuid.UUID) (*domain.Incident, error) {
+	return s.incident, nil
+}
+func (s *memIncidentStore) Update(context.Context, *domain.Incident) error { return nil }
+
+type passthroughTransactor struct{}
+
+func (passthroughTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
 }
 
 func TestRunUseCasePersistsStructuredQVACResult(t *testing.T) {
@@ -98,6 +120,7 @@ func TestRunUseCasePersistsStructuredQVACResult(t *testing.T) {
 		"resolution_status":"fixable",
 		"confidence":0.88,
 		"hypotheses":["race"],
+		"evidence_ids":[],
 		"relevant_files":["worker.go"],
 		"relevant_commits":["abc123"],
 		"recommended_actions":["initialize map"]
@@ -129,7 +152,8 @@ func TestRunUseCasePersistsStructuredQVACResult(t *testing.T) {
 	}
 	investigations := &memInvestigationStore{byID: map[uuid.UUID]*domain.Investigation{investigation.ID: investigation}}
 	operations := &memOperationStore{byID: map[uuid.UUID]*domain.Operation{operation.ID: operation}}
-	uc := investigationusecase.NewRunUseCase(investigations, operations, &memEvidenceStore{}, emptyAssembler{}, runner, func() time.Time { return now.Add(time.Second) })
+	incident := &domain.Incident{ID: investigation.IncidentID, Phase: domain.IncidentPhaseInvestigating}
+	uc := investigationusecase.NewRunUseCase(&memIncidentStore{incident: incident}, investigations, operations, &memEvidenceStore{}, emptyAssembler{}, runner, passthroughTransactor{}, func() time.Time { return now.Add(time.Second) })
 	if err := uc.Execute(context.Background(), investigation.ID, operation.ID); err != nil {
 		t.Fatal(err)
 	}

@@ -9,14 +9,10 @@ import (
 	"strings"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 )
 
-type FileContent struct {
-	Path    string `json:"path"`
-	Ref     string `json:"ref"`
-	Content string `json:"content"`
-	SHA     string `json:"sha"`
-}
+type FileContent = portsout.RepositoryFile
 
 func (c *Client) ReadFile(ctx context.Context, account domain.GitHubAccount, owner, repo, filePath, ref string) (FileContent, error) {
 	owner = strings.TrimSpace(owner)

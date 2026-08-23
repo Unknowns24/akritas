@@ -23,6 +23,8 @@ func All() []*gormigrate.Migration {
 		schema.SCHEMA_20260823_01_AddMonitoringCheckpoints(),
 		schema.SCHEMA_20260823_02_AddIncidents(),
 		schema.SCHEMA_20260823_03_AddLogEvents(),
+		schema.SCHEMA_20260823_04_LinkInvestigationHistory(),
+		schema.SCHEMA_20260823_05_AddInvestigationEvidenceIDs(),
 	}
 }
 

@@ -8,22 +8,11 @@ import (
 	"strings"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 )
 
-type CommitDetail struct {
-	SHA     string
-	Message string
-	Author  string
-	Date    string
-	URL     string
-	Files   []CommitFile
-}
-
-type CommitFile struct {
-	Filename string
-	Status   string
-	Patch    string
-}
+type CommitDetail = portsout.RepositoryCommit
+type CommitFile = portsout.RepositoryCommitFile
 
 func (c *Client) ReadCommit(ctx context.Context, account domain.GitHubAccount, owner, repo, sha string) (CommitDetail, error) {
 	owner = strings.TrimSpace(owner)

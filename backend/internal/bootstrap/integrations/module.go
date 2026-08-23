@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
 	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
-	"github.com/Unknowns24/akritas/backend/internal/service/investigationtools"
 	monitoringservice "github.com/Unknowns24/akritas/backend/internal/service/monitoring"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
@@ -244,38 +244,34 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	//
 	// H3 — Investigation / Evidence / QVAC
 	//
-	// Incidents are now provided by the real H2 repository.
-	// Do not reintroduce the historical deny-all IncidentReader stub.
+	// Incidents are provided by the real H2 repository.
 	//
 
-	incidentReader := incidents
-
 	evidenceAssembler := evidenceassembly.New(
-		incidentReader,
+		incidents,
 		projects,
+		githubAccounts,
 		uuid.New,
 		time.Now,
 	)
 
-	toolResolver := investigationtools.NewResolver(
-		incidentReader,
-		projects,
-		githubAccounts,
-	)
-
-	investigationRunner := investigationtools.NewRunner(
+	investigationRunner, err := qvac.NewRunner(
 		qvacClient,
-		githubClient,
-		toolResolver,
-		qvac.RunnerConfig{},
+		nil,
+		qvac.RunnerConfig{RepositoryInspector: githubClient, ContextSize: 16384},
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	runInvestigation := investigationusecase.NewRunUseCase(
+		incidents,
 		investigations,
 		operations,
 		evidences,
 		evidenceAssembler,
 		investigationRunner,
+		transactor,
 		time.Now,
 	)
 
@@ -283,11 +279,15 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		runInvestigation,
 		investigationRunTimeout,
 	)
+	if err := runInvestigation.Recover(context.Background(), investigationDispatcher); err != nil {
+		return nil, err
+	}
 
 	investigationUseCase := investigationusecase.New(
-		incidentReader,
+		incidents,
 		investigations,
 		operations,
+		transactor,
 		investigationDispatcher,
 		uuid.New,
 		time.Now,

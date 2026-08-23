@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	"github.com/google/uuid"
 )
 
 // InvestigationRunResult carries the structured classification an
@@ -18,12 +19,12 @@ type InvestigationRunResult struct {
 	RelevantFiles      []string
 	RelevantCommits    []string
 	RecommendedActions []string
+	EvidenceIDs        []uuid.UUID
+	DiscoveredEvidence []domain.Evidence
 }
 
-// InvestigationRunner performs the actual investigation work. The QVAC-backed
-// implementation is out of scope for this task (pending PB-028+); production
-// wiring uses a stub that always fails with an explicit "not implemented yet"
-// message so the async pipeline (create -> queue -> poll) stays demonstrable.
+// InvestigationRunner performs local inference from an application-assembled
+// context. Implementations must not query application persistence.
 type InvestigationRunner interface {
-	Run(ctx context.Context, investigation domain.Investigation) (InvestigationRunResult, error)
+	Run(ctx context.Context, runContext InvestigationRunContext) (InvestigationRunResult, error)
 }

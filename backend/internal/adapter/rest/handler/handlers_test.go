@@ -217,14 +217,14 @@ func completeUseCases() *portsin.UseCases {
 		GetCurrentSession:           getCurrentSessionStub{},
 		LogoutAdministrator:         logoutAdministratorStub{},
 
-		GitHubAccount:  githubAccountStub{},
-		GitHubApp:      githubAppStub{},
-		DokployServer:  dokployServerStub{},
-		Project:        projectStub{},
-		Incident:       incidentStub{},
-		Investigation:  investigationStub{},
-		Operation:      operationStub{},
-		Evidence:       evidenceStub{},
+		GitHubAccount: githubAccountStub{},
+		GitHubApp:     githubAppStub{},
+		DokployServer: dokployServerStub{},
+		Project:       projectStub{},
+		Incident:      incidentStub{},
+		Investigation: investigationStub{},
+		Operation:     operationStub{},
+		Evidence:      evidenceStub{},
 	}
 }
 

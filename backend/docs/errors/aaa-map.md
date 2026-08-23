@@ -78,7 +78,6 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrMonitoringContinuityLost` | `0x505001I` | Monitoring service | Internal | No se pudo verificar la continuidad de los logs. |
 | `ErrMonitoringConcurrentModification` | `0x505002C` | Monitoring service | Conflict | El estado de monitoreo cambió durante el procesamiento. |
 | `ErrAuthenticationRateLimited` | `0x501001R` | Auth usecase | Rate limited | Alcanzaste el límite de intentos. Probá nuevamente más tarde. |
-| `ErrIncidentNotFound` | `0x504001N` | Investigation usecase | Not found | El incidente no existe. |
 | `ErrInvestigationNotFound` | `0x504002N` | Investigation usecase | Not found | La investigación no existe. |
 | `ErrInvestigationAlreadyActive` | `0x504003C` | Investigation usecase | Conflict | Ya hay una investigación en curso para este incidente. |
 | `ErrOperationNotFound` | `0x505001N` | Operation usecase | Not found | La operación no existe. |

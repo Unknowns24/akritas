@@ -5,6 +5,7 @@ import (
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
+	"github.com/google/uuid"
 )
 
 func (uc *UseCase) StartIncidentInvestigation(ctx context.Context, command portsin.StartIncidentInvestigationCommand) (*domain.Operation, error) {
@@ -17,44 +18,65 @@ func (uc *UseCase) StartIncidentInvestigation(ctx context.Context, command ports
 		return existing, nil
 	}
 
-	exists, err := uc.incidents.Exists(ctx, command.IncidentID)
+	var operation *domain.Operation
+	var investigationID uuid.UUID
+	err = uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		replayed, findErr := uc.operations.FindByIdempotencyKey(txCtx, idempotencyKey)
+		if findErr != nil {
+			return findErr
+		}
+		if replayed != nil {
+			operation = replayed
+			return nil
+		}
+
+		incident, lockErr := uc.incidents.Lock(txCtx, command.IncidentID)
+		if lockErr != nil {
+			return lockErr
+		}
+		active, activeErr := uc.investigations.ExistsActiveForIncident(txCtx, command.IncidentID)
+		if activeErr != nil {
+			return activeErr
+		}
+		if active {
+			return domain.ErrInvestigationAlreadyActive
+		}
+		if transitionErr := incident.StartInvestigation(); transitionErr != nil {
+			return transitionErr
+		}
+
+		now := uc.now().UTC()
+		created, createErr := domain.NewInvestigation(uc.newID(), command.IncidentID, now)
+		if createErr != nil {
+			return createErr
+		}
+		if createErr = uc.investigations.Create(txCtx, created); createErr != nil {
+			return createErr
+		}
+
+		resourceType := domain.OperationResourceInvestigation
+		resourceID := created.ID
+		operation, createErr = domain.NewOperation(
+			uc.newID(), domain.OperationTypeInvestigation, &resourceType, &resourceID,
+			&idempotencyKey, "La investigación fue encolada.", now,
+		)
+		if createErr != nil {
+			return createErr
+		}
+		if createErr = uc.operations.Create(txCtx, operation); createErr != nil {
+			return createErr
+		}
+		if updateErr := uc.incidents.Update(txCtx, incident); updateErr != nil {
+			return updateErr
+		}
+		investigationID = created.ID
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		return nil, domain.ErrIncidentNotFound
+	if investigationID != uuid.Nil {
+		uc.dispatcher.Dispatch(investigationID, operation.ID)
 	}
-
-	active, err := uc.investigations.ExistsActiveForIncident(ctx, command.IncidentID)
-	if err != nil {
-		return nil, err
-	}
-	if active {
-		return nil, domain.ErrInvestigationAlreadyActive
-	}
-
-	now := uc.now().UTC()
-	created, err := domain.NewInvestigation(uc.newID(), command.IncidentID, now)
-	if err != nil {
-		return nil, err
-	}
-	if err := uc.investigations.Create(ctx, created); err != nil {
-		return nil, err
-	}
-
-	resourceType := domain.OperationResourceInvestigation
-	resourceID := created.ID
-	operation, err := domain.NewOperation(
-		uc.newID(), domain.OperationTypeInvestigation, &resourceType, &resourceID,
-		&idempotencyKey, "La investigación fue encolada.", now,
-	)
-	if err != nil {
-		return nil, err
-	}
-	if err := uc.operations.Create(ctx, operation); err != nil {
-		return nil, err
-	}
-
-	uc.dispatcher.Dispatch(created.ID, operation.ID)
 	return operation, nil
 }

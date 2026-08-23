@@ -10,10 +10,10 @@ import (
 )
 
 type UseCase struct {
-	operations portsout.OperationStore
+	operations portsout.OperationGetter
 }
 
-func New(operations portsout.OperationStore) portsin.OperationUseCase {
+func New(operations portsout.OperationGetter) portsin.OperationUseCase {
 	return &UseCase{operations: operations}
 }
 

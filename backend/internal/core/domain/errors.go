@@ -234,7 +234,6 @@ func MonitoringErrors() map[string]*Error {
 // InvestigationErrors returns stable errors introduced by the investigation application boundary.
 func InvestigationErrors() map[string]*Error {
 	return map[string]*Error{
-		"ErrIncidentNotFound":           ErrIncidentNotFound,
 		"ErrInvestigationNotFound":      ErrInvestigationNotFound,
 		"ErrInvestigationAlreadyActive": ErrInvestigationAlreadyActive,
 	}

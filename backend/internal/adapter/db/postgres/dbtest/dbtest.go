@@ -35,7 +35,7 @@ func Connect(t *testing.T) *gorm.DB {
 		t.Fatalf("run migrations: %v", err)
 	}
 
-  if err := db.Exec(`
+	if err := db.Exec(`
     TRUNCATE TABLE
       evidence,
       operations,
@@ -54,8 +54,8 @@ func Connect(t *testing.T) *gorm.DB {
       dokploy_servers
     CASCADE
   `).Error; err != nil {
-    t.Fatalf("truncate tables: %v", err)
-  }
+		t.Fatalf("truncate tables: %v", err)
+	}
 
 	t.Cleanup(func() {
 		sqlDB, err := db.DB()

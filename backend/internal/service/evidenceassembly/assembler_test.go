@@ -12,16 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type fakeIncidentReader struct {
+type fakeIncidentEvidenceReader struct {
 	getResult *domain.Incident
 	getErr    error
+	logs      []domain.LogEvent
 }
 
-func (f *fakeIncidentReader) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
-	return false, nil
-}
-func (f *fakeIncidentReader) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+func (f *fakeIncidentEvidenceReader) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
 	return f.getResult, f.getErr
+}
+func (f *fakeIncidentEvidenceReader) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
+	return paging.Slice[domain.LogEvent]{Items: append([]domain.LogEvent(nil), f.logs...), Total: int64(len(f.logs))}, nil
 }
 
 type fakeProjectStore struct {
@@ -29,23 +30,27 @@ type fakeProjectStore struct {
 	getErr    error
 }
 
-func (f *fakeProjectStore) Create(ctx context.Context, value *domain.Project) error { return nil }
-func (f *fakeProjectStore) Get(ctx context.Context, id uuid.UUID) (*domain.Project, error) {
+func (f *fakeProjectStore) Create(context.Context, *domain.Project) error { return nil }
+func (f *fakeProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, error) {
 	return f.getResult, f.getErr
 }
-func (f *fakeProjectStore) FindByNormalizedName(ctx context.Context, name string) (*domain.Project, error) {
+func (f *fakeProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
 	return nil, nil
 }
-func (f *fakeProjectStore) FindByDokployApplication(ctx context.Context, serverID uuid.UUID, applicationIdentifier string) (*domain.Project, error) {
+func (f *fakeProjectStore) FindByDokployApplication(context.Context, uuid.UUID, string) (*domain.Project, error) {
 	return nil, nil
 }
-func (f *fakeProjectStore) List(ctx context.Context, params paging.Params) (paging.Slice[domain.Project], error) {
+func (f *fakeProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
 	return paging.Slice[domain.Project]{}, nil
 }
-func (f *fakeProjectStore) Update(ctx context.Context, value *domain.Project, expected time.Time) error {
-	return nil
+func (f *fakeProjectStore) Update(context.Context, *domain.Project, time.Time) error { return nil }
+func (f *fakeProjectStore) Delete(context.Context, uuid.UUID) error                  { return nil }
+
+type fakeAccountReader struct{ account *domain.GitHubAccount }
+
+func (f fakeAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
+	return f.account, nil
 }
-func (f *fakeProjectStore) Delete(ctx context.Context, id uuid.UUID) error { return nil }
 
 func fixtureProject(t *testing.T) domain.Project {
 	t.Helper()
@@ -65,63 +70,120 @@ func fixtureProject(t *testing.T) domain.Project {
 	return *project
 }
 
-func TestAssembleProducesDeploymentMetadataFromRealProject(t *testing.T) {
-	t.Parallel()
-	project := fixtureProject(t)
-	incident := &domain.Incident{ID: uuid.New(), ProjectID: uuid.New()}
-	incidents := &fakeIncidentReader{getResult: incident}
-	projects := &fakeProjectStore{getResult: &project}
-	assembler := New(incidents, projects, uuid.New, func() time.Time { return time.Now() })
-
-	investigation := domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: time.Now()}
-	result, err := assembler.Assemble(context.Background(), investigation)
+func fixtureLogEvent(t *testing.T, incidentID, projectID uuid.UUID, now time.Time) domain.LogEvent {
+	t.Helper()
+	before, err := domain.NewSanitizedLogRecord(now.Add(-time.Second), domain.LogStreamStderr, "query started")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result) != 1 || result[0].Type != domain.EvidenceDeploymentMetadata {
-		t.Fatalf("expected exactly one deployment_metadata Evidence, got %+v", result)
+	after, err := domain.NewSanitizedLogRecord(now.Add(time.Second), domain.LogStreamStderr, "retry scheduled")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(result[0].Content, project.Name) || !strings.Contains(result[0].Content, project.GitHubRepository.FullName) {
-		t.Fatalf("expected the content to reflect real project fields, got %s", result[0].Content)
+	event, err := domain.NewLogEvent(uuid.New(), projectID, now, domain.SeverityError,
+		"database connection refused\nTraceback File app.py:42", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		[]string{string(domain.DetectionRuleStackTrace)}, []domain.SanitizedLogRecord{before}, []domain.SanitizedLogRecord{after})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !result[0].Redacted {
-		t.Fatal("assembled evidence must always be redacted")
+	if err := event.AssociateOccurrence(incidentID, "app-1", "instance-1", "occ-1"); err != nil {
+		t.Fatal(err)
+	}
+	return *event
+}
+
+func TestAssembleProducesRealH2EvidenceAndFixedRepositoryScope(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 23, 10, 0, 0, 0, time.UTC)
+	project := fixtureProject(t)
+	incident := &domain.Incident{ID: uuid.New(), ProjectID: project.ID, Title: "DB error", Severity: domain.SeverityError}
+	incidents := &fakeIncidentEvidenceReader{getResult: incident, logs: []domain.LogEvent{fixtureLogEvent(t, incident.ID, project.ID, now)}}
+	assembler := New(incidents, &fakeProjectStore{getResult: &project}, fakeAccountReader{account: &domain.GitHubAccount{ID: project.GitHubRepository.GitHubAccountID}}, uuid.New, func() time.Time { return now })
+
+	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Repository.Owner != "Unknowns24" || result.Repository.Name != "akritas" || result.Repository.Branch != "main" {
+		t.Fatalf("unexpected fixed repository scope: %+v", result.Repository)
+	}
+	if len(result.Evidence) != 3 {
+		t.Fatalf("expected deployment, log and real stack evidence, got %+v", result.Evidence)
+	}
+	joined := result.Evidence[1].Content
+	for _, want := range []string{"database connection refused", "query started", "retry scheduled", "app-1", "instance-1", "stack_trace"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("log Evidence missing %q: %s", want, joined)
+		}
+	}
+	if result.Evidence[0].Type != domain.EvidenceDeploymentMetadata || result.Evidence[1].Type != domain.EvidenceLogExcerpt || result.Evidence[2].Type != domain.EvidenceStackTrace {
+		t.Fatalf("unexpected evidence types: %+v", result.Evidence)
 	}
 }
 
-func TestAssembleReturnsEmptyWhenIncidentNotFound(t *testing.T) {
+func TestAssembleDoesNotInventStackEvidence(t *testing.T) {
 	t.Parallel()
-	incidents := &fakeIncidentReader{getErr: domain.ErrIncidentNotFound}
-	projects := &fakeProjectStore{}
-	assembler := New(incidents, projects, uuid.New, func() time.Time { return time.Now() })
-
-	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), CreatedAt: time.Now()})
-	if err != nil || len(result) != 0 {
-		t.Fatalf("expected no evidence and no error, got %+v, %v", result, err)
+	now := time.Now().UTC()
+	project := fixtureProject(t)
+	incident := &domain.Incident{ID: uuid.New(), ProjectID: project.ID}
+	event := fixtureLogEvent(t, incident.ID, project.ID, now)
+	event.DetectionRules = []string{string(domain.DetectionRuleErrorLevel)}
+	assembler := New(&fakeIncidentEvidenceReader{getResult: incident, logs: []domain.LogEvent{event}}, &fakeProjectStore{getResult: &project}, fakeAccountReader{account: &domain.GitHubAccount{ID: project.GitHubRepository.GitHubAccountID}}, uuid.New, func() time.Time { return now })
+	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, evidence := range result.Evidence {
+		if evidence.Type == domain.EvidenceStackTrace || evidence.Type == domain.EvidenceCommit || evidence.Type == domain.EvidenceDiff {
+			t.Fatalf("invented Evidence: %+v", evidence)
+		}
 	}
 }
 
-func TestAssembleReturnsEmptyWhenProjectNotFound(t *testing.T) {
+func TestAssemblePropagatesMissingIncidentAndInfrastructureErrors(t *testing.T) {
 	t.Parallel()
-	incidents := &fakeIncidentReader{getResult: &domain.Incident{ID: uuid.New(), ProjectID: uuid.New()}}
-	projects := &fakeProjectStore{getErr: domain.ErrProjectNotFound}
-	assembler := New(incidents, projects, uuid.New, func() time.Time { return time.Now() })
-
-	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), CreatedAt: time.Now()})
-	if err != nil || len(result) != 0 {
-		t.Fatalf("expected no evidence and no error, got %+v, %v", result, err)
+	want := errors.New("database unavailable")
+	assembler := New(&fakeIncidentEvidenceReader{getErr: want}, &fakeProjectStore{}, fakeAccountReader{}, uuid.New, time.Now)
+	_, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: uuid.New(), CreatedAt: time.Now()})
+	if !errors.Is(err, want) {
+		t.Fatalf("expected error to propagate, got %v", err)
 	}
 }
 
-func TestAssemblePropagatesInfrastructureErrors(t *testing.T) {
+func TestAssembleEnforcesInitialCorpusCountAndRedactsSecrets(t *testing.T) {
 	t.Parallel()
-	wantErr := errors.New("database unavailable")
-	incidents := &fakeIncidentReader{getErr: wantErr}
-	projects := &fakeProjectStore{}
-	assembler := New(incidents, projects, uuid.New, func() time.Time { return time.Now() })
-
-	_, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), CreatedAt: time.Now()})
-	if !errors.Is(err, wantErr) {
-		t.Fatalf("expected the infrastructure error to propagate, got %v", err)
+	now := time.Now().UTC()
+	project := fixtureProject(t)
+	incident := &domain.Incident{ID: uuid.New(), ProjectID: project.ID}
+	logs := make([]domain.LogEvent, 0, 30)
+	for index := 0; index < 30; index++ {
+		event, err := domain.NewLogEvent(uuid.New(), project.ID, now.Add(time.Duration(index)*time.Second), domain.SeverityError,
+			"connection failed token=very-secret-value", "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			[]string{string(domain.DetectionRuleErrorLevel)}, nil, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := event.AssociateOccurrence(incident.ID, "app", "instance", uuid.NewString()); err != nil {
+			t.Fatal(err)
+		}
+		logs = append(logs, *event)
+	}
+	assembler := New(&fakeIncidentEvidenceReader{getResult: incident, logs: logs}, &fakeProjectStore{getResult: &project}, fakeAccountReader{account: &domain.GitHubAccount{ID: project.GitHubRepository.GitHubAccountID}}, uuid.New, func() time.Time { return now })
+	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Evidence) > maximumInitialEvidence {
+		t.Fatalf("initial Evidence count=%d", len(result.Evidence))
+	}
+	total := 0
+	for _, evidence := range result.Evidence {
+		total += evidenceSize(evidence)
+		if strings.Contains(evidence.Content, "very-secret-value") {
+			t.Fatal("secret leaked into persisted Evidence")
+		}
+	}
+	if total > maximumCorpusBytes {
+		t.Fatalf("initial persisted corpus=%d", total)
 	}
 }

@@ -8,13 +8,10 @@ import (
 	"strings"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 )
 
-type CodeSearchMatch struct {
-	Path       string `json:"path"`
-	Repository string `json:"repository"`
-	URL        string `json:"url"`
-}
+type CodeSearchMatch = portsout.RepositoryCodeMatch
 
 func (c *Client) SearchCode(ctx context.Context, account domain.GitHubAccount, owner, repo, query string) ([]CodeSearchMatch, error) {
 	owner = strings.TrimSpace(owner)

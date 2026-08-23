@@ -11,3 +11,16 @@ func TestPostgresErrorCatalogOwnsDatabaseCodes(t *testing.T) {
 		}
 	}
 }
+
+func TestPostgresErrorCatalogContainsMergedH1H2H3Sentinels(t *testing.T) {
+	t.Parallel()
+	catalog := Catalog()
+	for _, name := range []string{
+		"ErrIntegrationPersistence", "ErrProjectPersistence", "ErrInvestigationPersistence",
+		"ErrOperationPersistence", "ErrEvidencePersistence", "ErrIncidentPersistence", "ErrMonitoringPersistence",
+	} {
+		if catalog[name] == nil {
+			t.Fatalf("merged PostgreSQL catalog is missing %s", name)
+		}
+	}
+}

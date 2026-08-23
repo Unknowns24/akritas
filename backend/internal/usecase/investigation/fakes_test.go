@@ -9,19 +9,33 @@ import (
 	"github.com/google/uuid"
 )
 
-type fakeIncidentReader struct {
+type fakeIncidentStore struct {
 	exists    bool
-	err       error
 	getResult *domain.Incident
 	getErr    error
+	updated   []domain.Incident
 }
 
-func (f *fakeIncidentReader) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
-	return f.exists, f.err
-}
-
-func (f *fakeIncidentReader) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+func (f *fakeIncidentStore) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	if !f.exists {
+		return nil, domain.ErrIncidentNotFound
+	}
+	if f.getResult == nil {
+		return &domain.Incident{ID: id, ProjectID: uuid.New(), Phase: domain.IncidentPhaseDetected}, nil
+	}
 	return f.getResult, f.getErr
+}
+
+func (f *fakeIncidentStore) Lock(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+	return f.Get(ctx, id)
+}
+
+func (f *fakeIncidentStore) Update(ctx context.Context, value *domain.Incident) error {
+	f.updated = append(f.updated, *value)
+	return nil
 }
 
 type fakeInvestigationStore struct {
@@ -35,6 +49,7 @@ type fakeInvestigationStore struct {
 	listErr           error
 	activeForIncident bool
 	activeErr         error
+	open              []domain.Investigation
 }
 
 func (f *fakeInvestigationStore) Create(ctx context.Context, value *domain.Investigation) error {
@@ -66,6 +81,10 @@ func (f *fakeInvestigationStore) ListByIncident(ctx context.Context, incidentID 
 
 func (f *fakeInvestigationStore) ExistsActiveForIncident(ctx context.Context, incidentID uuid.UUID) (bool, error) {
 	return f.activeForIncident, f.activeErr
+}
+
+func (f *fakeInvestigationStore) ListOpen(context.Context) ([]domain.Investigation, error) {
+	return append([]domain.Investigation(nil), f.open...), nil
 }
 
 type fakeOperationStore struct {
@@ -111,6 +130,16 @@ func (f *fakeOperationStore) FindByIdempotencyKey(ctx context.Context, key strin
 	return f.findByKeyResult, nil
 }
 
+func (f *fakeOperationStore) FindByResource(context.Context, domain.OperationResourceType, uuid.UUID) (*domain.Operation, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+	if f.findByIDResult == nil {
+		return nil, domain.ErrOperationNotFound
+	}
+	return f.findByIDResult, nil
+}
+
 type fakeInvestigationDispatcher struct {
 	dispatched                   bool
 	investigationID, operationID uuid.UUID
@@ -123,13 +152,15 @@ func (f *fakeInvestigationDispatcher) Dispatch(investigationID, operationID uuid
 }
 
 type fakeInvestigationRunner struct {
-	result out.InvestigationRunResult
-	err    error
-	calls  int
+	result  out.InvestigationRunResult
+	err     error
+	calls   int
+	context out.InvestigationRunContext
 }
 
-func (f *fakeInvestigationRunner) Run(ctx context.Context, investigation domain.Investigation) (out.InvestigationRunResult, error) {
+func (f *fakeInvestigationRunner) Run(ctx context.Context, runContext out.InvestigationRunContext) (out.InvestigationRunResult, error) {
 	f.calls++
+	f.context = runContext
 	return f.result, f.err
 }
 
@@ -147,14 +178,35 @@ func (f *fakeEvidenceStore) Create(ctx context.Context, value *domain.Evidence) 
 }
 
 func (f *fakeEvidenceStore) ListByInvestigation(ctx context.Context, investigationID uuid.UUID, params paging.Params) (paging.Slice[domain.Evidence], error) {
-	return paging.Slice[domain.Evidence]{}, nil
+	return paging.Slice[domain.Evidence]{Items: append([]domain.Evidence(nil), f.created...), Total: int64(len(f.created))}, nil
 }
 
 type fakeEvidenceAssembler struct {
-	result []domain.Evidence
+	result out.InvestigationRunContext
 	err    error
 }
 
-func (f *fakeEvidenceAssembler) Assemble(ctx context.Context, investigation domain.Investigation) ([]domain.Evidence, error) {
+func (f *fakeEvidenceAssembler) Assemble(ctx context.Context, investigation domain.Investigation) (out.InvestigationRunContext, error) {
+	f.result.Investigation = investigation
 	return f.result, f.err
+}
+
+type fakeTransactor struct{}
+
+func (fakeTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+type failNthTransactor struct {
+	calls  int
+	failAt int
+	err    error
+}
+
+func (f *failNthTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	f.calls++
+	if f.calls == f.failAt {
+		return f.err
+	}
+	return fn(ctx)
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	"github.com/Unknowns24/akritas/backend/internal/service/evidencesafety"
 	"github.com/google/uuid"
 )
 
@@ -43,5 +44,5 @@ func deploymentMetadataEvidence(id, investigationID uuid.UUID, project domain.Pr
 		payload.ProjectName, payload.RepositoryFullName, payload.DefaultBranch,
 		payload.ApplicationName, payload.Environment, payload.ApplicationStatus,
 	)
-	return domain.NewEvidence(id, investigationID, domain.EvidenceDeploymentMetadata, summary, string(content), now)
+	return domain.NewEvidence(id, investigationID, domain.EvidenceDeploymentMetadata, evidencesafety.Redact(summary), evidencesafety.Redact(string(content)), now)
 }

@@ -15,9 +15,9 @@ import (
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	evidencehandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/evidence"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
+	incidenthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/incident"
 	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
 	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
-	incidenthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/incident"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	restmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
@@ -219,42 +219,42 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
-  
-  investigations := &fakeInvestigations{}
-  investigationHandler, err := investigationhandler.New(investigations, paging)
-  if err != nil {
-    panic(err)
-  }
 
-  operations := &fakeOperations{}
-  operationHandler, err := operationhandler.New(operations)
-  if err != nil {
-    panic(err)
-  }
+	investigations := &fakeInvestigations{}
+	investigationHandler, err := investigationhandler.New(investigations, paging)
+	if err != nil {
+		panic(err)
+	}
 
-  evidence := &fakeEvidence{}
-  evidenceHandler, err := evidencehandler.New(evidence, paging)
-  if err != nil {
-    panic(err)
-  }
+	operations := &fakeOperations{}
+	operationHandler, err := operationhandler.New(operations)
+	if err != nil {
+		panic(err)
+	}
 
-  incidentHandler, err := incidenthandler.New(&fakeIncidents{}, paging)
-  if err != nil {
-    panic(err)
-  }
-  
+	evidence := &fakeEvidence{}
+	evidenceHandler, err := evidencehandler.New(evidence, paging)
+	if err != nil {
+		panic(err)
+	}
+
+	incidentHandler, err := incidenthandler.New(&fakeIncidents{}, paging)
+	if err != nil {
+		panic(err)
+	}
+
 	return &routerFixture{
 		config: Config{
 			Handlers: &resthandler.Handlers{
-        AuthHandler:          &authhandler.Handler{},
-        GitHubHandler:        githubHandler,
-        DokployHandler:       dokployHandler,
-        ProjectHandler:       projectHandler,
-        IncidentHandler:      incidentHandler,
-        InvestigationHandler: investigationHandler,
-        OperationHandler:     operationHandler,
-        EvidenceHandler:      evidenceHandler,
-      },
+				AuthHandler:          &authhandler.Handler{},
+				GitHubHandler:        githubHandler,
+				DokployHandler:       dokployHandler,
+				ProjectHandler:       projectHandler,
+				IncidentHandler:      incidentHandler,
+				InvestigationHandler: investigationHandler,
+				OperationHandler:     operationHandler,
+				EvidenceHandler:      evidenceHandler,
+			},
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
 			AllowedOrigins: []string{"https://app.example.com"},

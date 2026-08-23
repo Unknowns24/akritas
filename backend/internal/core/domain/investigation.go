@@ -41,6 +41,7 @@ type Investigation struct {
 	RelevantFiles      []string            `gorm:"serializer:json;type:jsonb;column:relevant_files"`
 	RelevantCommits    []string            `gorm:"serializer:json;type:jsonb;column:relevant_commits"`
 	RecommendedActions []string            `gorm:"serializer:json;type:jsonb;column:recommended_actions"`
+	EvidenceIDs        []uuid.UUID         `gorm:"serializer:json;type:jsonb;column:evidence_ids"`
 	EvidenceCount      int                 `gorm:"column:evidence_count"`
 	FailureUserMessage string              `gorm:"column:failure_user_message"`
 }
@@ -48,7 +49,7 @@ type Investigation struct {
 func NewInvestigation(id, incidentID uuid.UUID, createdAt time.Time) (*Investigation, error) {
 	investigation := &Investigation{
 		ID: id, IncidentID: incidentID, Status: InvestigationStatusPending, CreatedAt: createdAt,
-		Hypotheses: []string{}, RelevantFiles: []string{}, RelevantCommits: []string{}, RecommendedActions: []string{},
+		Hypotheses: []string{}, RelevantFiles: []string{}, RelevantCommits: []string{}, RecommendedActions: []string{}, EvidenceIDs: []uuid.UUID{},
 	}
 	if err := investigation.Validate(); err != nil {
 		return nil, err
@@ -57,8 +58,18 @@ func NewInvestigation(id, incidentID uuid.UUID, createdAt time.Time) (*Investiga
 }
 
 func (i Investigation) Validate() error {
-	if i.ID == uuid.Nil || i.IncidentID == uuid.Nil || i.Status.Validate() != nil || !validTime(i.CreatedAt) || i.EvidenceCount < 0 {
+	if i.ID == uuid.Nil || i.IncidentID == uuid.Nil || i.Status.Validate() != nil || !validTime(i.CreatedAt) || i.EvidenceCount < 0 || len(i.EvidenceIDs) > 25 || len(i.EvidenceIDs) > i.EvidenceCount {
 		return ErrInvalidInvestigation.Wrap(validationCause("investigation"))
+	}
+	seenEvidence := make(map[uuid.UUID]struct{}, len(i.EvidenceIDs))
+	for _, evidenceID := range i.EvidenceIDs {
+		if evidenceID == uuid.Nil {
+			return ErrInvalidInvestigation.Wrap(validationCause("investigation evidence"))
+		}
+		if _, duplicate := seenEvidence[evidenceID]; duplicate {
+			return ErrInvalidInvestigation.Wrap(validationCause("investigation evidence"))
+		}
+		seenEvidence[evidenceID] = struct{}{}
 	}
 	switch i.Status {
 	case InvestigationStatusPending:
@@ -102,6 +113,7 @@ func (i *Investigation) Complete(
 	resolutionStatus ResolutionStatus,
 	confidence float64,
 	hypotheses, relevantFiles, relevantCommits, recommendedActions []string,
+	evidenceIDGroups ...[]uuid.UUID,
 ) error {
 	if i == nil || i.Status != InvestigationStatusRunning || i.StartedAt == nil || at.Before(*i.StartedAt) ||
 		!nonBlank(summary) || rootCauseStatus.Validate() != nil || resolutionStatus.Validate() != nil || !validConfidence(confidence) {
@@ -118,6 +130,10 @@ func (i *Investigation) Complete(
 	i.RelevantFiles = cloneStrings(relevantFiles)
 	i.RelevantCommits = cloneStrings(relevantCommits)
 	i.RecommendedActions = cloneStrings(recommendedActions)
+	i.EvidenceIDs = []uuid.UUID{}
+	if len(evidenceIDGroups) > 0 {
+		i.EvidenceIDs = append(i.EvidenceIDs, evidenceIDGroups[0]...)
+	}
 	return nil
 }
 

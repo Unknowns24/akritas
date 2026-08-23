@@ -11,11 +11,11 @@ import (
 )
 
 type UseCase struct {
-	investigations portsout.InvestigationStore
+	investigations portsout.InvestigationGetter
 	evidence       portsout.EvidenceStore
 }
 
-func New(investigations portsout.InvestigationStore, evidence portsout.EvidenceStore) portsin.EvidenceUseCase {
+func New(investigations portsout.InvestigationGetter, evidence portsout.EvidenceStore) portsin.EvidenceUseCase {
 	return &UseCase{investigations: investigations, evidence: evidence}
 }
 

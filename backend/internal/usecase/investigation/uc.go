@@ -12,24 +12,26 @@ import (
 // InvestigationRunner: that split avoids a construction cycle with RunUseCase
 // below, which the dispatcher wraps.
 type UseCase struct {
-	incidents      portsout.IncidentReader
+	incidents      portsout.IncidentWorkflowStore
 	investigations portsout.InvestigationStore
 	operations     portsout.OperationStore
+	transactor     portsout.Transactor
 	dispatcher     portsout.InvestigationDispatcher
 	newID          func() uuid.UUID
 	now            func() time.Time
 }
 
 func New(
-	incidents portsout.IncidentReader,
+	incidents portsout.IncidentWorkflowStore,
 	investigations portsout.InvestigationStore,
 	operations portsout.OperationStore,
+	transactor portsout.Transactor,
 	dispatcher portsout.InvestigationDispatcher,
 	newID func() uuid.UUID,
 	now func() time.Time,
 ) *UseCase {
 	return &UseCase{
-		incidents: incidents, investigations: investigations, operations: operations,
+		incidents: incidents, investigations: investigations, operations: operations, transactor: transactor,
 		dispatcher: dispatcher, newID: newID, now: now,
 	}
 }
@@ -39,24 +41,28 @@ func New(
 // the dispatcher is built from this value, so depending on the dispatcher
 // back would be a construction cycle.
 type RunUseCase struct {
+	incidents      portsout.IncidentWorkflowStore
 	investigations portsout.InvestigationStore
 	operations     portsout.OperationStore
 	evidence       portsout.EvidenceStore
-	assembler      portsout.EvidenceAssembler
+	assembler      portsout.InvestigationContextAssembler
 	runner         portsout.InvestigationRunner
+	transactor     portsout.Transactor
 	now            func() time.Time
 }
 
 func NewRunUseCase(
+	incidents portsout.IncidentWorkflowStore,
 	investigations portsout.InvestigationStore,
 	operations portsout.OperationStore,
 	evidence portsout.EvidenceStore,
-	assembler portsout.EvidenceAssembler,
+	assembler portsout.InvestigationContextAssembler,
 	runner portsout.InvestigationRunner,
+	transactor portsout.Transactor,
 	now func() time.Time,
 ) *RunUseCase {
 	return &RunUseCase{
-		investigations: investigations, operations: operations,
-		evidence: evidence, assembler: assembler, runner: runner, now: now,
+		incidents: incidents, investigations: investigations, operations: operations,
+		evidence: evidence, assembler: assembler, runner: runner, transactor: transactor, now: now,
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,8 +15,10 @@ import (
 	dbadapter "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/migrations"
 	administratorrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator"
+	administratorsessionrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator_session"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
+	pendingenrollmentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/pending_enrollment"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
@@ -50,7 +53,7 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 	if err := migrations.Run(db); err != nil {
 		t.Fatal(err)
 	}
-	allTables := []string{"github_accounts", "dokploy_servers", "credentials", "github_app_registrations", "github_app_bindings", "administrators", "pending_enrollments", "administrator_sessions", "projects"}
+	allTables := []string{"github_accounts", "dokploy_servers", "credentials", "github_app_registrations", "github_app_bindings", "administrators", "pending_enrollments", "administrator_sessions", "projects", "monitoring_checkpoints", "incidents", "log_events"}
 	for _, table := range allTables {
 		if !db.Migrator().HasTable(table) {
 			t.Fatalf("migration did not create %s", table)
@@ -84,8 +87,230 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 	if _, getErr := credentials.Get(ctx, portsout.CredentialOwnerAdministrator, rollbackAdministrator.ID, portsout.SecretKindAdministratorTOTP); getErr == nil {
 		t.Fatal("credential survived shared rollback")
 	}
+
+	// Recovery rotates metadata, encrypted TOTP ownership and all sessions as
+	// one PostgreSQL invariant. First prove rollback, then commit the same shape.
+	recoveryAdministrator, err := domain.NewAdministrator(uuid.New(), "recovery@example.com", "Recovery", time.Now().UTC().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := administrators.Create(ctx, recoveryAdministrator, "old-password-hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := credentials.Put(ctx, portsout.CredentialOwnerAdministrator, recoveryAdministrator.ID, portsout.SecretValue{Kind: portsout.SecretKindAdministratorTOTP, Plaintext: []byte("OLDTOTPSEEDVALUE")}); err != nil {
+		t.Fatal(err)
+	}
+	sessions := administratorsessionrepo.NewRepository(db)
+	for index := 0; index < 2; index++ {
+		authenticatedAt := time.Now().UTC()
+		session, sessionErr := domain.NewAdministratorSession(uuid.New(), recoveryAdministrator.ID, authenticatedAt, authenticatedAt.Add(time.Hour), authenticatedAt.Add(2*time.Hour))
+		if sessionErr != nil {
+			t.Fatal(sessionErr)
+		}
+		if saveErr := sessions.Save(ctx, session, strings.Repeat(string(rune('a'+index)), 64)); saveErr != nil {
+			t.Fatal(saveErr)
+		}
+	}
+	pendingEnrollments := pendingenrollmentrepo.NewRepository(db)
+	pending, err := domain.NewPendingEnrollment(uuid.New(), recoveryAdministrator.Email, recoveryAdministrator.DisplayName, time.Now().UTC(), time.Now().UTC().Add(10*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pendingEnrollments.Replace(ctx, pending, "new-password-hash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := credentials.Put(ctx, portsout.CredentialOwnerPendingEnrollment, pending.ID, portsout.SecretValue{Kind: portsout.SecretKindAdministratorTOTP, Plaintext: []byte("NEWTOTPSEEDVALUE")}); err != nil {
+		t.Fatal(err)
+	}
+
+	err = transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		consumed, consumeErr := pendingEnrollments.Consume(txCtx, pending.ID)
+		if consumeErr != nil || consumed == nil {
+			return consumeErr
+		}
+		rotated, rotateErr := administrators.RotateCredentials(txCtx, recoveryAdministrator.ID, "old-password-hash", consumed.PasswordHash, 123, time.Now().UTC())
+		if rotateErr != nil || !rotated {
+			return rotateErr
+		}
+		if moveErr := credentials.MoveOwner(txCtx, portsout.CredentialOwnerPendingEnrollment, pending.ID, portsout.CredentialOwnerAdministrator, recoveryAdministrator.ID); moveErr != nil {
+			return moveErr
+		}
+		if revokeErr := sessions.RevokeAll(txCtx, recoveryAdministrator.ID, time.Now().UTC()); revokeErr != nil {
+			return revokeErr
+		}
+		return rollbackCause
+	})
+	if !errors.Is(err, rollbackCause) {
+		t.Fatalf("recovery rollback error=%v", err)
+	}
+	if current, findErr := administrators.FindByEmail(ctx, recoveryAdministrator.Email); findErr != nil || current == nil || current.PasswordHash != "old-password-hash" {
+		t.Fatalf("password survived rollback incorrectly: current=%+v err=%v", current, findErr)
+	}
+	if currentPending, findErr := pendingEnrollments.FindByID(ctx, pending.ID); findErr != nil || currentPending == nil {
+		t.Fatalf("pending enrollment not restored: pending=%+v err=%v", currentPending, findErr)
+	}
+	var revokedCount int64
+	if countErr := db.Table("administrator_sessions").Where("administrator_id = ? AND revoked_at IS NOT NULL", recoveryAdministrator.ID).Count(&revokedCount).Error; countErr != nil || revokedCount != 0 {
+		t.Fatalf("rollback revoked sessions: count=%d err=%v", revokedCount, countErr)
+	}
+
+	freshAt := time.Now().UTC()
+	freshSession, err := domain.NewAdministratorSession(uuid.New(), recoveryAdministrator.ID, freshAt, freshAt.Add(time.Hour), freshAt.Add(2*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+		consumed, consumeErr := pendingEnrollments.Consume(txCtx, pending.ID)
+		if consumeErr != nil || consumed == nil {
+			return consumeErr
+		}
+		rotated, rotateErr := administrators.RotateCredentials(txCtx, recoveryAdministrator.ID, "old-password-hash", consumed.PasswordHash, 456, freshAt)
+		if rotateErr != nil || !rotated {
+			return rotateErr
+		}
+		if moveErr := credentials.MoveOwner(txCtx, portsout.CredentialOwnerPendingEnrollment, pending.ID, portsout.CredentialOwnerAdministrator, recoveryAdministrator.ID); moveErr != nil {
+			return moveErr
+		}
+		if revokeErr := sessions.RevokeAll(txCtx, recoveryAdministrator.ID, freshAt); revokeErr != nil {
+			return revokeErr
+		}
+		return sessions.Save(txCtx, freshSession, strings.Repeat("f", 64))
+	})
+	if err != nil {
+		t.Fatalf("commit recovery: %v", err)
+	}
+	current, err := administrators.FindByEmail(ctx, recoveryAdministrator.Email)
+	if err != nil || current == nil || current.PasswordHash != "new-password-hash" || current.Administrator.LastAcceptedTOTPPeriod != 456 {
+		t.Fatalf("committed credentials=%+v err=%v", current, err)
+	}
+	rotatedSecret, err := credentials.Get(ctx, portsout.CredentialOwnerAdministrator, recoveryAdministrator.ID, portsout.SecretKindAdministratorTOTP)
+	if err != nil || string(rotatedSecret) != "NEWTOTPSEEDVALUE" {
+		t.Fatalf("committed TOTP rotation mismatch: value=%q err=%v", rotatedSecret, err)
+	}
+	clear(rotatedSecret)
+	if currentPending, findErr := pendingEnrollments.FindByID(ctx, pending.ID); findErr != nil || currentPending != nil {
+		t.Fatalf("pending enrollment survived commit: pending=%+v err=%v", currentPending, findErr)
+	}
+	if countErr := db.Table("administrator_sessions").Where("administrator_id = ? AND revoked_at IS NOT NULL", recoveryAdministrator.ID).Count(&revokedCount).Error; countErr != nil || revokedCount != 2 {
+		t.Fatalf("old sessions not revoked: count=%d err=%v", revokedCount, countErr)
+	}
+	if fresh, findErr := sessions.FindByTokenHash(ctx, strings.Repeat("f", 64)); findErr != nil || fresh == nil || !fresh.IsActive(freshAt) {
+		t.Fatalf("fresh session invalid: session=%+v err=%v", fresh, findErr)
+	}
+	if consumed, consumeErr := administrators.ConsumeTOTPPeriod(ctx, recoveryAdministrator.ID, "old-password-hash", 999); consumeErr != nil || consumed {
+		t.Fatalf("stale login credentials advanced TOTP state: consumed=%v err=%v", consumed, consumeErr)
+	}
+
+	// DELETE ... RETURNING is the linearization point for confirmation. Two
+	// simultaneous requests may race, but exactly one can consume the slot.
+	concurrentPending, err := domain.NewPendingEnrollment(uuid.New(), recoveryAdministrator.Email, recoveryAdministrator.DisplayName, freshAt, freshAt.Add(10*time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pendingEnrollments.Replace(ctx, concurrentPending, "another-password-hash"); err != nil {
+		t.Fatal(err)
+	}
+	consumeResults := make(chan bool, 2)
+	consumeErrors := make(chan error, 2)
+	for range 2 {
+		go func() {
+			consumed, consumeErr := pendingEnrollments.Consume(ctx, concurrentPending.ID)
+			consumeErrors <- consumeErr
+			consumeResults <- consumed != nil
+		}()
+	}
+	consumeSuccesses := 0
+	for range 2 {
+		if consumeErr := <-consumeErrors; consumeErr != nil {
+			t.Fatal(consumeErr)
+		}
+		if <-consumeResults {
+			consumeSuccesses++
+		}
+	}
+	if consumeSuccesses != 1 {
+		t.Fatalf("concurrent pending consumers succeeded=%d want 1", consumeSuccesses)
+	}
+
+	// Hold the refresh transaction open after it has locked the row. Revoke-all
+	// must wait, then revoke the refreshed session once that transaction commits.
+	refreshStarted := make(chan struct{})
+	releaseRefresh := make(chan struct{})
+	refreshDone := make(chan error, 1)
+	go func() {
+		refreshDone <- transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+			refreshed, refreshErr := sessions.RefreshActive(txCtx, strings.Repeat("f", 64), freshAt.Add(time.Minute), freshAt.Add(90*time.Minute))
+			if refreshErr != nil {
+				return refreshErr
+			}
+			if refreshed == nil {
+				return errors.New("fresh session was not refreshable")
+			}
+			close(refreshStarted)
+			<-releaseRefresh
+			return nil
+		})
+	}()
+	<-refreshStarted
+	revokeDone := make(chan error, 1)
+	go func() { revokeDone <- sessions.RevokeAll(ctx, recoveryAdministrator.ID, freshAt.Add(2*time.Minute)) }()
+	close(releaseRefresh)
+	if err := <-refreshDone; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-revokeDone; err != nil {
+		t.Fatal(err)
+	}
+	if refreshed, refreshErr := sessions.RefreshActive(ctx, strings.Repeat("f", 64), freshAt.Add(3*time.Minute), freshAt.Add(2*time.Hour)); refreshErr != nil || refreshed != nil {
+		t.Fatalf("revoke did not win after in-flight refresh: session=%+v err=%v", refreshed, refreshErr)
+	}
+
+	// Reverse the ordering: revoke holds the row lock before refresh starts, so
+	// the conditional UPDATE observes revoked_at after the lock is released.
+	revokedFirstAt := freshAt.Add(4 * time.Minute)
+	revokedFirstSession, err := domain.NewAdministratorSession(uuid.New(), recoveryAdministrator.ID, freshAt, freshAt.Add(time.Hour), freshAt.Add(2*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	revokedFirstHash := strings.Repeat("r", 64)
+	if err := sessions.Save(ctx, revokedFirstSession, revokedFirstHash); err != nil {
+		t.Fatal(err)
+	}
+	revokeStarted := make(chan struct{})
+	releaseRevoke := make(chan struct{})
+	revokeTransactionDone := make(chan error, 1)
+	go func() {
+		revokeTransactionDone <- transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
+			if revokeErr := sessions.RevokeAll(txCtx, recoveryAdministrator.ID, revokedFirstAt); revokeErr != nil {
+				return revokeErr
+			}
+			close(revokeStarted)
+			<-releaseRevoke
+			return nil
+		})
+	}()
+	<-revokeStarted
+	blockedRefresh := make(chan *domain.AdministratorSession, 1)
+	blockedRefreshErr := make(chan error, 1)
+	go func() {
+		refreshed, refreshErr := sessions.RefreshActive(ctx, revokedFirstHash, revokedFirstAt, revokedFirstAt.Add(time.Hour))
+		blockedRefresh <- refreshed
+		blockedRefreshErr <- refreshErr
+	}()
+	close(releaseRevoke)
+	if err := <-revokeTransactionDone; err != nil {
+		t.Fatal(err)
+	}
+	if refreshErr := <-blockedRefreshErr; refreshErr != nil {
+		t.Fatal(refreshErr)
+	}
+	if refreshed := <-blockedRefresh; refreshed != nil {
+		t.Fatalf("refresh survived revoke-first ordering: %+v", refreshed)
+	}
 	repository, _ := githubrepo.New(db, credentials)
-	now := time.Now().UTC()
+	// Cursor timestamps are serialized at second precision. Keep the fixture on
+	// that same boundary so previous-page assertions are deterministic.
+	now := time.Now().UTC().Truncate(time.Second)
 	account, err := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountOrganization, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, now)
 	if err != nil {
 		t.Fatal(err)

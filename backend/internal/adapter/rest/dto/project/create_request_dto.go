@@ -11,4 +11,5 @@ type CreateProjectRequestDTO struct {
 	DokployServerID         uuid.UUID                          `json:"dokploy_server_id"`
 	ApplicationIdentifier   string                             `json:"application_identifier"`
 	MonitoringConfiguration *MonitoringConfigurationRequestDTO `json:"monitoring_configuration"`
+	InitialLogIngestion     string                             `json:"initial_log_ingestion,omitempty"`
 }

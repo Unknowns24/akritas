@@ -37,15 +37,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.SetCookie(w, &http.Cookie{
-		Name:     response.SessionCookieName,
-		Value:    output.SessionToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   h.sessionCookieSecure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  output.AbsoluteExpiresAt,
-	})
+	setSessionCookie(w, h.sessionCookieSecure, output.SessionToken, output.AuthenticatedAt, output.AbsoluteExpiresAt)
 	w.Header().Set("Cache-Control", "no-store")
 	response.WriteJSON(w, http.StatusOK, mapper.AdministratorSession(
 		output.Administrator, output.AuthenticatedAt, output.IdleExpiresAt, output.AbsoluteExpiresAt,

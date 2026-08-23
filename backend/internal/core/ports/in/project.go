@@ -17,6 +17,7 @@ type CreateProjectCommand struct {
 	DokployServerID         uuid.UUID
 	ApplicationIdentifier   string
 	MonitoringConfiguration domain.MonitoringConfiguration
+	InitialLogIngestion     domain.InitialLogIngestion
 }
 
 type UpdateProjectCommand struct {

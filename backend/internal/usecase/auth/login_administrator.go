@@ -24,6 +24,7 @@ type loginAdministratorUseCase struct {
 	now                func() time.Time
 	sessionIdleTTL     time.Duration
 	sessionAbsoluteTTL time.Duration
+	dummyPasswordHash  string
 }
 
 func NewLoginAdministratorUseCase(
@@ -38,6 +39,7 @@ func NewLoginAdministratorUseCase(
 	now func() time.Time,
 	sessionIdleTTL time.Duration,
 	sessionAbsoluteTTL time.Duration,
+	dummyPasswordHash string,
 ) in.LoginAdministratorUseCase {
 	return &loginAdministratorUseCase{
 		rateLimiter:        rateLimiter,
@@ -51,6 +53,7 @@ func NewLoginAdministratorUseCase(
 		now:                now,
 		sessionIdleTTL:     sessionIdleTTL,
 		sessionAbsoluteTTL: sessionAbsoluteTTL,
+		dummyPasswordHash:  dummyPasswordHash,
 	}
 }
 
@@ -75,21 +78,23 @@ func (uc *loginAdministratorUseCase) Execute(ctx context.Context, input in.Login
 	if err != nil {
 		return in.LoginAdministratorOutput{}, err
 	}
-	if creds == nil {
-		return in.LoginAdministratorOutput{}, domain.ErrInvalidCredentials
+	passwordHash := uc.dummyPasswordHash
+	if creds != nil {
+		passwordHash = creds.PasswordHash
 	}
-
-	passwordOK, err := uc.passwordHasher.Verify(input.Password, creds.PasswordHash)
+	passwordOK, err := uc.passwordHasher.Verify(input.Password, passwordHash)
 	if err != nil {
 		return in.LoginAdministratorOutput{}, err
 	}
-	if !passwordOK {
-		return in.LoginAdministratorOutput{}, domain.ErrInvalidCredentials
-	}
 
-	secret, err := uc.credentialStore.Get(ctx, out.CredentialOwnerAdministrator, creds.Administrator.ID, out.SecretKindAdministratorTOTP)
-	if err != nil {
-		return in.LoginAdministratorOutput{}, domain.ErrInvalidCredentials
+	secret := []byte(dummyTOTPSecret)
+	credentialOK := false
+	if creds != nil {
+		storedSecret, getErr := uc.credentialStore.Get(ctx, out.CredentialOwnerAdministrator, creds.Administrator.ID, out.SecretKindAdministratorTOTP)
+		if getErr == nil {
+			secret = storedSecret
+			credentialOK = true
+		}
 	}
 	defer clear(secret)
 
@@ -98,7 +103,7 @@ func (uc *loginAdministratorUseCase) Execute(ctx context.Context, input in.Login
 	if err != nil {
 		return in.LoginAdministratorOutput{}, err
 	}
-	if !valid {
+	if creds == nil || !passwordOK || !credentialOK || !valid {
 		return in.LoginAdministratorOutput{}, domain.ErrInvalidCredentials
 	}
 	if period <= creds.Administrator.LastAcceptedTOTPPeriod {
@@ -116,7 +121,7 @@ func (uc *loginAdministratorUseCase) Execute(ctx context.Context, input in.Login
 	}
 
 	err = uc.transactor.WithinTransaction(ctx, func(ctx context.Context) error {
-		consumed, err := uc.administrators.ConsumeTOTPPeriod(ctx, creds.Administrator.ID, period)
+		consumed, err := uc.administrators.ConsumeTOTPPeriod(ctx, creds.Administrator.ID, creds.PasswordHash, period)
 		if err != nil {
 			return err
 		}

@@ -5,12 +5,15 @@ import (
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/config"
+	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	dokployrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/dokployserver"
 	evidencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/evidence"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
 	githubapprepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubapp"
+	incidentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/incident"
 	investigationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/investigation"
+	monitoringrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/monitoring"
 	operationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/operation"
 	projectrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/project"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
@@ -19,14 +22,15 @@ import (
 	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
-	"github.com/Unknowns24/akritas/backend/internal/adapter/stub"
 	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationtools"
+	monitoringservice "github.com/Unknowns24/akritas/backend/internal/service/monitoring"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubapp"
+	incidentusecase "github.com/Unknowns24/akritas/backend/internal/usecase/incident"
 	investigationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/investigation"
 	operationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/operation"
 	projectusecase "github.com/Unknowns24/akritas/backend/internal/usecase/project"
@@ -36,9 +40,6 @@ import (
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 )
 
-// investigationRunTimeout bounds each asynchronous investigation run. It is
-// generous for the current stub (which fails immediately) and left as a
-// placeholder for a real QVAC call's timeout once PB-028+ lands.
 const investigationRunTimeout = 5 * time.Minute
 
 type Dependencies struct {
@@ -48,101 +49,307 @@ type Dependencies struct {
 	UseCases    *portsin.UseCases
 }
 
-// Build composes integrations over the application's shared PostgreSQL
-// connection and credential store. Infrastructure ownership remains in the
-// application bootstrap so auth and integrations cannot silently diverge.
+type Runtime struct {
+	Handler http.Handler
+	Monitor *monitoringservice.Runner
+}
+
+// Build returns only the HTTP handler for callers that do not need direct
+// ownership of background runtime components.
 func Build(configuration config.Config, dependencies Dependencies) (http.Handler, error) {
+	runtime, err := BuildRuntime(configuration, dependencies)
+	if err != nil {
+		return nil, err
+	}
+
+	return runtime.Handler, nil
+}
+
+// BuildRuntime composes the integration HTTP runtime, H2 monitoring runner,
+// and H3 investigation pipeline over the application's shared infrastructure.
+func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runtime, error) {
 	if dependencies.Admin == nil {
 		return nil, router.ErrAdminMiddlewareUnavailable
 	}
+
 	if dependencies.UseCases == nil {
 		return nil, resthandler.ErrInvalidHandlersConfiguration
 	}
+
 	if dependencies.DB == nil || dependencies.Credentials == nil {
 		return nil, router.ErrInvalidRouterConfiguration
 	}
-	githubAccounts, err := githubrepo.New(dependencies.DB, dependencies.Credentials)
+
+	//
+	// Persistence
+	//
+
+	githubAccounts, err := githubrepo.New(
+		dependencies.DB,
+		dependencies.Credentials,
+	)
 	if err != nil {
 		return nil, err
 	}
-	githubApps, err := githubapprepo.New(dependencies.DB, dependencies.Credentials)
+
+	githubApps, err := githubapprepo.New(
+		dependencies.DB,
+		dependencies.Credentials,
+	)
 	if err != nil {
 		return nil, err
 	}
-	dokployServers, err := dokployrepo.New(dependencies.DB, dependencies.Credentials)
+
+	dokployServers, err := dokployrepo.New(
+		dependencies.DB,
+		dependencies.Credentials,
+	)
 	if err != nil {
 		return nil, err
 	}
-	githubClient, err := githubexternal.NewClient(githubexternal.ClientConfig{Credentials: dependencies.Credentials, Bindings: githubApps, Now: time.Now})
-	if err != nil {
-		return nil, err
-	}
-	dokployClient, err := dokployexternal.NewClient(dokployexternal.ClientConfig{Credentials: dependencies.Credentials})
-	if err != nil {
-		return nil, err
-	}
+
 	projects, err := projectrepo.New(dependencies.DB)
 	if err != nil {
 		return nil, err
 	}
+
+	incidents, err := incidentrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	monitoringStore, err := monitoringrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
 	investigations, err := investigationrepo.New(dependencies.DB)
 	if err != nil {
 		return nil, err
 	}
+
 	operations, err := operationrepo.New(dependencies.DB)
 	if err != nil {
 		return nil, err
 	}
+
 	evidences, err := evidencerepo.New(dependencies.DB)
 	if err != nil {
 		return nil, err
 	}
-	usage := projects
-	githubAccountUseCase := githubaccount.New(githubAccounts, githubClient, usage, uuid.New, time.Now)
-	dokployUseCase := dokployserver.New(dokployServers, dokployClient, usage, uuid.New, time.Now)
-	projectUseCase := projectusecase.New(projects, githubAccounts, dokployServers, githubClient, dokployClient, uuid.New, time.Now)
 
-	incidentReader := stub.NewDenyAllIncidentReader()
-	evidenceAssembler := evidenceassembly.New(incidentReader, projects, uuid.New, time.Now)
+	transactor := postgres.NewTransactor(dependencies.DB)
+
+	//
+	// External adapters
+	//
+
+	githubClient, err := githubexternal.NewClient(
+		githubexternal.ClientConfig{
+			Credentials: dependencies.Credentials,
+			Bindings:    githubApps,
+			Now:         time.Now,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	dokployClient, err := dokployexternal.NewClient(
+		dokployexternal.ClientConfig{
+			Credentials: dependencies.Credentials,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	qvacClient, err := qvac.NewClient(qvac.ClientConfig{})
 	if err != nil {
 		return nil, err
 	}
-	toolResolver := investigationtools.NewResolver(incidentReader, projects, githubAccounts)
-	investigationRunner := investigationtools.NewRunner(qvacClient, githubClient, toolResolver, qvac.RunnerConfig{})
-	runInvestigation := investigationusecase.NewRunUseCase(investigations, operations, evidences, evidenceAssembler, investigationRunner, time.Now)
-	investigationDispatcher := investigationdispatch.New(runInvestigation, investigationRunTimeout)
-	investigationUseCase := investigationusecase.New(
-		incidentReader, investigations, operations, investigationDispatcher, uuid.New, time.Now,
+
+	//
+	// H1 use cases
+	//
+
+	usage := projects
+
+	githubAccountUseCase := githubaccount.New(
+		githubAccounts,
+		githubClient,
+		usage,
+		uuid.New,
+		time.Now,
 	)
+
+	githubAppUseCase, err := githubapp.New(
+		githubApps,
+		githubClient,
+		configuration.PublicURL,
+		uuid.New,
+		time.Now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	dokployUseCase := dokployserver.New(
+		dokployServers,
+		dokployClient,
+		usage,
+		uuid.New,
+		time.Now,
+	)
+
+	//
+	// H2 — Projects / Monitoring / Incidents
+	//
+
+	projectUseCase := projectusecase.NewWithMonitoring(
+		projects,
+		githubAccounts,
+		dokployServers,
+		githubClient,
+		dokployClient,
+		monitoringStore,
+		transactor,
+		uuid.New,
+		time.Now,
+	)
+
+	incidentUseCase := incidentusecase.New(incidents)
+
+	monitoringService, err := monitoringservice.New(
+		monitoringStore,
+		dokployServers,
+		dokployClient,
+		transactor,
+		uuid.New,
+		time.Now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	monitoringRunner, err := monitoringservice.NewRunner(
+		monitoringService,
+		configuration.MonitoringPollInterval,
+		configuration.MonitoringConcurrency,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	//
+	// H3 — Investigation / Evidence / QVAC
+	//
+	// Incidents are now provided by the real H2 repository.
+	// Do not reintroduce the historical deny-all IncidentReader stub.
+	//
+
+	incidentReader := incidents
+
+	evidenceAssembler := evidenceassembly.New(
+		incidentReader,
+		projects,
+		uuid.New,
+		time.Now,
+	)
+
+	toolResolver := investigationtools.NewResolver(
+		incidentReader,
+		projects,
+		githubAccounts,
+	)
+
+	investigationRunner := investigationtools.NewRunner(
+		qvacClient,
+		githubClient,
+		toolResolver,
+		qvac.RunnerConfig{},
+	)
+
+	runInvestigation := investigationusecase.NewRunUseCase(
+		investigations,
+		operations,
+		evidences,
+		evidenceAssembler,
+		investigationRunner,
+		time.Now,
+	)
+
+	investigationDispatcher := investigationdispatch.New(
+		runInvestigation,
+		investigationRunTimeout,
+	)
+
+	investigationUseCase := investigationusecase.New(
+		incidentReader,
+		investigations,
+		operations,
+		investigationDispatcher,
+		uuid.New,
+		time.Now,
+	)
+
 	operationUseCase := operationusecase.New(operations)
-	evidenceUseCase := evidenceusecase.New(investigations, evidences)
-	githubAppUseCase, err := githubapp.New(githubApps, githubClient, configuration.PublicURL, uuid.New, time.Now)
+
+	evidenceUseCase := evidenceusecase.New(
+		investigations,
+		evidences,
+	)
+
+	//
+	// REST composition
+	//
+
+	pagingConfig, err := pagination.NewConfig(
+		configuration.PaginationSecret,
+		configuration.PaginationTTL,
+	)
 	if err != nil {
 		return nil, err
 	}
-	pagingConfig, err := pagination.NewConfig(configuration.PaginationSecret, configuration.PaginationTTL)
-	if err != nil {
-		return nil, err
-	}
+
 	useCases := *dependencies.UseCases
+
 	useCases.GitHubAccount = githubAccountUseCase
 	useCases.GitHubApp = githubAppUseCase
 	useCases.DokployServer = dokployUseCase
 	useCases.Project = projectUseCase
+
+	useCases.Incident = incidentUseCase
+
 	useCases.Investigation = investigationUseCase
 	useCases.Operation = operationUseCase
 	useCases.Evidence = evidenceUseCase
-	handlers, err := resthandler.NewHandlers(resthandler.HandlersConfig{
-		UseCases:            &useCases,
-		Pagination:          pagingConfig,
-		SessionCookieSecure: configuration.SessionCookieSecure,
-	})
+
+	handlers, err := resthandler.NewHandlers(
+		resthandler.HandlersConfig{
+			UseCases:            &useCases,
+			Pagination:          pagingConfig,
+			SessionCookieSecure: configuration.SessionCookieSecure,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	return router.New(router.Config{
-		Handlers: handlers, Admin: dependencies.Admin,
-		Authenticate: useCases.AuthenticateSession, AllowedOrigins: configuration.AllowedOrigins,
-	})
+
+	handler, err := router.New(
+		router.Config{
+			Handlers:       handlers,
+			Admin:          dependencies.Admin,
+			Authenticate:   useCases.AuthenticateSession,
+			AllowedOrigins: configuration.AllowedOrigins,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Runtime{
+		Handler: handler,
+		Monitor: monitoringRunner,
+	}, nil
 }

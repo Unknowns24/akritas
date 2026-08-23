@@ -36,24 +36,13 @@ func (uc *authenticateSessionUseCase) Execute(ctx context.Context, sessionToken 
 	}
 
 	tokenHash := uc.sessionTokens.Hash(sessionToken)
-	session, err := uc.sessions.FindByTokenHash(ctx, tokenHash)
+	now := uc.now().UTC()
+	session, err := uc.sessions.RefreshActive(ctx, tokenHash, now, now.Add(uc.sessionIdleTTL))
 	if err != nil {
 		return domain.AdministratorSession{}, err
 	}
 	if session == nil {
 		return domain.AdministratorSession{}, domain.ErrInactiveAdministratorSession
-	}
-
-	now := uc.now().UTC()
-	if !session.IsActive(now) {
-		return domain.AdministratorSession{}, domain.ErrInactiveAdministratorSession
-	}
-
-	if err := session.ExtendIdle(now, uc.sessionIdleTTL); err != nil {
-		return domain.AdministratorSession{}, err
-	}
-	if err := uc.sessions.UpdateIdleExpiry(ctx, session.ID, session.IdleExpiresAt); err != nil {
-		return domain.AdministratorSession{}, err
 	}
 
 	return *session, nil

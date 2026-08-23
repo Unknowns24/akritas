@@ -22,6 +22,15 @@ const (
 	defaultSessionIdleTTL         = 12 * time.Hour
 	defaultSessionAbsoluteTTL     = 7 * 24 * time.Hour
 	defaultSessionCookieSecure    = true
+	defaultAuthRateLimitAttempts  = 5
+	defaultAuthRateLimitWindow    = 15 * time.Minute
+	defaultAuthRateLimitMaxKeys   = 4096
+	maximumAuthRateLimitAttempts  = 100
+	maximumAuthRateLimitWindow    = 24 * time.Hour
+	maximumAuthRateLimitMaxKeys   = 100000
+	defaultMonitoringPollInterval = 10 * time.Second
+	defaultMonitoringConcurrency  = 4
+	maximumMonitoringConcurrency  = 4
 	minimumBootstrapTokenLength   = 32
 	maximumBootstrapTokenLength   = 512
 )
@@ -46,7 +55,12 @@ type Config struct {
 	SessionIdleTTL                time.Duration `mapstructure:"AKRITAS_SESSION_IDLE_TTL"`
 	SessionAbsoluteTTL            time.Duration `mapstructure:"AKRITAS_SESSION_ABSOLUTE_TTL"`
 	SessionCookieSecure           bool          `mapstructure:"AKRITAS_SESSION_COOKIE_SECURE"`
+	AuthRateLimitAttempts         int           `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS"`
+	AuthRateLimitWindow           time.Duration `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_WINDOW"`
+	AuthRateLimitMaxKeys          int           `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS"`
 	AllowedOriginsValue           string        `mapstructure:"AKRITAS_ALLOWED_ORIGINS"`
+	MonitoringPollInterval        time.Duration `mapstructure:"AKRITAS_MONITORING_POLL_INTERVAL"`
+	MonitoringConcurrency         int           `mapstructure:"AKRITAS_MONITORING_CONCURRENCY"`
 
 	// Derived secrets are populated only after validation. The raw fields above
 	// are cleared before Config leaves this package.
@@ -119,7 +133,7 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 	paginationSecret := []byte(raw.PaginationSecretValue)
 	bootstrapToken := []byte(raw.BootstrapTokenValue)
 
-	if len(paginationSecret) < minimumPaginationSecretLength || len(bootstrapToken) < minimumBootstrapTokenLength || len(bootstrapToken) > maximumBootstrapTokenLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 || raw.SessionIdleTTL <= 0 || raw.SessionAbsoluteTTL <= 0 || raw.SessionIdleTTL > raw.SessionAbsoluteTTL || !raw.SessionCookieSecure {
+	if len(paginationSecret) < minimumPaginationSecretLength || len(bootstrapToken) < minimumBootstrapTokenLength || len(bootstrapToken) > maximumBootstrapTokenLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 || raw.SessionIdleTTL <= 0 || raw.SessionAbsoluteTTL <= 0 || raw.SessionIdleTTL > raw.SessionAbsoluteTTL || !raw.SessionCookieSecure || raw.AuthRateLimitAttempts < 1 || raw.AuthRateLimitAttempts > maximumAuthRateLimitAttempts || raw.AuthRateLimitWindow <= 0 || raw.AuthRateLimitWindow > maximumAuthRateLimitWindow || raw.AuthRateLimitMaxKeys < 1 || raw.AuthRateLimitMaxKeys > maximumAuthRateLimitMaxKeys || raw.MonitoringPollInterval <= 0 || raw.MonitoringConcurrency < 1 || raw.MonitoringConcurrency > maximumMonitoringConcurrency {
 		clear(masterKey)
 		clear(bootstrapToken)
 		return Config{}, ErrInvalidRuntimeConfiguration
@@ -190,6 +204,11 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("AKRITAS_SESSION_IDLE_TTL", defaultSessionIdleTTL)
 	v.SetDefault("AKRITAS_SESSION_ABSOLUTE_TTL", defaultSessionAbsoluteTTL)
 	v.SetDefault("AKRITAS_SESSION_COOKIE_SECURE", defaultSessionCookieSecure)
+	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS", defaultAuthRateLimitAttempts)
+	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_WINDOW", defaultAuthRateLimitWindow)
+	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS", defaultAuthRateLimitMaxKeys)
+	v.SetDefault("AKRITAS_MONITORING_POLL_INTERVAL", defaultMonitoringPollInterval)
+	v.SetDefault("AKRITAS_MONITORING_CONCURRENCY", defaultMonitoringConcurrency)
 }
 
 func bindEnvironment(v *viper.Viper) {

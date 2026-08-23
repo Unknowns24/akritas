@@ -17,13 +17,17 @@ func TestConsumeTOTPPeriodIsStrictCompareAndSet(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 
-	consumed, err := repo.ConsumeTOTPPeriod(context.Background(), admin.ID, 123456789)
+	consumed, err := repo.ConsumeTOTPPeriod(context.Background(), admin.ID, "hash", 123456789)
 	if err != nil || !consumed {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	consumed, err = repo.ConsumeTOTPPeriod(context.Background(), admin.ID, 123456789)
+	consumed, err = repo.ConsumeTOTPPeriod(context.Background(), admin.ID, "hash", 123456789)
 	if err != nil || consumed {
 		t.Fatalf("same period must not be consumed twice: consumed=%v err=%v", consumed, err)
+	}
+	consumed, err = repo.ConsumeTOTPPeriod(context.Background(), admin.ID, "stale-hash", 123456790)
+	if err != nil || consumed {
+		t.Fatalf("stale password generation must not consume period: consumed=%v err=%v", consumed, err)
 	}
 
 	creds, err := repo.FindByEmail(context.Background(), "admin@example.com")

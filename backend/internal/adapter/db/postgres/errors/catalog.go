@@ -30,4 +30,14 @@ func Catalog() map[string]*domain.Error {
 		"ErrOperationPersistence":     ErrOperationPersistence,
 		"ErrEvidencePersistence":      ErrEvidencePersistence,
 	}
+var ErrIncidentPersistence = &domain.Error{
+	Code: "0x207001I", Message: "incident persistence failure", UserMessage: "No se pudo consultar el incidente.",
+}
+
+var ErrMonitoringPersistence = &domain.Error{
+	Code: "0x208001I", Message: "monitoring persistence failure", UserMessage: "No se pudo guardar el estado de monitoreo.",
+}
+
+func Catalog() map[string]*domain.Error {
+	return map[string]*domain.Error{"ErrIntegrationPersistence": ErrIntegrationPersistence, "ErrProjectPersistence": ErrProjectPersistence, "ErrIncidentPersistence": ErrIncidentPersistence, "ErrMonitoringPersistence": ErrMonitoringPersistence}
 }

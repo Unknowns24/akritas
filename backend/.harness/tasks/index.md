@@ -2,6 +2,7 @@
 
 | ID | Estado | Tipo | Descripción |
 | --- | --- | --- | --- |
+| AKR-68-69-AUTH-RECOVERY-HARDENING | complete | backend-api-feature | Recovery password/TOTP, rate limiting acotado y sesiones robustas |
 | AKR-AUTH-INTEGRATION | complete | backend-api-feature | Integración limpia de autenticación sobre el backend milestone |
 | AKR-H1-INTEGRATIONS | complete | backend-api-feature | GitHub/Dokploy, Credential Store y discovery del Hito 1 |
 | AKR-OPENAPI-MVP | complete | backend-api-feature | OpenAPI v1, autenticacion TOTP y contratos del MVP |
@@ -16,3 +17,5 @@
 | AKR-QVAC-INFERENCE | complete | backend-service-feature | PB-028/032/033/034/035: runner QVAC local + resultado estructurado |
 | AKR-QVAC-TOOL-LOOP | complete | backend-service-feature | PB-029: loop de tool calling allowlisted read-only |
 | AKR-GITHUB-REPO-TOOLS | complete | backend-service-feature | PB-030/031: search_code/read_file/commits/diffs vía adapter GitHub |
+| AKR-H2-DETECTION-INCIDENTS | complete | backend-api-feature | Ingesta incremental, Detection Engine determinístico, LogEvents e Incidents |
+| AKR-REST-CORS | complete | backend-api-feature | CORS credentialed global mediante middleware oficial de Chi |

@@ -50,7 +50,7 @@ func NewStartAdministratorSetupUseCase(
 }
 
 func (uc *startAdministratorSetupUseCase) Execute(ctx context.Context, input in.StartAdministratorSetupInput) (in.StartAdministratorSetupOutput, error) {
-	allowed, err := uc.rateLimiter.Allow(ctx, input.RateLimitKey)
+	allowed, err := uc.rateLimiter.Allow(ctx, "ip:"+input.RateLimitKey)
 	if err != nil {
 		return in.StartAdministratorSetupOutput{}, err
 	}

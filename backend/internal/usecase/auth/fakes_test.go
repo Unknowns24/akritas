@@ -34,6 +34,12 @@ type fakeAdministratorRepository struct {
 	updatePeriodCalled  bool
 	updatedPeriodID     uuid.UUID
 	updatedPeriod       int64
+	updatedPasswordHash string
+
+	rotateResult        bool
+	rotateErr           error
+	rotateCalled        bool
+	rotatedPasswordHash string
 }
 
 func (f *fakeAdministratorRepository) ExistsActive(ctx context.Context) (bool, error) {
@@ -67,14 +73,27 @@ func (f *fakeAdministratorRepository) FindByEmail(ctx context.Context, email str
 	return f.findByEmailResult, f.findByEmailErr
 }
 
-func (f *fakeAdministratorRepository) ConsumeTOTPPeriod(ctx context.Context, id uuid.UUID, period int64) (bool, error) {
+func (f *fakeAdministratorRepository) ConsumeTOTPPeriod(ctx context.Context, id uuid.UUID, expectedPasswordHash string, period int64) (bool, error) {
 	f.updatePeriodCalled = true
 	if f.consumePeriodErr != nil {
 		return false, f.consumePeriodErr
 	}
 	f.updatedPeriodID = id
 	f.updatedPeriod = period
+	f.updatedPasswordHash = expectedPasswordHash
 	return !f.consumePeriodReject, nil
+}
+
+func (f *fakeAdministratorRepository) RotateCredentials(ctx context.Context, id uuid.UUID, expectedPasswordHash, newPasswordHash string, acceptedTOTPPeriod int64, updatedAt time.Time) (bool, error) {
+	f.rotateCalled = true
+	f.rotatedPasswordHash = newPasswordHash
+	if f.rotateErr != nil {
+		return false, f.rotateErr
+	}
+	if !f.rotateResult {
+		return false, nil
+	}
+	return true, nil
 }
 
 type fakePendingEnrollmentRepository struct {
@@ -106,6 +125,15 @@ func (f *fakePendingEnrollmentRepository) Replace(ctx context.Context, enrollmen
 func (f *fakePendingEnrollmentRepository) FindByID(ctx context.Context, id uuid.UUID) (*out.PendingEnrollmentAuthentication, error) {
 	f.findCalled = true
 	return f.findResult, f.findErr
+}
+
+func (f *fakePendingEnrollmentRepository) Consume(ctx context.Context, id uuid.UUID) (*out.PendingEnrollmentAuthentication, error) {
+	f.deleteCalled = true
+	f.deletedID = id
+	if f.deleteErr != nil {
+		return nil, f.deleteErr
+	}
+	return f.findResult, nil
 }
 
 func (f *fakePendingEnrollmentRepository) Delete(ctx context.Context, id uuid.UUID) error {
@@ -264,6 +292,9 @@ type fakeAdministratorSessionRepository struct {
 	revokeCalled     bool
 	revokedSessionID uuid.UUID
 	revokedAt        time.Time
+	revokeAllErr     error
+	revokeAllCalled  bool
+	revokedAdminID   uuid.UUID
 }
 
 func (f *fakeAdministratorSessionRepository) Save(ctx context.Context, session *domain.AdministratorSession, tokenHash string) error {
@@ -291,6 +322,28 @@ func (f *fakeAdministratorSessionRepository) UpdateIdleExpiry(ctx context.Contex
 	return nil
 }
 
+func (f *fakeAdministratorSessionRepository) RefreshActive(ctx context.Context, tokenHash string, now, requestedIdleExpiry time.Time) (*domain.AdministratorSession, error) {
+	f.findByTokenHashCalled = true
+	if f.findByTokenHashErr != nil {
+		return nil, f.findByTokenHashErr
+	}
+	if f.updateIdleErr != nil {
+		return nil, f.updateIdleErr
+	}
+	if f.findByTokenHashResult == nil || !f.findByTokenHashResult.IsActive(now) {
+		return nil, nil
+	}
+	session := *f.findByTokenHashResult
+	if requestedIdleExpiry.After(session.AbsoluteExpiresAt) {
+		requestedIdleExpiry = session.AbsoluteExpiresAt
+	}
+	session.IdleExpiresAt = requestedIdleExpiry
+	f.updateIdleCalled = true
+	f.updatedIdleSessionID = session.ID
+	f.updatedIdleExpiresAt = requestedIdleExpiry
+	return &session, nil
+}
+
 func (f *fakeAdministratorSessionRepository) Revoke(ctx context.Context, id uuid.UUID, revokedAt time.Time) error {
 	f.revokeCalled = true
 	if f.revokeErr != nil {
@@ -299,6 +352,12 @@ func (f *fakeAdministratorSessionRepository) Revoke(ctx context.Context, id uuid
 	f.revokedSessionID = id
 	f.revokedAt = revokedAt
 	return nil
+}
+
+func (f *fakeAdministratorSessionRepository) RevokeAll(ctx context.Context, administratorID uuid.UUID, revokedAt time.Time) error {
+	f.revokeAllCalled = true
+	f.revokedAdminID = administratorID
+	return f.revokeAllErr
 }
 
 type fakeSessionTokenGenerator struct {

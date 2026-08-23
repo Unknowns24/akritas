@@ -22,6 +22,9 @@ type PendingEnrollmentRepository interface {
 	Replace(ctx context.Context, enrollment *domain.PendingEnrollment, passwordHash string) (*uuid.UUID, error)
 	// FindByID returns (nil, nil) when no enrollment with that id exists.
 	FindByID(ctx context.Context, id uuid.UUID) (*PendingEnrollmentAuthentication, error)
+	// Consume atomically deletes and returns the enrollment. An outer
+	// transaction rollback restores it together with related writes.
+	Consume(ctx context.Context, id uuid.UUID) (*PendingEnrollmentAuthentication, error)
 	// Delete consumes the enrollment. Deleting an id that no longer exists
 	// is not an error.
 	Delete(ctx context.Context, id uuid.UUID) error

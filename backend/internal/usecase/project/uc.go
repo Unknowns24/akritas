@@ -9,15 +9,21 @@ import (
 )
 
 type UseCase struct {
-	projects portsout.ProjectStore
-	accounts portsout.GitHubAccountReader
-	servers  portsout.DokployServerReader
-	github   portsout.GitHubRepositoryResolver
-	dokploy  portsout.DokployApplicationResolver
-	newID    func() uuid.UUID
-	now      func() time.Time
+	projects   portsout.ProjectStore
+	accounts   portsout.GitHubAccountReader
+	servers    portsout.DokployServerReader
+	github     portsout.GitHubRepositoryResolver
+	dokploy    portsout.DokployApplicationResolver
+	monitoring portsout.MonitoringStore
+	transactor portsout.Transactor
+	newID      func() uuid.UUID
+	now        func() time.Time
 }
 
 func New(projects portsout.ProjectStore, accounts portsout.GitHubAccountReader, servers portsout.DokployServerReader, github portsout.GitHubRepositoryResolver, dokploy portsout.DokployApplicationResolver, newID func() uuid.UUID, now func() time.Time) portsin.ProjectUseCase {
 	return &UseCase{projects: projects, accounts: accounts, servers: servers, github: github, dokploy: dokploy, newID: newID, now: now}
+}
+
+func NewWithMonitoring(projects portsout.ProjectStore, accounts portsout.GitHubAccountReader, servers portsout.DokployServerReader, github portsout.GitHubRepositoryResolver, dokploy portsout.DokployApplicationResolver, monitoring portsout.MonitoringStore, transactor portsout.Transactor, newID func() uuid.UUID, now func() time.Time) portsin.ProjectUseCase {
+	return &UseCase{projects: projects, accounts: accounts, servers: servers, github: github, dokploy: dokploy, monitoring: monitoring, transactor: transactor, newID: newID, now: now}
 }

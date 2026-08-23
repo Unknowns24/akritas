@@ -2,6 +2,7 @@ package out
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -27,5 +28,6 @@ type AdministratorRepository interface {
 	// FindByEmail returns (nil, nil) when no administrator with that email
 	// exists.
 	FindByEmail(ctx context.Context, email string) (*AdministratorAuthentication, error)
-	ConsumeTOTPPeriod(ctx context.Context, id uuid.UUID, period int64) (bool, error)
+	ConsumeTOTPPeriod(ctx context.Context, id uuid.UUID, expectedPasswordHash string, period int64) (bool, error)
+	RotateCredentials(ctx context.Context, id uuid.UUID, expectedPasswordHash, newPasswordHash string, acceptedTOTPPeriod int64, updatedAt time.Time) (bool, error)
 }

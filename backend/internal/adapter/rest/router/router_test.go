@@ -17,6 +17,7 @@ import (
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
 	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
 	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
+	incidenthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/incident"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	restmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
@@ -98,6 +99,18 @@ type fakeDokployServers struct {
 
 type fakeProjects struct {
 	createCalls int
+}
+
+type fakeIncidents struct{}
+
+func (*fakeIncidents) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
+	return nil, domain.ErrIncidentNotFound
+}
+func (*fakeIncidents) List(context.Context, paging.Params) (paging.Slice[domain.Incident], error) {
+	return paging.Slice[domain.Incident]{}, nil
+}
+func (*fakeIncidents) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
+	return paging.Slice[domain.LogEvent]{}, nil
 }
 
 func (f *fakeProjects) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
@@ -206,32 +219,42 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
-	investigations := &fakeInvestigations{}
-	investigationHandler, err := investigationhandler.New(investigations, paging)
-	if err != nil {
-		panic(err)
-	}
-	operations := &fakeOperations{}
-	operationHandler, err := operationhandler.New(operations)
-	if err != nil {
-		panic(err)
-	}
-	evidence := &fakeEvidence{}
-	evidenceHandler, err := evidencehandler.New(evidence, paging)
-	if err != nil {
-		panic(err)
-	}
+  
+  investigations := &fakeInvestigations{}
+  investigationHandler, err := investigationhandler.New(investigations, paging)
+  if err != nil {
+    panic(err)
+  }
+
+  operations := &fakeOperations{}
+  operationHandler, err := operationhandler.New(operations)
+  if err != nil {
+    panic(err)
+  }
+
+  evidence := &fakeEvidence{}
+  evidenceHandler, err := evidencehandler.New(evidence, paging)
+  if err != nil {
+    panic(err)
+  }
+
+  incidentHandler, err := incidenthandler.New(&fakeIncidents{}, paging)
+  if err != nil {
+    panic(err)
+  }
+  
 	return &routerFixture{
 		config: Config{
 			Handlers: &resthandler.Handlers{
-				AuthHandler:          &authhandler.Handler{},
-				GitHubHandler:        githubHandler,
-				DokployHandler:       dokployHandler,
-				ProjectHandler:       projectHandler,
-				InvestigationHandler: investigationHandler,
-				OperationHandler:     operationHandler,
-				EvidenceHandler:      evidenceHandler,
-			},
+        AuthHandler:          &authhandler.Handler{},
+        GitHubHandler:        githubHandler,
+        DokployHandler:       dokployHandler,
+        ProjectHandler:       projectHandler,
+        IncidentHandler:      incidentHandler,
+        InvestigationHandler: investigationHandler,
+        OperationHandler:     operationHandler,
+        EvidenceHandler:      evidenceHandler,
+      },
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
 			AllowedOrigins: []string{"https://app.example.com"},
@@ -294,6 +317,7 @@ func TestRouterFailsClosedWithoutCompleteHandlers(t *testing.T) {
 		{name: "missing Investigation", mutate: func(config *Config) { config.Handlers.InvestigationHandler = nil }},
 		{name: "missing Operation", mutate: func(config *Config) { config.Handlers.OperationHandler = nil }},
 		{name: "missing Evidence", mutate: func(config *Config) { config.Handlers.EvidenceHandler = nil }},
+		{name: "missing Incident", mutate: func(config *Config) { config.Handlers.IncidentHandler = nil }},
 	}
 
 	for _, test := range tests {
@@ -331,6 +355,9 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"DELETE /api/v1/projects/{project_id}",
 		"GET /api/v1/auth/session",
 		"GET /api/v1/auth/setup-status",
+		"GET /api/v1/incidents",
+		"GET /api/v1/incidents/{incident_id}",
+		"GET /api/v1/incidents/{incident_id}/log-events",
 		"GET /api/v1/integrations/dokploy/servers",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}/applications",
@@ -350,6 +377,8 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"PATCH /api/v1/integrations/github/accounts/{account_id}",
 		"PATCH /api/v1/projects/{project_id}",
 		"POST /api/v1/auth/login",
+		"POST /api/v1/auth/recovery",
+		"POST /api/v1/auth/recovery/verify",
 		"POST /api/v1/auth/setup",
 		"POST /api/v1/auth/setup/verify",
 		"POST /api/v1/incidents/{incident_id}/investigations",

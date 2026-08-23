@@ -1,0 +1,62 @@
+package monitoring
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
+	"github.com/google/uuid"
+)
+
+func TestDisabledProjectFinalizesStateWithoutAcquiringLogs(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	configuration := domain.DefaultMonitoringConfiguration()
+	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusDisabled, MonitoringConfiguration: configuration, DokployApplication: domain.DokployApplication{ApplicationIdentifier: "app", InstanceIdentifier: "instance"}}
+	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceApplicationID: "app", SourceInstanceID: "instance", Version: 1, State: domain.MonitoringAssemblyState{Pending: []domain.PendingLogOccurrence{}}}
+	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint}
+	servers := &serverReaderStub{}
+	logs := &logSourceStub{}
+	service, err := New(store, servers, logs, immediateTransactor{}, uuid.New, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessProject(context.Background(), *project); err != nil {
+		t.Fatal(err)
+	}
+	if logs.calls != 0 || servers.calls != 0 {
+		t.Fatalf("disabled Project acquired provider state: logs=%d servers=%d", logs.calls, servers.calls)
+	}
+	if store.checkpoint.Version != 2 || project.MonitoringStatus != domain.MonitoringStatusDisabled {
+		t.Fatalf("state was not finalized durably: checkpoint=%+v project=%+v", store.checkpoint, project)
+	}
+}
+
+func TestPersistenceFailureDoesNotAdvanceCursor(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	configuration := domain.DefaultMonitoringConfiguration()
+	configuration.Enabled = true
+	serverID := uuid.New()
+	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusStarting, MonitoringConfiguration: configuration, DokployApplication: domain.DokployApplication{DokployServerID: serverID, ApplicationIdentifier: "app", InstanceIdentifier: "instance"}}
+	anchor := now.Add(-time.Minute)
+	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceApplicationID: "app", SourceInstanceID: "instance", Version: 1, CursorTimestamp: &anchor, CursorContentHash: "anchor", State: domain.MonitoringAssemblyState{}}
+	persistenceFailure := errors.New("persistence failed")
+	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint, updateCheckpointErr: persistenceFailure}
+	servers := &serverReaderStub{}
+	logs := &logSourceStub{records: []portsout.RawLogRecord{{Timestamp: now, Ordinal: 0, ContentHash: "new", Message: "ordinary log"}}}
+	service, err := New(store, servers, logs, immediateTransactor{}, uuid.New, func() time.Time { return now })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := service.ProcessProject(context.Background(), *project); !errors.Is(err, persistenceFailure) {
+		t.Fatalf("error = %v", err)
+	}
+	if store.checkpoint.Version != 1 || store.checkpoint.CursorContentHash != "anchor" || !store.checkpoint.CursorTimestamp.Equal(anchor) {
+		t.Fatalf("cursor advanced after failure: %+v", store.checkpoint)
+	}
+	if project.MonitoringStatus != domain.MonitoringStatusError {
+		t.Fatalf("initial failure status = %s", project.MonitoringStatus)
+	}
+}

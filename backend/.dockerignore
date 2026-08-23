@@ -1,0 +1,11 @@
+.env
+.env.*
+app.env
+config/app.env
+.git
+.gitignore
+.harness
+Dockerfile*
+README.md
+coverage.out
+*.test

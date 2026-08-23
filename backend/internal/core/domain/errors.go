@@ -109,6 +109,15 @@ var (
 	ErrProjectConcurrentModification     = newDomainError("0x503007C", "project changed concurrently", "El proyecto cambió; volvé a intentar la operación.")
 	ErrProjectDefaultBranchMismatch      = newDomainError("0x503008V", "project default branch mismatch", "La rama predeterminada no coincide con GitHub.")
 	ErrProjectHasDependencies            = newDomainError("0x503009C", "project has dependencies", "El proyecto tiene registros asociados y no puede eliminarse.")
+	ErrInvalidOperationType              = newDomainError("0x407001V", "invalid operation type", "El tipo de operación no es válido.")
+	ErrInvalidOperationStatus            = newDomainError("0x407002V", "invalid operation status", "El estado de la operación no es válido.")
+	ErrInvalidOperationResourceType      = newDomainError("0x407003V", "invalid operation resource type", "El tipo de recurso de la operación no es válido.")
+	ErrInvalidOperation                  = newDomainError("0x407004V", "invalid operation", "La operación no es válida.")
+	ErrOperationTransition               = newDomainError("0x407005C", "invalid operation transition", "La operación no puede cambiar a ese estado.")
+	ErrIncidentNotFound                  = newDomainError("0x504001N", "incident not found", "El incidente no existe.")
+	ErrInvestigationNotFound             = newDomainError("0x504002N", "investigation not found", "La investigación no existe.")
+	ErrInvestigationAlreadyActive        = newDomainError("0x504003C", "investigation already active", "Ya hay una investigación en curso para este incidente.")
+	ErrOperationNotFound                 = newDomainError("0x505001N", "operation not found", "La operación no existe.")
 )
 
 // DomainErrors returns the complete stable catalog keyed by sentinel name.
@@ -161,6 +170,11 @@ func DomainErrors() map[string]*Error {
 		"ErrValidationTransition":              ErrValidationTransition,
 		"ErrInvalidCodeChange":                 ErrInvalidCodeChange,
 		"ErrInvalidPullRequestReference":       ErrInvalidPullRequestReference,
+		"ErrInvalidOperationType":              ErrInvalidOperationType,
+		"ErrInvalidOperationStatus":            ErrInvalidOperationStatus,
+		"ErrInvalidOperationResourceType":      ErrInvalidOperationResourceType,
+		"ErrInvalidOperation":                  ErrInvalidOperation,
+		"ErrOperationTransition":               ErrOperationTransition,
 	}
 }
 
@@ -195,5 +209,21 @@ func ProjectErrors() map[string]*Error {
 		"ErrProjectConcurrentModification": ErrProjectConcurrentModification,
 		"ErrProjectDefaultBranchMismatch":  ErrProjectDefaultBranchMismatch,
 		"ErrProjectHasDependencies":        ErrProjectHasDependencies,
+	}
+}
+
+// InvestigationErrors returns stable errors introduced by the investigation application boundary.
+func InvestigationErrors() map[string]*Error {
+	return map[string]*Error{
+		"ErrIncidentNotFound":           ErrIncidentNotFound,
+		"ErrInvestigationNotFound":      ErrInvestigationNotFound,
+		"ErrInvestigationAlreadyActive": ErrInvestigationAlreadyActive,
+	}
+}
+
+// OperationErrors returns stable errors introduced by the operation application boundary.
+func OperationErrors() map[string]*Error {
+	return map[string]*Error{
+		"ErrOperationNotFound": ErrOperationNotFound,
 	}
 }

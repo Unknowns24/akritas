@@ -26,23 +26,23 @@ func (s InvestigationStatus) Validate() error {
 }
 
 type Investigation struct {
-	ID                 uuid.UUID
-	IncidentID         uuid.UUID
-	Status             InvestigationStatus
-	CreatedAt          time.Time
-	StartedAt          *time.Time
-	FinishedAt         *time.Time
-	Summary            string
-	RootCause          string
-	RootCauseStatus    *RootCauseStatus
-	ResolutionStatus   *ResolutionStatus
-	Confidence         *float64
-	Hypotheses         []string
-	RelevantFiles      []string
-	RelevantCommits    []string
-	RecommendedActions []string
-	EvidenceCount      int
-	FailureUserMessage string
+	ID                 uuid.UUID           `gorm:"column:id;type:uuid;primaryKey"`
+	IncidentID         uuid.UUID           `gorm:"column:incident_id;type:uuid"`
+	Status             InvestigationStatus `gorm:"column:status"`
+	CreatedAt          time.Time           `gorm:"column:created_at"`
+	StartedAt          *time.Time          `gorm:"column:started_at"`
+	FinishedAt         *time.Time          `gorm:"column:finished_at"`
+	Summary            string              `gorm:"column:summary"`
+	RootCause          string              `gorm:"column:root_cause"`
+	RootCauseStatus    *RootCauseStatus    `gorm:"column:root_cause_status"`
+	ResolutionStatus   *ResolutionStatus   `gorm:"column:resolution_status"`
+	Confidence         *float64            `gorm:"column:confidence"`
+	Hypotheses         []string            `gorm:"serializer:json;type:jsonb;column:hypotheses"`
+	RelevantFiles      []string            `gorm:"serializer:json;type:jsonb;column:relevant_files"`
+	RelevantCommits    []string            `gorm:"serializer:json;type:jsonb;column:relevant_commits"`
+	RecommendedActions []string            `gorm:"serializer:json;type:jsonb;column:recommended_actions"`
+	EvidenceCount      int                 `gorm:"column:evidence_count"`
+	FailureUserMessage string              `gorm:"column:failure_user_message"`
 }
 
 func NewInvestigation(id, incidentID uuid.UUID, createdAt time.Time) (*Investigation, error) {

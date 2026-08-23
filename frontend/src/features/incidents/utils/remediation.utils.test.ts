@@ -6,8 +6,7 @@ import {
   getRemediationStatusConfig,
   hasValidationPassed,
   hasValidationFailed,
-} from "./remediation.utils";
-
+} from "./remediation.utils.ts";
 describe("Remediation Utilities - FE-H5-01", () => {
   it("should identify fixable vs requires_human resolution status correctly", () => {
     assert.equal(isRemediationFixable("fixable"), true);

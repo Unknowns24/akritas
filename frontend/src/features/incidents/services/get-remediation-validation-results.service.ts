@@ -34,3 +34,4 @@ export async function getRemediationValidationResultsService({
 
   return data.data;
 }
+

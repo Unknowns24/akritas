@@ -254,3 +254,4 @@ export function buildIncidentTraceabilityChain(incident: Incident): Traceability
 
   return steps;
 }
+

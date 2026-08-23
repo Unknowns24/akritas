@@ -26,3 +26,4 @@ export interface TraceabilityStep {
   badgeText?: string;
   badgeVariant?: "neutral" | "running" | "success" | "error" | "warning";
 }
+

@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { Incident } from "../services/get-incident.service";
-import { buildIncidentTraceabilityChain } from "./traceability.utils";
+import { buildIncidentTraceabilityChain } from "./traceability.utils.ts";
 
 describe("Traceability Chain Builder - FE-H5-04", () => {
   const baseIncident: Incident = {
@@ -159,3 +159,4 @@ describe("Traceability Chain Builder - FE-H5-04", () => {
     assert.equal(prStep?.status, "failed");
   });
 });
+

@@ -119,3 +119,4 @@ export function TraceabilityStepNode({ step }: TraceabilityStepNodeProps) {
     </div>
   );
 }
+

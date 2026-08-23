@@ -6,6 +6,7 @@ package stub
 import (
 	"context"
 
+	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	"github.com/google/uuid"
 )
 
@@ -22,4 +23,8 @@ func NewDenyAllIncidentReader() *DenyAllIncidentReader {
 
 func (r *DenyAllIncidentReader) Exists(ctx context.Context, incidentID uuid.UUID) (bool, error) {
 	return false, nil
+}
+
+func (r *DenyAllIncidentReader) Get(ctx context.Context, incidentID uuid.UUID) (*domain.Incident, error) {
+	return nil, domain.ErrIncidentNotFound
 }

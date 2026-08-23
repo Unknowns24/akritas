@@ -17,6 +17,8 @@ type startDeps struct {
 	operations     *fakeOperationStore
 	dispatcher     *fakeInvestigationDispatcher
 	runner         *fakeInvestigationRunner
+	evidence       *fakeEvidenceStore
+	assembler      *fakeEvidenceAssembler
 	now            time.Time
 }
 
@@ -27,6 +29,8 @@ func newStartDeps() *startDeps {
 		operations:     &fakeOperationStore{},
 		dispatcher:     &fakeInvestigationDispatcher{},
 		runner:         &fakeInvestigationRunner{},
+		evidence:       &fakeEvidenceStore{},
+		assembler:      &fakeEvidenceAssembler{},
 		now:            time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC),
 	}
 }
@@ -47,7 +51,7 @@ func (d *startDeps) usecase() *UseCase {
 }
 
 func (d *startDeps) runUseCase() *RunUseCase {
-	return NewRunUseCase(d.investigations, d.operations, d.runner, func() time.Time { return d.now })
+	return NewRunUseCase(d.investigations, d.operations, d.evidence, d.assembler, d.runner, func() time.Time { return d.now })
 }
 
 func TestStartIncidentInvestigationHappyPathQueuesAndDispatches(t *testing.T) {

@@ -41,6 +41,8 @@ func New(
 type RunUseCase struct {
 	investigations portsout.InvestigationStore
 	operations     portsout.OperationStore
+	evidence       portsout.EvidenceStore
+	assembler      portsout.EvidenceAssembler
 	runner         portsout.InvestigationRunner
 	now            func() time.Time
 }
@@ -48,8 +50,13 @@ type RunUseCase struct {
 func NewRunUseCase(
 	investigations portsout.InvestigationStore,
 	operations portsout.OperationStore,
+	evidence portsout.EvidenceStore,
+	assembler portsout.EvidenceAssembler,
 	runner portsout.InvestigationRunner,
 	now func() time.Time,
 ) *RunUseCase {
-	return &RunUseCase{investigations: investigations, operations: operations, runner: runner, now: now}
+	return &RunUseCase{
+		investigations: investigations, operations: operations,
+		evidence: evidence, assembler: assembler, runner: runner, now: now,
+	}
 }

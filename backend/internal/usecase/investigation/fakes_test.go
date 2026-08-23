@@ -10,12 +10,18 @@ import (
 )
 
 type fakeIncidentReader struct {
-	exists bool
-	err    error
+	exists    bool
+	err       error
+	getResult *domain.Incident
+	getErr    error
 }
 
 func (f *fakeIncidentReader) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	return f.exists, f.err
+}
+
+func (f *fakeIncidentReader) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+	return f.getResult, f.getErr
 }
 
 type fakeInvestigationStore struct {
@@ -119,8 +125,36 @@ func (f *fakeInvestigationDispatcher) Dispatch(investigationID, operationID uuid
 type fakeInvestigationRunner struct {
 	result out.InvestigationRunResult
 	err    error
+	calls  int
 }
 
 func (f *fakeInvestigationRunner) Run(ctx context.Context, investigation domain.Investigation) (out.InvestigationRunResult, error) {
+	f.calls++
+	return f.result, f.err
+}
+
+type fakeEvidenceStore struct {
+	createErr error
+	created   []domain.Evidence
+}
+
+func (f *fakeEvidenceStore) Create(ctx context.Context, value *domain.Evidence) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+	f.created = append(f.created, *value)
+	return nil
+}
+
+func (f *fakeEvidenceStore) ListByInvestigation(ctx context.Context, investigationID uuid.UUID, params paging.Params) (paging.Slice[domain.Evidence], error) {
+	return paging.Slice[domain.Evidence]{}, nil
+}
+
+type fakeEvidenceAssembler struct {
+	result []domain.Evidence
+	err    error
+}
+
+func (f *fakeEvidenceAssembler) Assemble(ctx context.Context, investigation domain.Investigation) ([]domain.Evidence, error) {
 	return f.result, f.err
 }

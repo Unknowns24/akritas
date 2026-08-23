@@ -37,6 +37,20 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 		return err
 	}
 
+	assembled, err := uc.assembler.Assemble(ctx, *investigation)
+	if err != nil {
+		return err
+	}
+	for i := range assembled {
+		if err := uc.evidence.Create(ctx, &assembled[i]); err != nil {
+			return err
+		}
+	}
+	investigation.EvidenceCount = len(assembled)
+	if err := uc.investigations.Update(ctx, investigation); err != nil {
+		return err
+	}
+
 	result, runErr := uc.runner.Run(ctx, *investigation)
 	finishedAt := uc.now().UTC()
 	if runErr != nil {

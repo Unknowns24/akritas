@@ -16,4 +16,5 @@ type UseCases struct {
 	Project                  ProjectUseCase
 	Investigation            InvestigationUseCase
 	Operation                OperationUseCase
+	Evidence                 EvidenceUseCase
 }

@@ -619,9 +619,10 @@ paths:
       operationId: startGitHubAppManifestRegistration
       summary: Create a one-time GitHub App Manifest registration handoff
       description: |
-        Returns the GitHub form action, JSON manifest and unpredictable state.
-        The browser submits them directly to GitHub. The registration must be
-        completed within one hour.
+        Returns a GitHub form action that already contains the unpredictable,
+        one-time state required by the Manifest handoff. The browser must POST
+        the manifest field to that URL without adding or reconstructing protocol
+        query parameters. The registration must be completed within one hour.
       requestBody:
         required: true
         content:
@@ -1718,8 +1719,9 @@ components:
       in: cookie
       name: akritas_session
       description: |
-        Opaque server-side session cookie. Production uses Secure, HttpOnly,
-        SameSite=Lax and Path=/. The value is never exposed to JavaScript.
+        Opaque server-side session cookie. It uses Secure, HttpOnly, Path=/ and
+        a deployment-configured SameSite mode (Lax by default). The value is
+        never exposed to JavaScript.
 
   headers:
     SessionCookie:
@@ -2260,7 +2262,7 @@ components:
         form_action:
           type: string
           format: uri
-          description: github.com settings form endpoint selected for personal or organization ownership.
+          description: Fully formed github.com settings URL for personal or organization ownership, including the one-time state query parameter. Consumers POST manifest to this URL without modifying it.
         manifest:
           type: string
           description: JSON-encoded private GitHub App manifest with minimum permissions and inactive webhooks.
@@ -2268,7 +2270,7 @@ components:
           type: string
           minLength: 32
           maxLength: 512
-          description: One-time unpredictable CSRF/correlation value.
+          description: One-time unpredictable CSRF/correlation value, retained separately for response compatibility; consumers must not use it to rebuild form_action.
         expires_at:
           type: string
           format: date-time

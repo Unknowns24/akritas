@@ -318,20 +318,21 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	useCases.GitHubApp = githubAppUseCase
 	useCases.DokployServer = dokployUseCase
 	useCases.Project = projectUseCase
+  useCases.Incident = incidentUseCase
 
-	useCases.Incident = incidentUseCase
+  useCases.Investigation = investigationUseCase
+  useCases.Operation = operationUseCase
+  useCases.Evidence = evidenceUseCase
 
-	useCases.Investigation = investigationUseCase
-	useCases.Operation = operationUseCase
-	useCases.Evidence = evidenceUseCase
+  handlers, err := resthandler.NewHandlers(
+    resthandler.HandlersConfig{
+      UseCases:              &useCases,
+      Pagination:            pagingConfig,
+      SessionCookieSecure:   configuration.SessionCookieSecure,
+      SessionCookieSameSite: configuration.SessionCookieSameSite,
+    },
+  )
 
-	handlers, err := resthandler.NewHandlers(
-		resthandler.HandlersConfig{
-			UseCases:            &useCases,
-			Pagination:          pagingConfig,
-			SessionCookieSecure: configuration.SessionCookieSecure,
-		},
-	)
 	if err != nil {
 		return nil, err
 	}

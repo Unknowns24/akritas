@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"net/http"
+
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 )
 
@@ -14,6 +16,7 @@ type Handler struct {
 	getCurrentSession           in.GetCurrentSessionUseCase
 	logoutAdministrator         in.LogoutAdministratorUseCase
 	sessionCookieSecure         bool
+	sessionCookieSameSite       http.SameSite
 }
 
 func NewHandlerWithRecovery(
@@ -26,8 +29,9 @@ func NewHandlerWithRecovery(
 	getCurrentSession in.GetCurrentSessionUseCase,
 	logoutAdministrator in.LogoutAdministratorUseCase,
 	sessionCookieSecure bool,
+	sessionCookieSameSite ...http.SameSite,
 ) *Handler {
-	handler := NewHandler(getSetupStatus, startAdministratorSetup, verifyAdministratorSetup, loginAdministrator, getCurrentSession, logoutAdministrator, sessionCookieSecure)
+	handler := NewHandler(getSetupStatus, startAdministratorSetup, verifyAdministratorSetup, loginAdministrator, getCurrentSession, logoutAdministrator, sessionCookieSecure, sessionCookieSameSite...)
 	handler.startAdministratorRecovery = startAdministratorRecovery
 	handler.verifyAdministratorRecovery = verifyAdministratorRecovery
 	return handler
@@ -41,7 +45,12 @@ func NewHandler(
 	getCurrentSession in.GetCurrentSessionUseCase,
 	logoutAdministrator in.LogoutAdministratorUseCase,
 	sessionCookieSecure bool,
+	sessionCookieSameSite ...http.SameSite,
 ) *Handler {
+	sameSite := http.SameSiteLaxMode
+	if len(sessionCookieSameSite) > 0 {
+		sameSite = sessionCookieSameSite[0]
+	}
 	return &Handler{
 		getSetupStatus:           getSetupStatus,
 		startAdministratorSetup:  startAdministratorSetup,
@@ -50,5 +59,6 @@ func NewHandler(
 		getCurrentSession:        getCurrentSession,
 		logoutAdministrator:      logoutAdministrator,
 		sessionCookieSecure:      sessionCookieSecure,
+		sessionCookieSameSite:    sameSite,
 	}
 }

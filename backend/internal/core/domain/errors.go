@@ -125,6 +125,8 @@ var (
 	ErrOperationNotFound                = newDomainError("0x505001N", "operation not found", "La operación no existe.")
 	ErrMonitoringContinuityLost         = newDomainError("0x505001I", "monitoring log continuity lost", "No se pudo verificar la continuidad de los logs.")
 	ErrMonitoringConcurrentModification = newDomainError("0x505002C", "monitoring checkpoint changed concurrently", "El monitoreo cambió; se reintentará el procesamiento.")
+	ErrRemediationNotFound              = newDomainError("0x506001N", "remediation not found", "La remediación no existe.")
+	ErrValidationStackUnsupported       = newDomainError("0x506002V", "validation stack not supported", "El stack del repositorio no es compatible con las validaciones automáticas.")
 )
 
 // DomainErrors returns the complete stable catalog keyed by sentinel name.
@@ -243,5 +245,13 @@ func InvestigationErrors() map[string]*Error {
 func OperationErrors() map[string]*Error {
 	return map[string]*Error{
 		"ErrOperationNotFound": ErrOperationNotFound,
+	}
+}
+
+// RemediationErrors returns stable errors introduced by the remediation application boundary.
+func RemediationErrors() map[string]*Error {
+	return map[string]*Error{
+		"ErrRemediationNotFound":        ErrRemediationNotFound,
+		"ErrValidationStackUnsupported": ErrValidationStackUnsupported,
 	}
 }

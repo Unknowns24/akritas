@@ -18,11 +18,16 @@ var ErrOperationPersistence = &domain.Error{
 	Code: "0x205001I", Message: "operation persistence failure", UserMessage: "No se pudo guardar la operación.",
 }
 
+var ErrEvidencePersistence = &domain.Error{
+	Code: "0x206001I", Message: "evidence persistence failure", UserMessage: "No se pudo guardar la evidencia.",
+}
+
 func Catalog() map[string]*domain.Error {
 	return map[string]*domain.Error{
 		"ErrIntegrationPersistence":   ErrIntegrationPersistence,
 		"ErrProjectPersistence":       ErrProjectPersistence,
 		"ErrInvestigationPersistence": ErrInvestigationPersistence,
 		"ErrOperationPersistence":     ErrOperationPersistence,
+		"ErrEvidencePersistence":      ErrEvidencePersistence,
 	}
 }

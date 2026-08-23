@@ -78,18 +78,49 @@ export function IncidentsListClient({
                   )}
                 </div>
                 <div className={styles.incidentDetails}>
-                  <div className={styles.incidentTitle}>{inc.title}</div>
-                  <div className={styles.incidentMeta}>
-                    <span className={styles.projectId}>{inc.project.name}</span>
-                    <span className={styles.dot}>•</span>
-                    <span className={styles.time}>
-                      {new Date(inc.first_seen_at).toLocaleString()}
+                  <div className={styles.incidentHeader}>
+                    <span className={styles.incidentKey}>{inc.key}</span>
+                    <div className={styles.incidentTitle}>{inc.title}</div>
+                    <span className={styles.incidentFingerprint} title={inc.fingerprint}>
+                      {inc.fingerprint}
                     </span>
+                  </div>
+                  
+                  {inc.summary && (
+                    <div className={styles.incidentSummary}>
+                      {inc.summary}
+                    </div>
+                  )}
+
+                  <div className={styles.incidentMeta}>
+                    <div className={styles.metaItem}>
+                      <span className={styles.projectId}>{inc.project.name}</span>
+                    </div>
+                    <span className={styles.dot}>•</span>
+                    <div className={styles.metaItem}>
+                      <span>{inc.occurrence_count} occurrences</span>
+                    </div>
+                    <span className={styles.dot}>•</span>
+                    <div className={styles.metaItem}>
+                      <span className={styles.time} title={new Date(inc.first_seen_at).toLocaleString()}>
+                        First seen: {new Date(inc.first_seen_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {inc.last_seen_at && (
+                      <>
+                        <span className={styles.dot}>•</span>
+                        <div className={styles.metaItem}>
+                          <span className={styles.time} title={new Date(inc.last_seen_at).toLocaleString()}>
+                            Last seen: {new Date(inc.last_seen_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className={styles.incidentStatus}>
+              <div className={styles.incidentStatusGroup}>
                 <Badge
                   variant={
                     inc.phase === "completed"
@@ -101,10 +132,15 @@ export function IncidentsListClient({
                 >
                   {inc.phase.toUpperCase()}
                 </Badge>
+                {inc.root_cause_status && (
+                  <div className={styles.rootCauseStatus}>
+                    {inc.root_cause_status.replace("_", " ")}
+                  </div>
+                )}
               </div>
 
               <div className={styles.incidentActions}>
-                {inc.phase === "detected" && (
+                {inc.phase !== "completed" && inc.phase !== "failed" && (
                   <Button
                     variant="primary"
                     size="sm"
@@ -114,6 +150,16 @@ export function IncidentsListClient({
                     Examine
                   </Button>
                 )}
+                {inc.phase === "completed" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className={styles.actionBtn}
+                    onClick={() => window.location.href = `/incidents/${inc.id}`}
+                  >
+                    View Report
+                  </Button>
+                )}
                 {inc.phase === "failed" && (
                   <Button
                     variant="secondary"
@@ -121,7 +167,7 @@ export function IncidentsListClient({
                     className={styles.actionBtn}
                     onClick={() => alert("Retry Investigation mock triggered")}
                   >
-                    Retry Investigation
+                    Retry
                   </Button>
                 )}
               </div>

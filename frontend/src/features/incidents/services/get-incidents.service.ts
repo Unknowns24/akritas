@@ -23,7 +23,16 @@ export async function getIncidentsService(
 
   if (error) {
     if (typeof window === "undefined") {
-      return { data: [], paging: { limit: 10, total: 0, has_more: false, next_cursor: "", prev_cursor: "" } } as unknown as IncidentListResponse;
+      return {
+        data: [],
+        paging: {
+          limit: 10,
+          total: 0,
+          has_more: false,
+          next_cursor: "",
+          prev_cursor: "",
+        },
+      } as unknown as IncidentListResponse;
     }
     throw error;
   }
@@ -49,6 +58,7 @@ export async function getIncidentsService(
           summary:
             "Multiple instances reporting timeouts when connecting to the primary DB.",
           phase: "detected",
+          root_cause_status: "identified",
           occurrence_count: 37,
           first_seen_at: new Date(Date.now() - 3600000).toISOString(),
           last_seen_at: new Date().toISOString(),
@@ -62,6 +72,7 @@ export async function getIncidentsService(
           title: "Stripe API Rate Limit Exceeded",
           summary: "Payment processing degraded due to rate limiting.",
           phase: "failed",
+          root_cause_status: "unidentified",
           occurrence_count: 5,
           first_seen_at: new Date(Date.now() - 86400000).toISOString(),
           last_seen_at: new Date(Date.now() - 82800000).toISOString(),

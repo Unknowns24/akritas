@@ -5,7 +5,7 @@ Record durable project decisions here.
 ## 2026-08-22 — API contract v1
 
 - `backend/docs/openapi.yaml` is the canonical frontend/backend contract.
-- The contract uses OpenAPI 3.1.0, API version 1.4.0 and base `/api/v1`. Version 1.4.0 completes the Project lifecycle, including hard deletion while monitoring is disabled; existing paths and payloads remain compatible.
+- The contract uses OpenAPI 3.1.0, API version 2.0.0 and base `/api/v1`. Version 2.0.0 replaces the Project Dokploy application selector with the discriminated `dokploy_source` contract.
 - A GitHub Pull Request is the human-control boundary. The API does not merge, deploy or claim that production is resolved.
 
 ## 2026-08-22 — Single-administrator authentication
@@ -47,7 +47,14 @@ Record durable project decisions here.
 
 ## 2026-08-22 — Project lifecycle and integration snapshots
 
-- Project names are unique case-insensitively and a Dokploy application can be associated with only one Project.
-- Repository/application snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
+- Project names are unique case-insensitively and a Dokploy source can be associated with only one Project. Different services from the same Compose are distinct sources.
+- Repository/source snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
 - The requested GitHub `default_branch` must match provider metadata.
 - Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.
+
+## 2026-08-23 — Dokploy application and Compose sources
+
+- Project uses a discriminated `DokploySource`: `application` or `compose_service`.
+- Compose service identity is server + composeId + service name; container IDs are resolved for every fetch and never persisted.
+- Both docker-compose and stack labels are supported. One running replica is selected deterministically; multi-replica aggregation is deferred.
+- Compose service discovery uses cached source data by default and refreshes only when explicitly requested.

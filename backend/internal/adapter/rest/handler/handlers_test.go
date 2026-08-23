@@ -147,6 +147,24 @@ func (projectStub) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringCo
 	return domain.MonitoringConfiguration{}, nil
 }
 
+type investigationStub struct{}
+
+func (investigationStub) StartIncidentInvestigation(context.Context, portsin.StartIncidentInvestigationCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+func (investigationStub) GetInvestigation(context.Context, uuid.UUID) (*domain.Investigation, error) {
+	return &domain.Investigation{}, nil
+}
+func (investigationStub) ListIncidentInvestigations(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Investigation], error) {
+	return paging.Slice[domain.Investigation]{}, nil
+}
+
+type operationStub struct{}
+
+func (operationStub) GetOperation(context.Context, uuid.UUID) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
 func completeUseCases() *portsin.UseCases {
 	return &portsin.UseCases{
 		GetSetupStatus:           getSetupStatusStub{},
@@ -160,6 +178,8 @@ func completeUseCases() *portsin.UseCases {
 		GitHubApp:                githubAppStub{},
 		DokployServer:            dokployServerStub{},
 		Project:                  projectStub{},
+		Investigation:            investigationStub{},
+		Operation:                operationStub{},
 	}
 }
 
@@ -179,7 +199,8 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandlers() error = %v", err)
 	}
-	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil || handlers.ProjectHandler == nil {
+	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil ||
+		handlers.ProjectHandler == nil || handlers.InvestigationHandler == nil || handlers.OperationHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -201,6 +222,8 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing GitHub app", mutate: func(config *HandlersConfig) { config.UseCases.GitHubApp = nil }},
 		{name: "missing Dokploy server", mutate: func(config *HandlersConfig) { config.UseCases.DokployServer = nil }},
 		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
+		{name: "missing Investigation", mutate: func(config *HandlersConfig) { config.UseCases.Investigation = nil }},
+		{name: "missing Operation", mutate: func(config *HandlersConfig) { config.UseCases.Operation = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 	}
 

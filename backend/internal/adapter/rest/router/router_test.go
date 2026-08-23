@@ -14,6 +14,8 @@ import (
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
+	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
+	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	restmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
@@ -145,13 +147,36 @@ func (f *fakeDokployServers) ListApplications(context.Context, uuid.UUID, paging
 	return paging.Slice[domain.DokployApplication]{}, nil
 }
 
+type fakeInvestigations struct {
+	startCalls int
+}
+
+func (f *fakeInvestigations) StartIncidentInvestigation(context.Context, portsin.StartIncidentInvestigationCommand) (*domain.Operation, error) {
+	f.startCalls++
+	return &domain.Operation{}, nil
+}
+func (*fakeInvestigations) GetInvestigation(context.Context, uuid.UUID) (*domain.Investigation, error) {
+	return &domain.Investigation{}, nil
+}
+func (*fakeInvestigations) ListIncidentInvestigations(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Investigation], error) {
+	return paging.Slice[domain.Investigation]{}, nil
+}
+
+type fakeOperations struct{}
+
+func (*fakeOperations) GetOperation(context.Context, uuid.UUID) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
 type routerFixture struct {
-	config       Config
-	authenticate *fakeAuthenticateSession
-	accounts     *fakeGitHubAccounts
-	apps         *fakeGitHubApps
-	dokploy      *fakeDokployServers
-	projects     *fakeProjects
+	config         Config
+	authenticate   *fakeAuthenticateSession
+	accounts       *fakeGitHubAccounts
+	apps           *fakeGitHubApps
+	dokploy        *fakeDokployServers
+	projects       *fakeProjects
+	investigations *fakeInvestigations
+	operations     *fakeOperations
 }
 
 func newRouterFixture() *routerFixture {
@@ -173,23 +198,37 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
+	investigations := &fakeInvestigations{}
+	investigationHandler, err := investigationhandler.New(investigations, paging)
+	if err != nil {
+		panic(err)
+	}
+	operations := &fakeOperations{}
+	operationHandler, err := operationhandler.New(operations)
+	if err != nil {
+		panic(err)
+	}
 	return &routerFixture{
 		config: Config{
 			Handlers: &resthandler.Handlers{
-				AuthHandler:    &authhandler.Handler{},
-				GitHubHandler:  githubHandler,
-				DokployHandler: dokployHandler,
-				ProjectHandler: projectHandler,
+				AuthHandler:          &authhandler.Handler{},
+				GitHubHandler:        githubHandler,
+				DokployHandler:       dokployHandler,
+				ProjectHandler:       projectHandler,
+				InvestigationHandler: investigationHandler,
+				OperationHandler:     operationHandler,
 			},
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
 			AllowedOrigins: []string{"https://app.example.com"},
 		},
-		authenticate: authenticate,
-		accounts:     accounts,
-		apps:         apps,
-		dokploy:      dokploy,
-		projects:     projects,
+		authenticate:   authenticate,
+		accounts:       accounts,
+		apps:           apps,
+		dokploy:        dokploy,
+		projects:       projects,
+		investigations: investigations,
+		operations:     operations,
 	}
 }
 
@@ -237,6 +276,8 @@ func TestRouterFailsClosedWithoutCompleteHandlers(t *testing.T) {
 		{name: "missing GitHub", mutate: func(config *Config) { config.Handlers.GitHubHandler = nil }},
 		{name: "missing Dokploy", mutate: func(config *Config) { config.Handlers.DokployHandler = nil }},
 		{name: "missing Project", mutate: func(config *Config) { config.Handlers.ProjectHandler = nil }},
+		{name: "missing Investigation", mutate: func(config *Config) { config.Handlers.InvestigationHandler = nil }},
+		{name: "missing Operation", mutate: func(config *Config) { config.Handlers.OperationHandler = nil }},
 	}
 
 	for _, test := range tests {
@@ -282,6 +323,9 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/integrations/github/accounts/{account_id}/repositories",
 		"GET /api/v1/integrations/github/app-installations/callback",
 		"GET /api/v1/integrations/github/app-manifest/callback",
+		"GET /api/v1/incidents/{incident_id}/investigations",
+		"GET /api/v1/investigations/{investigation_id}",
+		"GET /api/v1/operations/{operation_id}",
 		"GET /api/v1/projects",
 		"GET /api/v1/projects/{project_id}",
 		"GET /api/v1/projects/{project_id}/monitoring-configuration",
@@ -291,6 +335,7 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"POST /api/v1/auth/login",
 		"POST /api/v1/auth/setup",
 		"POST /api/v1/auth/setup/verify",
+		"POST /api/v1/incidents/{incident_id}/investigations",
 		"POST /api/v1/integrations/dokploy/servers",
 		"POST /api/v1/integrations/dokploy/servers/{server_id}/connection-test",
 		"POST /api/v1/integrations/github/accounts",
@@ -376,6 +421,38 @@ func TestRouterProtectsSessionAndIntegrationMutations(t *testing.T) {
 		}
 		if fixture.projects.createCalls != 0 {
 			t.Fatal("Project handler must not run when Origin is rejected")
+		}
+	})
+
+	t.Run("Investigation requires authentication", func(t *testing.T) {
+		fixture := newRouterFixture()
+		fixture.authenticate.err = domain.ErrInactiveAdministratorSession
+		recorder := serve(mustRouter(t, fixture.config), http.MethodGet, "/api/v1/investigations/"+uuid.NewString())
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", recorder.Code)
+		}
+	})
+
+	t.Run("Investigation start requires allowed Origin", func(t *testing.T) {
+		fixture := newRouterFixture()
+		request := httptest.NewRequest(http.MethodPost, "/api/v1/incidents/"+uuid.NewString()+"/investigations", nil)
+		request.Header.Set("Idempotency-Key", uuid.NewString())
+		recorder := httptest.NewRecorder()
+		mustRouter(t, fixture.config).ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403", recorder.Code)
+		}
+		if fixture.investigations.startCalls != 0 {
+			t.Fatal("Investigation handler must not run when Origin is rejected")
+		}
+	})
+
+	t.Run("Operation requires authentication", func(t *testing.T) {
+		fixture := newRouterFixture()
+		fixture.authenticate.err = domain.ErrInactiveAdministratorSession
+		recorder := serve(mustRouter(t, fixture.config), http.MethodGet, "/api/v1/operations/"+uuid.NewString())
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", recorder.Code)
 		}
 	})
 }

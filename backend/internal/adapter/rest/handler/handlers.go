@@ -6,6 +6,7 @@ import (
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
+	incidenthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/incident"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
@@ -14,10 +15,11 @@ import (
 var ErrInvalidHandlersConfiguration = errors.New("invalid REST handlers configuration")
 
 type Handlers struct {
-	AuthHandler    *authhandler.Handler
-	GitHubHandler  *githubhandler.Handler
-	DokployHandler *dokployhandler.Handler
-	ProjectHandler *projecthandler.Handler
+	AuthHandler     *authhandler.Handler
+	GitHubHandler   *githubhandler.Handler
+	DokployHandler  *dokployhandler.Handler
+	ProjectHandler  *projecthandler.Handler
+	IncidentHandler *incidenthandler.Handler
 }
 
 type HandlersConfig struct {
@@ -47,6 +49,10 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
+	incidentHandler, err := incidenthandler.New(config.UseCases.Incident, config.Pagination)
+	if err != nil {
+		return nil, ErrInvalidHandlersConfiguration
+	}
 
 	return &Handlers{
 		AuthHandler: authhandler.NewHandler(
@@ -58,9 +64,10 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 			config.UseCases.LogoutAdministrator,
 			config.SessionCookieSecure,
 		),
-		GitHubHandler:  githubHandler,
-		DokployHandler: dokployHandler,
-		ProjectHandler: projectHandler,
+		GitHubHandler:   githubHandler,
+		DokployHandler:  dokployHandler,
+		ProjectHandler:  projectHandler,
+		IncidentHandler: incidentHandler,
 	}, nil
 }
 
@@ -76,5 +83,6 @@ func validUseCases(useCases *portsin.UseCases) bool {
 		useCases.GitHubAccount != nil &&
 		useCases.GitHubApp != nil &&
 		useCases.DokployServer != nil &&
-		useCases.Project != nil
+		useCases.Project != nil &&
+		useCases.Incident != nil
 }

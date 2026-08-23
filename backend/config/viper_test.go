@@ -32,6 +32,9 @@ func TestLoadFromViperAppliesDefaultsAndValidatesSecurityValues(t *testing.T) {
 	if configuration.SessionIdleTTL != 12*time.Hour || configuration.SessionAbsoluteTTL != 7*24*time.Hour || !configuration.SessionCookieSecure {
 		t.Fatalf("unexpected session defaults: %+v", configuration)
 	}
+	if configuration.MonitoringPollInterval != 10*time.Second || configuration.MonitoringConcurrency != 4 {
+		t.Fatalf("unexpected monitoring defaults: %+v", configuration)
+	}
 	if len(configuration.AllowedOrigins) != 1 || configuration.AllowedOrigins[0] != configuration.PublicURL {
 		t.Fatalf("public URL must be an allowed origin: %v", configuration.AllowedOrigins)
 	}
@@ -52,11 +55,14 @@ func TestLoadFromViperRejectsUnsafeSessionAndOrigins(t *testing.T) {
 		return v
 	}
 	cases := map[string]func(*viper.Viper){
-		"insecure cookie":     func(v *viper.Viper) { v.Set("AKRITAS_SESSION_COOKIE_SECURE", false) },
-		"idle exceeds max":    func(v *viper.Viper) { v.Set("AKRITAS_SESSION_IDLE_TTL", 8*24*time.Hour) },
-		"wildcard origin":     func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "*") },
-		"origin with path":    func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "https://app.example.com/path") },
-		"short bootstrap key": func(v *viper.Viper) { v.Set("AKRITAS_BOOTSTRAP_TOKEN", "short") },
+		"insecure cookie":            func(v *viper.Viper) { v.Set("AKRITAS_SESSION_COOKIE_SECURE", false) },
+		"idle exceeds max":           func(v *viper.Viper) { v.Set("AKRITAS_SESSION_IDLE_TTL", 8*24*time.Hour) },
+		"wildcard origin":            func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "*") },
+		"origin with path":           func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "https://app.example.com/path") },
+		"short bootstrap key":        func(v *viper.Viper) { v.Set("AKRITAS_BOOTSTRAP_TOKEN", "short") },
+		"zero monitor interval":      func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_POLL_INTERVAL", 0) },
+		"zero monitor concurrency":   func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_CONCURRENCY", 0) },
+		"excess monitor concurrency": func(v *viper.Viper) { v.Set("AKRITAS_MONITORING_CONCURRENCY", 5) },
 	}
 	for name, mutate := range cases {
 		t.Run(name, func(t *testing.T) {

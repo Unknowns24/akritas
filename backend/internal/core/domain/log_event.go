@@ -65,8 +65,8 @@ func NewLogEvent(
 		ID: id, ProjectID: projectID, Timestamp: timestamp, Severity: severity,
 		Message: strings.TrimSpace(message), Fingerprint: strings.TrimSpace(fingerprint),
 		DetectionRules:     cloneStrings(detectionRules),
-		ContextBefore:      append([]SanitizedLogRecord(nil), contextBefore...),
-		ContextAfter:       append([]SanitizedLogRecord(nil), contextAfter...),
+		ContextBefore:      append([]SanitizedLogRecord{}, contextBefore...),
+		ContextAfter:       append([]SanitizedLogRecord{}, contextAfter...),
 		RawContextRedacted: true,
 	}
 	if err := event.Validate(); err != nil {

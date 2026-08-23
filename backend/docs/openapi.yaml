@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.5.1
+  version: 1.6.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -3146,7 +3146,7 @@ components:
     Investigation:
       type: object
       additionalProperties: false
-      required: [id, incident_id, status, started_at, hypotheses, relevant_files, relevant_commits, recommended_actions]
+      required: [id, incident_id, status, created_at, hypotheses, evidence_ids, relevant_files, relevant_commits, recommended_actions]
       properties:
         id:
           type: string
@@ -3156,6 +3156,9 @@ components:
           format: uuid
         status:
           $ref: "#/components/schemas/InvestigationStatus"
+        created_at:
+          type: string
+          format: date-time
         started_at:
           type: string
           format: date-time
@@ -3181,6 +3184,13 @@ components:
           items:
             type: string
             maxLength: 5000
+        evidence_ids:
+          type: array
+          maxItems: 25
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
         relevant_files:
           type: array
           items:

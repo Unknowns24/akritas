@@ -12,9 +12,14 @@ type UseCases struct {
 	AuthenticateSession         AuthenticateSessionUseCase
 	GetCurrentSession           GetCurrentSessionUseCase
 	LogoutAdministrator         LogoutAdministratorUseCase
-	GitHubAccount               GitHubAccountUseCase
-	GitHubApp                   GitHubAppUseCase
-	DokployServer               DokployServerUseCase
-	Project                     ProjectUseCase
-	Incident                    IncidentUseCase
+
+	GitHubAccount GitHubAccountUseCase
+	GitHubApp     GitHubAppUseCase
+	DokployServer DokployServerUseCase
+	Project       ProjectUseCase
+
+	Incident      IncidentUseCase
+	Investigation InvestigationUseCase
+	Operation     OperationUseCase
+	Evidence      EvidenceUseCase
 }

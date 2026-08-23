@@ -22,7 +22,7 @@ import (
 )
 
 func TestMonitoringPersistenceIsDurableTransactionalAndSerialized(t *testing.T) {
-	db := dbtest.Connect(t)
+	db := dbtest.ConnectContainer(t)
 	ctx := context.Background()
 	project := insertProject(t, db, time.Now().UTC())
 	repository, err := monitoringrepo.New(db)
@@ -132,6 +132,15 @@ func TestMonitoringPersistenceIsDurableTransactionalAndSerialized(t *testing.T) 
 	}
 
 	projects, _ := projectrepo.New(db)
+	expectedUpdatedAt := project.UpdatedAt
+	disabled := project.MonitoringConfiguration.Clone()
+	disabled.Enabled = false
+	if err := project.ReplaceMonitoringConfiguration(disabled, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := projects.Update(ctx, &project, expectedUpdatedAt); err != nil {
+		t.Fatal(err)
+	}
 	if err := projects.Delete(ctx, project.ID); !errors.Is(err, domain.ErrProjectHasDependencies) {
 		t.Fatalf("Project delete with history = %v", err)
 	}

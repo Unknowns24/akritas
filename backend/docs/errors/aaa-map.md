@@ -51,6 +51,11 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrValidationTransition` | `0x406008C` | Remediation | Conflict | La validación no puede cambiar a ese estado. |
 | `ErrInvalidCodeChange` | `0x406009V` | Remediation | Validation | El cambio de código no es válido. |
 | `ErrInvalidPullRequestReference` | `0x40600AV` | Remediation | Validation | La referencia a la Pull Request no es válida. |
+| `ErrInvalidOperationType` | `0x407001V` | Operation | Validation | El tipo de operación no es válido. |
+| `ErrInvalidOperationStatus` | `0x407002V` | Operation | Validation | El estado de la operación no es válido. |
+| `ErrInvalidOperationResourceType` | `0x407003V` | Operation | Validation | El tipo de recurso de la operación no es válido. |
+| `ErrInvalidOperation` | `0x407004V` | Operation | Validation | La operación no es válida. |
+| `ErrOperationTransition` | `0x407005C` | Operation | Conflict | La operación no puede cambiar a ese estado. |
 | `ErrIntegrationNotFound` | `0x502001N` | Integrations usecase | Not found | La integración solicitada no existe. |
 | `ErrIntegrationConflict` | `0x502002C` | Integrations usecase | Conflict | La integración entra en conflicto con una configuración existente. |
 | `ErrIntegrationInUse` | `0x502003C` | Integrations usecase | Conflict | La integración está asociada a un Project y no puede eliminarse. |
@@ -73,10 +78,16 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrMonitoringContinuityLost` | `0x505001I` | Monitoring service | Internal | No se pudo verificar la continuidad de los logs. |
 | `ErrMonitoringConcurrentModification` | `0x505002C` | Monitoring service | Conflict | El estado de monitoreo cambió durante el procesamiento. |
 | `ErrAuthenticationRateLimited` | `0x501001R` | Auth usecase | Rate limited | Alcanzaste el límite de intentos. Probá nuevamente más tarde. |
+| `ErrInvestigationNotFound` | `0x504002N` | Investigation usecase | Not found | La investigación no existe. |
+| `ErrInvestigationAlreadyActive` | `0x504003C` | Investigation usecase | Conflict | Ya hay una investigación en curso para este incidente. |
+| `ErrOperationNotFound` | `0x505001N` | Operation usecase | Not found | La operación no existe. |
 | `ErrIntegrationPersistence` | `0x202001I` | Integrations database | Internal | No se pudo guardar la integración. |
 | `ErrProjectPersistence` | `0x203001I` | Project database | Internal | No se pudo guardar el proyecto. |
-| `ErrIncidentPersistence` | `0x204001I` | Incident database | Internal | No se pudo consultar el incidente. |
-| `ErrMonitoringPersistence` | `0x205001I` | Monitoring database | Internal | No se pudo guardar el estado de monitoreo. |
+| `ErrInvestigationPersistence` | `0x204001I` | Investigation database | Internal | No se pudo guardar la investigación. |
+| `ErrOperationPersistence` | `0x205001I` | Operation database | Internal | No se pudo guardar la operación. |
+| `ErrEvidencePersistence` | `0x206001I` | Evidence database | Internal | No se pudo guardar la evidencia. |
+| `ErrIncidentPersistence` | `0x207001I` | Incident database | Internal | No se pudo consultar el incidente. |
+| `ErrMonitoringPersistence` | `0x208001I` | Monitoring database | Internal | No se pudo guardar el estado de monitoreo. |
 | `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
 | `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
 | `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |

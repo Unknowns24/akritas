@@ -26,29 +26,30 @@ func (s InvestigationStatus) Validate() error {
 }
 
 type Investigation struct {
-	ID                 uuid.UUID
-	IncidentID         uuid.UUID
-	Status             InvestigationStatus
-	CreatedAt          time.Time
-	StartedAt          *time.Time
-	FinishedAt         *time.Time
-	Summary            string
-	RootCause          string
-	RootCauseStatus    *RootCauseStatus
-	ResolutionStatus   *ResolutionStatus
-	Confidence         *float64
-	Hypotheses         []string
-	RelevantFiles      []string
-	RelevantCommits    []string
-	RecommendedActions []string
-	EvidenceCount      int
-	FailureUserMessage string
+	ID                 uuid.UUID           `gorm:"column:id;type:uuid;primaryKey"`
+	IncidentID         uuid.UUID           `gorm:"column:incident_id;type:uuid"`
+	Status             InvestigationStatus `gorm:"column:status"`
+	CreatedAt          time.Time           `gorm:"column:created_at"`
+	StartedAt          *time.Time          `gorm:"column:started_at"`
+	FinishedAt         *time.Time          `gorm:"column:finished_at"`
+	Summary            string              `gorm:"column:summary"`
+	RootCause          string              `gorm:"column:root_cause"`
+	RootCauseStatus    *RootCauseStatus    `gorm:"column:root_cause_status"`
+	ResolutionStatus   *ResolutionStatus   `gorm:"column:resolution_status"`
+	Confidence         *float64            `gorm:"column:confidence"`
+	Hypotheses         []string            `gorm:"serializer:json;type:jsonb;column:hypotheses"`
+	RelevantFiles      []string            `gorm:"serializer:json;type:jsonb;column:relevant_files"`
+	RelevantCommits    []string            `gorm:"serializer:json;type:jsonb;column:relevant_commits"`
+	RecommendedActions []string            `gorm:"serializer:json;type:jsonb;column:recommended_actions"`
+	EvidenceIDs        []uuid.UUID         `gorm:"serializer:json;type:jsonb;column:evidence_ids"`
+	EvidenceCount      int                 `gorm:"column:evidence_count"`
+	FailureUserMessage string              `gorm:"column:failure_user_message"`
 }
 
 func NewInvestigation(id, incidentID uuid.UUID, createdAt time.Time) (*Investigation, error) {
 	investigation := &Investigation{
 		ID: id, IncidentID: incidentID, Status: InvestigationStatusPending, CreatedAt: createdAt,
-		Hypotheses: []string{}, RelevantFiles: []string{}, RelevantCommits: []string{}, RecommendedActions: []string{},
+		Hypotheses: []string{}, RelevantFiles: []string{}, RelevantCommits: []string{}, RecommendedActions: []string{}, EvidenceIDs: []uuid.UUID{},
 	}
 	if err := investigation.Validate(); err != nil {
 		return nil, err
@@ -57,8 +58,18 @@ func NewInvestigation(id, incidentID uuid.UUID, createdAt time.Time) (*Investiga
 }
 
 func (i Investigation) Validate() error {
-	if i.ID == uuid.Nil || i.IncidentID == uuid.Nil || i.Status.Validate() != nil || !validTime(i.CreatedAt) || i.EvidenceCount < 0 {
+	if i.ID == uuid.Nil || i.IncidentID == uuid.Nil || i.Status.Validate() != nil || !validTime(i.CreatedAt) || i.EvidenceCount < 0 || len(i.EvidenceIDs) > 25 || len(i.EvidenceIDs) > i.EvidenceCount {
 		return ErrInvalidInvestigation.Wrap(validationCause("investigation"))
+	}
+	seenEvidence := make(map[uuid.UUID]struct{}, len(i.EvidenceIDs))
+	for _, evidenceID := range i.EvidenceIDs {
+		if evidenceID == uuid.Nil {
+			return ErrInvalidInvestigation.Wrap(validationCause("investigation evidence"))
+		}
+		if _, duplicate := seenEvidence[evidenceID]; duplicate {
+			return ErrInvalidInvestigation.Wrap(validationCause("investigation evidence"))
+		}
+		seenEvidence[evidenceID] = struct{}{}
 	}
 	switch i.Status {
 	case InvestigationStatusPending:
@@ -102,6 +113,7 @@ func (i *Investigation) Complete(
 	resolutionStatus ResolutionStatus,
 	confidence float64,
 	hypotheses, relevantFiles, relevantCommits, recommendedActions []string,
+	evidenceIDGroups ...[]uuid.UUID,
 ) error {
 	if i == nil || i.Status != InvestigationStatusRunning || i.StartedAt == nil || at.Before(*i.StartedAt) ||
 		!nonBlank(summary) || rootCauseStatus.Validate() != nil || resolutionStatus.Validate() != nil || !validConfidence(confidence) {
@@ -118,6 +130,10 @@ func (i *Investigation) Complete(
 	i.RelevantFiles = cloneStrings(relevantFiles)
 	i.RelevantCommits = cloneStrings(relevantCommits)
 	i.RecommendedActions = cloneStrings(recommendedActions)
+	i.EvidenceIDs = []uuid.UUID{}
+	if len(evidenceIDGroups) > 0 {
+		i.EvidenceIDs = append(i.EvidenceIDs, evidenceIDGroups[0]...)
+	}
 	return nil
 }
 

@@ -5,8 +5,11 @@ import (
 
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
+	evidencehandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/evidence"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
 	incidenthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/incident"
+	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
+	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
@@ -15,11 +18,14 @@ import (
 var ErrInvalidHandlersConfiguration = errors.New("invalid REST handlers configuration")
 
 type Handlers struct {
-	AuthHandler     *authhandler.Handler
-	GitHubHandler   *githubhandler.Handler
-	DokployHandler  *dokployhandler.Handler
-	ProjectHandler  *projecthandler.Handler
-	IncidentHandler *incidenthandler.Handler
+	AuthHandler          *authhandler.Handler
+	GitHubHandler        *githubhandler.Handler
+	DokployHandler       *dokployhandler.Handler
+	ProjectHandler       *projecthandler.Handler
+	IncidentHandler      *incidenthandler.Handler
+	InvestigationHandler *investigationhandler.Handler
+	OperationHandler     *operationhandler.Handler
+	EvidenceHandler      *evidencehandler.Handler
 }
 
 type HandlersConfig struct {
@@ -46,15 +52,33 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
+
 	dokployHandler, err := dokployhandler.New(config.UseCases.DokployServer, config.Pagination)
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
+
 	projectHandler, err := projecthandler.New(config.UseCases.Project, config.Pagination)
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
+
 	incidentHandler, err := incidenthandler.New(config.UseCases.Incident, config.Pagination)
+	if err != nil {
+		return nil, ErrInvalidHandlersConfiguration
+	}
+
+	investigationHandler, err := investigationhandler.New(config.UseCases.Investigation, config.Pagination)
+	if err != nil {
+		return nil, ErrInvalidHandlersConfiguration
+	}
+
+	operationHandler, err := operationhandler.New(config.UseCases.Operation)
+	if err != nil {
+		return nil, ErrInvalidHandlersConfiguration
+	}
+
+	evidenceHandler, err := evidencehandler.New(config.UseCases.Evidence, config.Pagination)
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
@@ -72,10 +96,13 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 			config.SessionCookieSecure,
 			sessionCookieSameSite,
 		),
-		GitHubHandler:   githubHandler,
-		DokployHandler:  dokployHandler,
-		ProjectHandler:  projectHandler,
-		IncidentHandler: incidentHandler,
+		GitHubHandler:        githubHandler,
+		DokployHandler:       dokployHandler,
+		ProjectHandler:       projectHandler,
+		IncidentHandler:      incidentHandler,
+		InvestigationHandler: investigationHandler,
+		OperationHandler:     operationHandler,
+		EvidenceHandler:      evidenceHandler,
 	}, nil
 }
 
@@ -94,5 +121,8 @@ func validUseCases(useCases *portsin.UseCases) bool {
 		useCases.GitHubApp != nil &&
 		useCases.DokployServer != nil &&
 		useCases.Project != nil &&
-		useCases.Incident != nil
+		useCases.Incident != nil &&
+		useCases.Investigation != nil &&
+		useCases.Operation != nil &&
+		useCases.Evidence != nil
 }

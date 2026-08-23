@@ -20,3 +20,7 @@ implemented.
 ## Notas
 
 No se hizo commit ni push. El script Bash del sistema apunta a WSL sin `/bin/bash`; por eso los scripts del harness se ejecutaron con `C:\Program Files\Git\bin\bash.exe`.
+
+## Correccion posterior
+
+AKR-47 agrega la cobertura table-driven faltante para redaccion y el test PostgreSQL que impide combinar una Investigation con un Incident diferente en `GitHubIssueReference`. Este summary de H4 queda limitado a las pruebas ejecutadas originalmente para H4.

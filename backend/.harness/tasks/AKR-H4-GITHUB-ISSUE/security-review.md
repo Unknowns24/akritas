@@ -26,3 +26,7 @@ PASS.
 ## Riesgos residuales
 
 Si GitHub acepta la Issue y PostgreSQL falla antes de persistir IssueReference, H4 falla explicitamente y no inventa exito. La reconciliacion por marcador queda para H6.
+
+## Correccion de cobertura posterior
+
+AKR-47 amplio y probo la cobertura real de redaccion para JSON strings, asignaciones con comillas y espacios, `Authorization: Basic`, cookies, GitHub App tokens, DSN y campos completos del `IssueContentBuilder`. La revision original de H4 no debe leerse como evidencia de tests especificos para cada uno de esos formatos.

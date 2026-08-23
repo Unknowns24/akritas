@@ -25,7 +25,8 @@ Architecture guidance:
 - Integration credentials are backend-only and must never reach browser code.
 - An installation has one administrator enrolled with password + TOTP; opaque sessions are server-side and recovery requires the deployment bootstrap token.
 - GitHub connections support either a write-only PAT or the GitHub App Manifest flow. Account ownership (`personal|organization`) is independent from authentication method.
-- GitHub Issue publication is mandatory after completed Investigation. H4 persists one `GitHubIssueReference` per Investigation and projects only the latest Issue on Incident detail.
+- GitHub Issue publication is mandatory after completed Investigation. H4 persists one `GitHubIssueReference` per Investigation and projects only the latest Issue on Incident detail. AKR-47 adds PostgreSQL enforcement that the referenced Investigation belongs to the same Incident recorded on the IssueReference.
+- Evidence and GitHub Issue content are defensively redacted before persistence/publication boundaries. AKR-47 covers JSON secrets, quoted assignments, auth headers, GitHub tokens, JWT/session tokens, DSNs, cookies and PEM private keys without preserving secret value fragments.
 
 MVP execution order:
 

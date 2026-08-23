@@ -5,7 +5,8 @@ import { env as getEnv } from "next-runtime-env";
  * Centralizes access to environment variables.
  */
 const isServer = typeof window === "undefined";
-const rawApiUrl = getEnv("NEXT_PUBLIC_API_URL") || "/api/v1";
+const configuredUrl = getEnv("NEXT_PUBLIC_API_URL") || "/api/v1";
+const rawApiUrl = configuredUrl.replace(/^NEXT_PUBLIC_API_URL=/, "").trim();
 const apiUrl = isServer && rawApiUrl.startsWith("/") 
   ? `http://localhost:${process.env.PORT || 3000}${rawApiUrl}`
   : rawApiUrl;

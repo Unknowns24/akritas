@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "generate:api": "openapi-typescript docs/openapi.yaml -o src/core/libs/api-client/api.types.ts"
+    "test": "node --experimental-strip-types --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "lucide-react": "^1.33.0",

@@ -1,0 +1,24 @@
+---
+description: OpenAPI como contrato HTTP; DTOs atómicos con sufijo DTO; utils REST fuera de dto/.
+globs: backend/docs/openapi.yaml,backend/internal/adapter/rest/**/*.go
+alwaysApply: false
+---
+
+# REST y OpenAPI (harness)
+
+`backend/docs/openapi.yaml` es el contrato. No inventar campos ni rutas. Todo cambio de path/método/body/query/error/auth actualiza OpenAPI y `info.version` (SemVer). El frontend no llama lo que no está en el spec.
+
+## DTOs
+
+- Un tipo exportado por archivo; sufijo `DTO` (`ProjectDTO`, `HealthDTO`).
+- Agrupar por feature: `dto/project/`, `dto/system/`, `dto/envelope/`.
+- Mapper en el mismo archivo que el DTO. No un `mappers.go` ni un god-file.
+- Tags `json` solo aquí. Envelopes `{ "data" }` y `{ "error" }`.
+- Codec e ISO-8601 en `adapter/rest/utils/` (`DecodeJSON`, `WriteJSON`, `ParseISODuration`), nunca en `dto/`.
+
+```go
+// ❌ BAD — dto/project.go con 12 structs + ParseISODuration
+// ✅ GOOD — dto/project/create_project_request.go con CreateProjectRequestDTO
+```
+
+Handlers delgados: parsear → mapear a comando de puerto → usecase → DTO. Cookie `akritas_session`; no devolver secretos ni tokens.

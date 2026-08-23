@@ -1,0 +1,28 @@
+---
+description: Hexágono Go, SRP file-per-op, GORM en dominio, puertos y migraciones.
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+# Backend Go (harness)
+Dependencias: `adapter → usecase → core(domain+ports)`. Nunca al revés.
+
+```text
+# ❌ BAD
+usecase importa postgres/chi/github SDK
+handler usa GORM o un repo concreto
+core importa gorm.io/gorm
+
+# ✅ GOOD
+handler → port in → usecase → port out → adapter
+dominio con tags gorm; repos persisten domain.X
+```
+
+- `internal/core/**`: sin import HTTP, Chi, GORM, SQL drivers ni SDKs. Tags `gorm` sí; tags `json` no; sin callbacks GORM ni `TableName()`.
+- Prohibido `adapter/db/**/model` que duplique el dominio. Migraciones: gormigrate versionado; `AutoMigrate(&domain.X{})` solo dentro de una migración; sin AutoMigrate global.
+- Un archivo = una operación pública (usecase/repo/handler/port). `uc.go`/`handler.go`/`repo.go` solo struct + constructor.
+- DTOs REST no entran a usecase/domain. Handlers no serializan `domain` como JSON.
+- Wiring en `cmd/main.go`: config → DB+migrate → repos → adapters → usecases → router.
+- Integraciones detrás de `ports/out`. Normalizar errores de SDK. Usecases testeables con fakes.
+- Procesos largos: idempotentes; no dejar transacciones abiertas durante GitHub/Dokploy/QVAC.
+- Orden de feature: dominio → ports → usecase → adapter DB/external → DTOs → handlers → OpenAPI → tests.

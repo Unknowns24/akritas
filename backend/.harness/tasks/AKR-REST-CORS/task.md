@@ -2,7 +2,7 @@
 
 ## Estado
 
-in_progress
+complete
 
 ## Tipo de tarea
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/core/ui/primitives/Button";
 import { AlertCircle } from "lucide-react";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+import { getErrorMessage } from "@/core/errors";
 import { loginAdministratorService, LoginRequest } from "../../services/auth.service";
 import styles from "./LoginView.module.css";
 
@@ -26,8 +27,8 @@ export const LoginView = () => {
     try {
       await loginAdministratorService(formData);
       router.replace(APP_ROUTES.OVERVIEW);
-    } catch (err: any) {
-      setError(err.message || "Email, password, or authenticator code is incorrect");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Email, password, or authenticator code is incorrect"));
     } finally {
       setIsSubmitting(false);
     }

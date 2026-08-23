@@ -9,10 +9,32 @@ import (
 	"github.com/google/uuid"
 )
 
-type IncidentStore interface {
+type IncidentGetter interface {
 	Get(context.Context, uuid.UUID) (*domain.Incident, error)
+}
+
+type IncidentLister interface {
 	List(context.Context, paging.Params) (paging.Slice[domain.Incident], error)
+}
+
+type IncidentLogEventLister interface {
 	ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error)
+}
+
+type IncidentTimelineLister interface {
+	ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error)
+}
+
+type IncidentWorkflowStore interface {
+	IncidentGetter
+	Lock(context.Context, uuid.UUID) (*domain.Incident, error)
+	Update(context.Context, *domain.Incident) error
+}
+
+type IncidentStore interface {
+	IncidentGetter
+	IncidentLister
+	IncidentLogEventLister
 }
 
 type MonitoringStore interface {

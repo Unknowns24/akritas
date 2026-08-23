@@ -24,6 +24,12 @@ func TestLoadValuesFailsClosedForMissingOrInvalidSecurityConfiguration(t *testin
 		t.Fatalf("invalid master key must stop startup: %v", err)
 	}
 	values["AKRITAS_MASTER_KEY"] = base64.StdEncoding.EncodeToString(make([]byte, 32))
+	for _, publicURL := range []string{"http://localhost:8080", "http://127.0.0.1:8080", "http://[::1]:8080"} {
+		values["AKRITAS_PUBLIC_URL"] = publicURL
+		if _, err := LoadValues(getenv); err != nil {
+			t.Fatalf("local HTTP public URL %q rejected: %v", publicURL, err)
+		}
+	}
 	values["AKRITAS_PUBLIC_URL"] = "http://public.example.com"
 	if _, err := LoadValues(getenv); !errors.Is(err, ErrInvalidRuntimeConfiguration) {
 		t.Fatalf("non-HTTPS public URL must stop startup: %v", err)

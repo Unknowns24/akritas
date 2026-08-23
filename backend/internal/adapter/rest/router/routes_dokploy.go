@@ -14,5 +14,7 @@ func registerDokployRoutes(router chi.Router, handler *dokployhandler.Handler) {
 		dokploy.Delete("/servers/{server_id}", handler.Delete)
 		dokploy.Post("/servers/{server_id}/connection-test", handler.TestConnection)
 		dokploy.Get("/servers/{server_id}/applications", handler.ListApplications)
+		dokploy.Get("/servers/{server_id}/composes", handler.ListComposes)
+		dokploy.Get("/servers/{server_id}/composes/{compose_id}/services", handler.ListComposeServices)
 	})
 }

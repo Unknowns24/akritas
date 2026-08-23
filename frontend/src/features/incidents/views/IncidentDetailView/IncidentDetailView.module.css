@@ -93,9 +93,31 @@
 
 .contentGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr; /* approx 66% / 33% */
   gap: var(--space-6);
   align-items: start;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sectionHeader h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sectionHeader p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
 }
 
 .leftColumn, .rightColumn {
@@ -180,7 +202,8 @@
 /* Context row */
 .contextRow {
   display: flex;
-  gap: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .contextCard {

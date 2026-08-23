@@ -32,7 +32,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func validUpdate(value projectdto.UpdateProjectRequestDTO) bool {
-	if value.Name == nil && value.Description == nil && value.GitHubAccountID == nil && value.RepositoryIdentifier == nil && value.DefaultBranch == nil && value.DokployServerID == nil && value.ApplicationIdentifier == nil {
+	if value.Name == nil && value.Description == nil && value.GitHubAccountID == nil && value.RepositoryIdentifier == nil && value.DefaultBranch == nil && value.DokploySource == nil {
 		return false
 	}
 	if value.Name != nil && (len(strings.TrimSpace(*value.Name)) < 1 || len(*value.Name) > 150) {
@@ -44,10 +44,10 @@ func validUpdate(value projectdto.UpdateProjectRequestDTO) bool {
 	if value.GitHubAccountID != nil && *value.GitHubAccountID == uuid.Nil {
 		return false
 	}
-	if value.DokployServerID != nil && *value.DokployServerID == uuid.Nil {
+	if value.DokploySource != nil && !validSource(*value.DokploySource) {
 		return false
 	}
-	for _, field := range []*string{value.RepositoryIdentifier, value.DefaultBranch, value.ApplicationIdentifier} {
+	for _, field := range []*string{value.RepositoryIdentifier, value.DefaultBranch} {
 		if field != nil && (len(strings.TrimSpace(*field)) < 1 || len(*field) > 255) {
 			return false
 		}

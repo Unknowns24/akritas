@@ -15,6 +15,7 @@ type DokployServer struct {
 	ConnectionStatus     IntegrationStatus `gorm:"column:connection_status"`
 	CredentialConfigured bool              `gorm:"column:credential_configured"`
 	ApplicationCount     int               `gorm:"column:application_count"`
+	ComposeCount         int               `gorm:"column:compose_count"`
 	LastSyncedAt         *time.Time        `gorm:"column:last_synced_at"`
 	CreatedAt            time.Time         `gorm:"column:created_at"`
 	UpdatedAt            time.Time         `gorm:"column:updated_at"`
@@ -39,7 +40,7 @@ func NewDokployServer(
 
 func (s DokployServer) Validate() error {
 	if s.ID == uuid.Nil || !nonBlank(s.Name) || !validHTTPURL(s.BaseURL) || !nonBlank(s.ServerIdentifier) ||
-		s.ConnectionStatus.Validate() != nil || s.ApplicationCount < 0 || !validTime(s.CreatedAt) || s.UpdatedAt.Before(s.CreatedAt) {
+		s.ConnectionStatus.Validate() != nil || s.ApplicationCount < 0 || s.ComposeCount < 0 || !validTime(s.CreatedAt) || s.UpdatedAt.Before(s.CreatedAt) {
 		return ErrInvalidDokployServer.Wrap(validationCause("Dokploy server"))
 	}
 	return nil

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, FolderGit2, RefreshCw } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
@@ -22,7 +22,7 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchProjects = async () => {
+  const fetchProjects = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await getProjectsService();
@@ -34,11 +34,15 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void fetchProjects();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchProjects]);
 
   const filteredProjects = useMemo(() => {
     if (!searchQuery.trim()) {

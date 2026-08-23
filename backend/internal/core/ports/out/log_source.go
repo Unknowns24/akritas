@@ -15,10 +15,10 @@ type RawLogRecord struct {
 }
 
 type LogFetchRequest struct {
-	Server      domain.DokployServer
-	Application domain.DokployApplication
-	Tail        int
-	Since       string
+	Server domain.DokployServer
+	Source domain.DokploySource
+	Tail   int
+	Since  string
 }
 
 type LogSource interface {

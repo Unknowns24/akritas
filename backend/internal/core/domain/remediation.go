@@ -30,6 +30,7 @@ func (s RemediationStatus) Validate() error {
 type Remediation struct {
 	ID                   uuid.UUID
 	IncidentID           uuid.UUID
+	InvestigationID      uuid.UUID
 	Status               RemediationStatus
 	BranchName           string
 	ChangesSummary       string
@@ -78,6 +79,15 @@ func (r Remediation) Validate() error {
 	return nil
 }
 
+func (r *Remediation) AttachInvestigation(investigationID uuid.UUID, at time.Time) error {
+	if r == nil || r.InvestigationID != uuid.Nil || investigationID == uuid.Nil || at.Before(r.UpdatedAt) {
+		return ErrRemediationTransition.Wrap(validationCause("attach remediation investigation"))
+	}
+	r.InvestigationID = investigationID
+	r.UpdatedAt = at
+	return nil
+}
+
 func (r *Remediation) Start(branchName string, at time.Time) error {
 	if r == nil || r.Status != RemediationStatusPlanned || !nonBlank(branchName) || at.Before(r.CreatedAt) {
 		return ErrRemediationTransition.Wrap(validationCause("start remediation"))
@@ -121,7 +131,7 @@ func (r *Remediation) MarkValidated(at time.Time) error {
 }
 
 func (r *Remediation) Fail(userMessage string, at time.Time) error {
-	if r == nil || r.Status != RemediationStatusInProgress || !nonBlank(userMessage) || at.Before(r.UpdatedAt) {
+	if r == nil || (r.Status != RemediationStatusInProgress && r.Status != RemediationStatusValidated) || !nonBlank(userMessage) || at.Before(r.UpdatedAt) {
 		return ErrRemediationTransition.Wrap(validationCause("fail remediation"))
 	}
 	r.Status = RemediationStatusFailed

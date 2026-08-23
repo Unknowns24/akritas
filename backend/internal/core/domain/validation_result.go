@@ -59,7 +59,7 @@ type ValidationResult struct {
 func NewValidationResult(id, remediationID uuid.UUID, validationType ValidationType, name string, createdAt time.Time) (*ValidationResult, error) {
 	result := &ValidationResult{
 		ID: id, RemediationID: remediationID, Type: validationType, Name: strings.TrimSpace(name),
-		Status: ValidationStatusPending, CreatedAt: createdAt, OutputRedacted: true,
+		Status: ValidationStatusPending, CreatedAt: createdAt,
 	}
 	if err := result.Validate(); err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func NewValidationResult(id, remediationID uuid.UUID, validationType ValidationT
 
 func (r ValidationResult) Validate() error {
 	if r.ID == uuid.Nil || r.RemediationID == uuid.Nil || r.Type.Validate() != nil || !nonBlank(r.Name) || len(r.Name) > 255 ||
-		r.Status.Validate() != nil || !validTime(r.CreatedAt) || !r.OutputRedacted || len(r.Summary) > 5000 || len(r.OutputExcerpt) > 50000 {
+		r.Status.Validate() != nil || !validTime(r.CreatedAt) || len(r.Summary) > 5000 || len(r.OutputExcerpt) > 50000 {
 		return ErrInvalidValidationResult.Wrap(validationCause("validation result"))
 	}
 	switch r.Status {
@@ -99,14 +99,22 @@ func (r *ValidationResult) Start(at time.Time) error {
 }
 
 func (r *ValidationResult) Pass(at time.Time, summary, output string) error {
-	return r.finish(ValidationStatusPassed, at, summary, output)
+	return r.finish(ValidationStatusPassed, at, summary, output, false)
 }
 
 func (r *ValidationResult) Fail(at time.Time, summary, output string) error {
-	return r.finish(ValidationStatusFailed, at, summary, output)
+	return r.finish(ValidationStatusFailed, at, summary, output, false)
 }
 
-func (r *ValidationResult) finish(status ValidationStatus, at time.Time, summary, output string) error {
+func (r *ValidationResult) PassWithOutputRedacted(at time.Time, summary, output string, outputRedacted bool) error {
+	return r.finish(ValidationStatusPassed, at, summary, output, outputRedacted)
+}
+
+func (r *ValidationResult) FailWithOutputRedacted(at time.Time, summary, output string, outputRedacted bool) error {
+	return r.finish(ValidationStatusFailed, at, summary, output, outputRedacted)
+}
+
+func (r *ValidationResult) finish(status ValidationStatus, at time.Time, summary, output string, outputRedacted bool) error {
 	if r == nil || r.Status != ValidationStatusRunning || r.StartedAt == nil || at.Before(*r.StartedAt) || !nonBlank(summary) {
 		return ErrValidationTransition.Wrap(validationCause("finish validation"))
 	}
@@ -114,6 +122,6 @@ func (r *ValidationResult) finish(status ValidationStatus, at time.Time, summary
 	r.FinishedAt = &at
 	r.Summary = strings.TrimSpace(summary)
 	r.OutputExcerpt = output
-	r.OutputRedacted = true
+	r.OutputRedacted = outputRedacted
 	return nil
 }

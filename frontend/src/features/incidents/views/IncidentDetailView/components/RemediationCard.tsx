@@ -9,7 +9,10 @@ import {
   FileSearch,
 } from "lucide-react";
 import type { Incident } from "../../../services/get-incident.service";
-import { isRemediationFixable, isRequiresHuman } from "../../../utils/remediation.utils";
+import {
+  isRemediationFixable,
+  isRequiresHuman,
+} from "../../../utils/remediation.utils";
 import { RemediationStatusBadge } from "./RemediationStatusBadge";
 import { ValidationSummaryView } from "./ValidationSummaryView";
 import { ValidationResultsViewer } from "./ValidationResultsViewer";
@@ -25,37 +28,52 @@ interface RemediationCardProps {
 export function RemediationCard({ incident }: RemediationCardProps) {
   const resolutionStatus = incident.resolution_status;
 
-  // 1. Boundary: If requires_human, render dedicated manual intervention card
+  // Incidentes que requieren intervención manual.
   if (isRequiresHuman(resolutionStatus)) {
     return <RequiresHumanCard incident={incident} />;
   }
 
-  // 2. If resolution status is not yet fixable (e.g. investigation pending or unknown)
+  // La investigación todavía no determinó que sea corregible.
   if (!isRemediationFixable(resolutionStatus)) {
     return (
       <div className={styles.pendingCard}>
         <FileSearch size={28} style={{ color: "var(--text-dim)" }} />
+
         <div>
-          <div style={{ fontWeight: 600, color: "var(--text-primary)", marginBottom: "4px" }}>
+          <div
+            style={{
+              fontWeight: 600,
+              color: "var(--text-primary)",
+              marginBottom: "4px",
+            }}
+          >
             Remediation Pending
           </div>
+
           <div>
-            Remediation evaluation will start once the incident investigation completes.
+            Remediation evaluation will start once the incident investigation
+            completes.
           </div>
         </div>
       </div>
     );
   }
 
-  // 3. Fixable Incident: Render full Remediation lifecycle
   const remediation = incident.remediation;
   const status = remediation?.status || "planned";
+
   const branchName =
     remediation?.branch_name ||
     incident.pull_request_reference?.branch ||
     `akritas/fix-${incident.key.toLowerCase()}`;
-  const prRef = incident.pull_request_reference || remediation?.pull_request_reference;
-  const relevantFiles = incident.latest_investigation?.relevant_files || [];
+
+  const prRef =
+    incident.pull_request_reference ||
+    remediation?.pull_request_reference;
+
+  const relevantFiles =
+    incident.latest_investigation?.relevant_files || [];
+
   const failureMessage = remediation?.failure_user_message;
 
   return (
@@ -66,82 +84,109 @@ export function RemediationCard({ incident }: RemediationCardProps) {
             <Wrench size={18} style={{ color: "#60a5fa" }} />
             <span>Autonomous Remediation</span>
           </div>
+
           <RemediationStatusBadge status={status} />
         </div>
 
-        {/* Branch Reference */}
         <div className={styles.metaRow}>
-          <span className={styles.metaLabel}>Target Remediation Branch</span>
+          <span className={styles.metaLabel}>
+            Target Remediation Branch
+          </span>
+
           <div className={styles.branchBox}>
             <GitBranch size={14} className={styles.branchIcon} />
             <span>{branchName}</span>
           </div>
         </div>
 
-        {/* Files Inspected / Touched */}
         {relevantFiles.length > 0 && (
           <div className={styles.metaRow}>
             <span className={styles.metaLabel}>Relevant Files</span>
-            <span className={styles.metaValue}>{relevantFiles.join(", ")}</span>
+            <span className={styles.metaValue}>
+              {relevantFiles.join(", ")}
+            </span>
           </div>
         )}
 
-        {/* Changes Summary if available */}
         {remediation?.changes_summary && (
           <div className={styles.metaRow}>
             <span className={styles.metaLabel}>Changes Summary</span>
-            <span style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+
+            <span
+              style={{
+                fontSize: "13px",
+                color: "var(--text-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
               {remediation.changes_summary}
             </span>
           </div>
         )}
 
-        {/* Status: Planned */}
-        {status === "planned" && (!remediation?.changes || remediation.changes.length === 0) && (
-          <div className={styles.plannedBox}>
-            <Clock size={16} style={{ color: "var(--text-dim)", flexShrink: 0 }} />
-            <span>
-              Remediation workspace is queued. Code fixes and regression tests will be generated automatically.
-            </span>
-          </div>
-        )}
+        {status === "planned" &&
+          (!remediation?.changes || remediation.changes.length === 0) && (
+            <div className={styles.plannedBox}>
+              <Clock
+                size={16}
+                style={{
+                  color: "var(--text-dim)",
+                  flexShrink: 0,
+                }}
+              />
 
-        {/* Status: In Progress */}
+              <span>
+                Remediation workspace is queued. Code fixes and regression tests
+                will be generated automatically.
+              </span>
+            </div>
+          )}
+
         {status === "in_progress" && (
           <div className={styles.inProgressBox}>
-            <Loader2 size={16} className={styles.spin} style={{ color: "#60a5fa", flexShrink: 0 }} />
+            <Loader2
+              size={16}
+              className={styles.spin}
+              style={{
+                color: "#60a5fa",
+                flexShrink: 0,
+              }}
+            />
+
             <span>
-              Generating patch, regression tests, and executing build validation checks...
+              Generating patch, regression tests, and executing build validation
+              checks...
             </span>
           </div>
         )}
 
-        {/* Multi-file Code Changes Diff Viewer */}
         {remediation?.changes && remediation.changes.length > 0 && (
           <div className={styles.metaRow}>
             <span className={styles.metaLabel}>
-              Proposed Code Changes ({remediation.changes.length} file{remediation.changes.length > 1 ? "s" : ""})
+              Proposed Code Changes ({remediation.changes.length}{" "}
+              {remediation.changes.length === 1 ? "file" : "files"})
             </span>
+
             <CodeChangesDiffViewer changes={remediation.changes} />
           </div>
         )}
 
-        {/* Validation Summary (Metric Tags) */}
-        <ValidationSummaryView summary={remediation?.validation_summary} />
+        <ValidationSummaryView
+          summary={remediation?.validation_summary}
+        />
 
-        {/* Detailed Validation Results Viewer with failure alerts & execution traces */}
         <ValidationResultsViewer
           remediationStatus={status}
           failureUserMessage={failureMessage}
         />
 
-        {/* Pull Request section if created */}
         {prRef && (
           <div className={styles.prSection}>
             <div className={styles.prDetails}>
               <span>GitHub Pull Request</span>
               <span className={styles.prNumber}>PR #{prRef.number}</span>
             </div>
+
             <a
               href={prRef.url}
               target="_blank"
@@ -154,13 +199,16 @@ export function RemediationCard({ incident }: RemediationCardProps) {
           </div>
         )}
 
-        {/* Autonomy Boundary Banner (ADR-004) when PR is created */}
-        {(status === "pull_request_created" || Boolean(prRef)) && <AutonomyBoundaryBanner />}
+        {(status === "pull_request_created" || Boolean(prRef)) && (
+          <AutonomyBoundaryBanner />
+        )}
       </div>
 
       <div className={styles.footer}>
         <ShieldCheck size={14} />
-        <span>Akritas never merges changes automatically. Human review is required.</span>
+        <span>
+          Akritas never merges changes automatically. Human review is required.
+        </span>
       </div>
     </div>
   );

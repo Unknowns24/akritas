@@ -147,7 +147,7 @@ export const GitHubAccountForm: React.FC<GitHubAccountFormProps> = ({
             required={!isEdit}
           />
           <p className={styles.helpText}>
-            Requires 'repo' scope. Classic tokens recommended.
+            Requires &apos;repo&apos; scope. Classic tokens recommended.
           </p>
         </div>
       )}

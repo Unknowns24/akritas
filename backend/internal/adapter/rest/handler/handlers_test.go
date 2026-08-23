@@ -124,6 +124,12 @@ func (dokployServerStub) TestConnection(context.Context, uuid.UUID) (portsin.Con
 func (dokployServerStub) ListApplications(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployApplication], error) {
 	return paging.Slice[domain.DokployApplication]{}, nil
 }
+func (dokployServerStub) ListComposes(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployCompose], error) {
+	return paging.Slice[domain.DokployCompose]{}, nil
+}
+func (dokployServerStub) ListComposeServices(context.Context, uuid.UUID, string, bool) ([]domain.DokployComposeService, error) {
+	return nil, nil
+}
 
 type projectStub struct{}
 
@@ -147,28 +153,78 @@ func (projectStub) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringCo
 	return domain.MonitoringConfiguration{}, nil
 }
 
+type investigationStub struct{}
+
+func (investigationStub) StartIncidentInvestigation(context.Context, portsin.StartIncidentInvestigationCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
+func (investigationStub) GetInvestigation(context.Context, uuid.UUID) (*domain.Investigation, error) {
+	return &domain.Investigation{}, nil
+}
+
+func (investigationStub) ListIncidentInvestigations(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Investigation], error) {
+	return paging.Slice[domain.Investigation]{}, nil
+}
+
+type operationStub struct{}
+
+func (operationStub) GetOperation(context.Context, uuid.UUID) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
+type evidenceStub struct{}
+
+func (evidenceStub) ListInvestigationEvidence(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Evidence], error) {
+	return paging.Slice[domain.Evidence]{}, nil
+}
+
+type remediationStub struct{}
+
+func (remediationStub) CreateRemediationBranch(context.Context, portsin.CreateRemediationBranchCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (remediationStub) ExecuteRemediationValidations(context.Context, portsin.ExecuteRemediationValidationsCommand) (*domain.Remediation, []domain.ValidationResult, error) {
+	return &domain.Remediation{}, nil, nil
+}
+func (remediationStub) CreateRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+
 type incidentStub struct{}
+
+func (incidentStub) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
+	return &domain.Incident{}, nil
+}
+
+func (incidentStub) List(context.Context, paging.Params) (paging.Slice[domain.Incident], error) {
+	return paging.Slice[domain.Incident]{}, nil
+}
+
+func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
+	return paging.Slice[domain.LogEvent]{}, nil
+}
+
+func (incidentStub) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
+}
 
 type startAdministratorRecoveryStub struct{}
 
-func (startAdministratorRecoveryStub) Execute(context.Context, portsin.StartAdministratorRecoveryInput) (portsin.StartAdministratorRecoveryOutput, error) {
+func (startAdministratorRecoveryStub) Execute(
+	context.Context,
+	portsin.StartAdministratorRecoveryInput,
+) (portsin.StartAdministratorRecoveryOutput, error) {
 	return portsin.StartAdministratorRecoveryOutput{}, nil
 }
 
 type verifyAdministratorRecoveryStub struct{}
 
-func (verifyAdministratorRecoveryStub) Execute(context.Context, portsin.VerifyAdministratorRecoveryInput) (portsin.VerifyAdministratorRecoveryOutput, error) {
+func (verifyAdministratorRecoveryStub) Execute(
+	context.Context,
+	portsin.VerifyAdministratorRecoveryInput,
+) (portsin.VerifyAdministratorRecoveryOutput, error) {
 	return portsin.VerifyAdministratorRecoveryOutput{}, nil
-}
-
-func (incidentStub) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
-	return &domain.Incident{}, nil
-}
-func (incidentStub) List(context.Context, paging.Params) (paging.Slice[domain.Incident], error) {
-	return paging.Slice[domain.Incident]{}, nil
-}
-func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
-	return paging.Slice[domain.LogEvent]{}, nil
 }
 
 func completeUseCases() *portsin.UseCases {
@@ -182,11 +238,16 @@ func completeUseCases() *portsin.UseCases {
 		AuthenticateSession:         authenticateSessionStub{},
 		GetCurrentSession:           getCurrentSessionStub{},
 		LogoutAdministrator:         logoutAdministratorStub{},
-		GitHubAccount:               githubAccountStub{},
-		GitHubApp:                   githubAppStub{},
-		DokployServer:               dokployServerStub{},
-		Project:                     projectStub{},
-		Incident:                    incidentStub{},
+
+		GitHubAccount: githubAccountStub{},
+		GitHubApp:     githubAppStub{},
+		DokployServer: dokployServerStub{},
+		Project:       projectStub{},
+		Incident:      incidentStub{},
+		Investigation: investigationStub{},
+		Operation:     operationStub{},
+		Evidence:      evidenceStub{},
+		Remediation:   remediationStub{},
 	}
 }
 
@@ -207,7 +268,16 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandlers() error = %v", err)
 	}
-	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil || handlers.ProjectHandler == nil || handlers.IncidentHandler == nil {
+
+	if handlers == nil ||
+		handlers.AuthHandler == nil ||
+		handlers.GitHubHandler == nil ||
+		handlers.DokployHandler == nil ||
+		handlers.ProjectHandler == nil ||
+		handlers.IncidentHandler == nil ||
+		handlers.InvestigationHandler == nil ||
+		handlers.OperationHandler == nil ||
+		handlers.EvidenceHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -231,6 +301,10 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing GitHub app", mutate: func(config *HandlersConfig) { config.UseCases.GitHubApp = nil }},
 		{name: "missing Dokploy server", mutate: func(config *HandlersConfig) { config.UseCases.DokployServer = nil }},
 		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
+		{name: "missing Investigation", mutate: func(config *HandlersConfig) { config.UseCases.Investigation = nil }},
+		{name: "missing Operation", mutate: func(config *HandlersConfig) { config.UseCases.Operation = nil }},
+		{name: "missing Evidence", mutate: func(config *HandlersConfig) { config.UseCases.Evidence = nil }},
+		{name: "missing Remediation", mutate: func(config *HandlersConfig) { config.UseCases.Remediation = nil }},
 		{name: "missing Incident", mutate: func(config *HandlersConfig) { config.UseCases.Incident = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 		{name: "invalid cookie same-site", mutate: func(config *HandlersConfig) { config.SessionCookieSameSite = "invalid" }},

@@ -1,7 +1,9 @@
 import React from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
+import { getErrorMessage, isApiNotFoundError } from "@/core/errors";
 import { Button } from "@/core/ui/primitives/Button";
+import { Card, CardBody, CardHeader } from "@/core/ui/primitives/Card";
 import { APP_ROUTES } from "@/core/routes/routes.config";
 import { MetricsGrid } from "./components/MetricsGrid/MetricsGrid";
 import { ActiveIncidentsCard } from "./components/ActiveIncidentsCard/ActiveIncidentsCard";
@@ -12,11 +14,17 @@ import styles from "./OverviewView.module.css";
 
 export const OverviewView = async () => {
   let overview;
+  let unavailableMessage: string | null = null;
+
   try {
     const res = await getOverviewService();
     overview = res.data;
   } catch (error) {
-    throw error;
+    if (!isApiNotFoundError(error)) {
+      throw error;
+    }
+
+    unavailableMessage = getErrorMessage(error, "Overview endpoint unavailable.");
   }
 
   return (
@@ -36,26 +44,39 @@ export const OverviewView = async () => {
         </Link>
       </div>
 
-      <MetricsGrid 
-        monitored_projects={overview.monitored_projects}
-        active_incidents={overview.active_incidents}
-        workflow_completed_incidents={overview.workflow_completed_incidents}
-        pull_requests_created={overview.pull_requests_created}
-      />
+      {overview ? (
+        <>
+          <MetricsGrid
+            monitored_projects={overview.monitored_projects}
+            active_incidents={overview.active_incidents}
+            workflow_completed_incidents={overview.workflow_completed_incidents}
+            pull_requests_created={overview.pull_requests_created}
+          />
 
-      {/* Main Content Grid */}
-      <div className={styles.contentGrid}>
-        {/* Left Column: Recent Incidents / Activity */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <ActiveIncidentsCard investigations={overview.active_investigations} />
-        </div>
+          <div className={styles.contentGrid}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <ActiveIncidentsCard investigations={overview.active_investigations} />
+            </div>
 
-        {/* Right Column: AI Intel & Pipeline Status */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <InvestigationEngineBanner />
-          <PipelineLifecycleCard />
-        </div>
-      </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <InvestigationEngineBanner />
+              <PipelineLifecycleCard />
+            </div>
+          </div>
+        </>
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className={styles.unavailableHeader}>
+              <AlertTriangle size={16} />
+              <span>Overview endpoint unavailable</span>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <p className={styles.unavailableText}>{unavailableMessage}</p>
+          </CardBody>
+        </Card>
+      )}
     </div>
   );
 };

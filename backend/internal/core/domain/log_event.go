@@ -26,29 +26,33 @@ func (s Severity) Validate() error {
 }
 
 type LogEvent struct {
-	ID                  uuid.UUID            `gorm:"column:id;type:uuid;primaryKey"`
-	IncidentID          uuid.UUID            `gorm:"column:incident_id;type:uuid"`
-	ProjectID           uuid.UUID            `gorm:"column:project_id;type:uuid"`
-	SourceApplicationID string               `gorm:"column:source_application_id"`
-	SourceInstanceID    string               `gorm:"column:source_instance_id"`
-	OccurrenceKey       string               `gorm:"column:occurrence_key"`
-	Timestamp           time.Time            `gorm:"column:timestamp"`
-	Severity            Severity             `gorm:"column:severity"`
-	Message             string               `gorm:"column:message"`
-	Fingerprint         string               `gorm:"column:fingerprint"`
-	DetectionRules      []string             `gorm:"serializer:json;type:jsonb;column:detection_rules"`
-	ContextBefore       []SanitizedLogRecord `gorm:"serializer:json;type:jsonb;column:context_before"`
-	ContextAfter        []SanitizedLogRecord `gorm:"serializer:json;type:jsonb;column:context_after"`
-	RawContextRedacted  bool                 `gorm:"column:raw_context_redacted"`
+	ID                 uuid.UUID            `gorm:"column:id;type:uuid;primaryKey"`
+	IncidentID         uuid.UUID            `gorm:"column:incident_id;type:uuid"`
+	ProjectID          uuid.UUID            `gorm:"column:project_id;type:uuid"`
+	SourceType         DokploySourceType    `gorm:"column:source_type"`
+	SourceResourceID   string               `gorm:"column:source_resource_id"`
+	SourceServiceName  string               `gorm:"column:source_service_name"`
+	SourceInstanceID   string               `gorm:"column:source_instance_id"`
+	OccurrenceKey      string               `gorm:"column:occurrence_key"`
+	Timestamp          time.Time            `gorm:"column:timestamp"`
+	Severity           Severity             `gorm:"column:severity"`
+	Message            string               `gorm:"column:message"`
+	Fingerprint        string               `gorm:"column:fingerprint"`
+	DetectionRules     []string             `gorm:"serializer:json;type:jsonb;column:detection_rules"`
+	ContextBefore      []SanitizedLogRecord `gorm:"serializer:json;type:jsonb;column:context_before"`
+	ContextAfter       []SanitizedLogRecord `gorm:"serializer:json;type:jsonb;column:context_after"`
+	RawContextRedacted bool                 `gorm:"column:raw_context_redacted"`
 }
 
-func (e *LogEvent) AssociateOccurrence(incidentID uuid.UUID, sourceApplicationID, sourceInstanceID, occurrenceKey string) error {
-	if e == nil || incidentID == uuid.Nil || strings.TrimSpace(sourceApplicationID) == "" || strings.TrimSpace(sourceInstanceID) == "" || strings.TrimSpace(occurrenceKey) == "" {
+func (e *LogEvent) AssociateOccurrence(incidentID uuid.UUID, source DokploySource, occurrenceKey string) error {
+	if e == nil || incidentID == uuid.Nil || source.Validate() != nil || strings.TrimSpace(occurrenceKey) == "" {
 		return ErrInvalidLogEvent.Wrap(validationCause("log event occurrence"))
 	}
 	e.IncidentID = incidentID
-	e.SourceApplicationID = strings.TrimSpace(sourceApplicationID)
-	e.SourceInstanceID = strings.TrimSpace(sourceInstanceID)
+	e.SourceType = source.Type
+	e.SourceResourceID = source.ResourceIdentifier
+	e.SourceServiceName = source.ServiceName
+	e.SourceInstanceID = source.InstanceIdentifier
 	e.OccurrenceKey = strings.TrimSpace(occurrenceKey)
 	return nil
 }
@@ -65,8 +69,8 @@ func NewLogEvent(
 		ID: id, ProjectID: projectID, Timestamp: timestamp, Severity: severity,
 		Message: strings.TrimSpace(message), Fingerprint: strings.TrimSpace(fingerprint),
 		DetectionRules:     cloneStrings(detectionRules),
-		ContextBefore:      append([]SanitizedLogRecord(nil), contextBefore...),
-		ContextAfter:       append([]SanitizedLogRecord(nil), contextAfter...),
+		ContextBefore:      append([]SanitizedLogRecord{}, contextBefore...),
+		ContextAfter:       append([]SanitizedLogRecord{}, contextAfter...),
 		RawContextRedacted: true,
 	}
 	if err := event.Validate(); err != nil {

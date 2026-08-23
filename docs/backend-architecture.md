@@ -513,6 +513,8 @@ sequenceDiagram
     participant LS as LogSource Port
     participant DK as Dokploy Adapter
     participant IR as Incident Repository
+    participant IV as Investigation Repository
+    participant IGR as IssueReference Repository
     participant Q as Investigation Usecase
     participant IE as InvestigationEngine Port
     participant QA as QVAC Adapter
@@ -528,11 +530,14 @@ sequenceDiagram
     Q->>IE: Investigate context
     IE->>QA: Run QVAC analysis
     QA-->>IE: Structured result
-    Q->>IR: Persist Investigation
-    Q->>GH: Publish Issue
+    Q->>IV: Complete Investigation in short transaction
+    Q->>IR: Move Incident to publishing_issue
+    Q->>GH: Publish Issue outside transaction
+    Q->>IGR: Persist IssueReference in second transaction
+    Q->>IR: Attach latest Issue projection / final state
 ```
 
-This diagram shows responsibilities, not necessarily goroutines, queues or deployment topology.
+This diagram shows responsibilities, not necessarily goroutines, queues or deployment topology. External GitHub calls are never made inside PostgreSQL transactions; the durable IssueReference is the idempotency boundary for one Issue per completed Investigation, while Incident detail projects only the most recent Issue.
 
 ---
 

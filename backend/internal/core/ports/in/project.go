@@ -14,21 +14,19 @@ type CreateProjectCommand struct {
 	GitHubAccountID         uuid.UUID
 	RepositoryIdentifier    string
 	DefaultBranch           string
-	DokployServerID         uuid.UUID
-	ApplicationIdentifier   string
+	DokploySource           domain.DokploySourceSelector
 	MonitoringConfiguration domain.MonitoringConfiguration
 	InitialLogIngestion     domain.InitialLogIngestion
 }
 
 type UpdateProjectCommand struct {
-	ID                    uuid.UUID
-	Name                  *string
-	Description           *string
-	GitHubAccountID       *uuid.UUID
-	RepositoryIdentifier  *string
-	DefaultBranch         *string
-	DokployServerID       *uuid.UUID
-	ApplicationIdentifier *string
+	ID                   uuid.UUID
+	Name                 *string
+	Description          *string
+	GitHubAccountID      *uuid.UUID
+	RepositoryIdentifier *string
+	DefaultBranch        *string
+	DokploySource        *domain.DokploySourceSelector
 }
 
 type ProjectResult struct {

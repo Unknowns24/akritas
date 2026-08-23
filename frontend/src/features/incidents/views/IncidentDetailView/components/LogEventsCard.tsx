@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { getErrorMessage } from "@/core/errors";
 import { getIncidentLogEventsService } from "../../../services/get-incident-log-events.service";
 import type { LogEvent } from "../../../services/get-incident-log-events.service";
 import styles from "../IncidentDetailView.module.css";
@@ -13,7 +14,6 @@ export function LogEventsCard({ incidentId }: { incidentId: string }) {
 
   // Pagination state
   const [nextCursor, setNextCursor] = useState<string>("");
-  const [prevCursor, setPrevCursor] = useState<string>("");
   const [hasMore, setHasMore] = useState(false);
   const [cursorStack, setCursorStack] = useState<string[]>([]);
   
@@ -24,17 +24,20 @@ export function LogEventsCard({ incidentId }: { incidentId: string }) {
       const response = await getIncidentLogEventsService(incidentId, { limit: 10, cursor });
       setEvents(response.data || []);
       setNextCursor(response.paging?.next_cursor || "");
-      setPrevCursor(response.paging?.prev_cursor || "");
       setHasMore(response.paging?.has_more || false);
-    } catch (err: any) {
-      setError(err.message || "Failed to load log events");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Failed to load log events"));
     } finally {
       setLoading(false);
     }
   }, [incidentId]);
 
   useEffect(() => {
-    fetchEvents();
+    const timeoutId = window.setTimeout(() => {
+      void fetchEvents();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [fetchEvents]);
 
   const handleNextPage = () => {

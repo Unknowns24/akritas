@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertCircle, RefreshCw, ChevronRight } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
 import { ApiError } from "@/core/errors/api-error";
 import styles from "./ErrorState.module.css";

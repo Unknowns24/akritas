@@ -34,7 +34,29 @@ func Connect(t *testing.T) *gorm.DB {
 	if err := migrations.Run(db); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
-	if err := db.Exec("TRUNCATE TABLE log_events, incidents, monitoring_checkpoints, projects, administrator_sessions, pending_enrollments, administrators, github_app_bindings, github_app_registrations, credentials, github_accounts, dokploy_servers CASCADE").Error; err != nil {
+
+	if err := db.Exec(`
+    TRUNCATE TABLE
+      validation_results,
+      remediations,
+      evidence,
+      github_issue_references,
+      operations,
+      investigations,
+      log_events,
+      incidents,
+      monitoring_checkpoints,
+      projects,
+      administrator_sessions,
+      pending_enrollments,
+      administrators,
+      github_app_bindings,
+      github_app_registrations,
+      credentials,
+      github_accounts,
+      dokploy_servers
+    CASCADE
+  `).Error; err != nil {
 		t.Fatalf("truncate tables: %v", err)
 	}
 

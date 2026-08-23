@@ -22,9 +22,9 @@ import (
 )
 
 func TestMonitoringPersistenceIsDurableTransactionalAndSerialized(t *testing.T) {
-	db := dbtest.Connect(t)
+	db := dbtest.ConnectContainer(t)
 	ctx := context.Background()
-	project := insertProject(t, db, time.Now().UTC())
+	project := insertProject(t, db, time.Now().UTC().Truncate(time.Microsecond))
 	repository, err := monitoringrepo.New(db)
 	if err != nil {
 		t.Fatal(err)
@@ -132,6 +132,15 @@ func TestMonitoringPersistenceIsDurableTransactionalAndSerialized(t *testing.T) 
 	}
 
 	projects, _ := projectrepo.New(db)
+	expectedUpdatedAt := project.UpdatedAt
+	disabled := project.MonitoringConfiguration.Clone()
+	disabled.Enabled = false
+	if err := project.ReplaceMonitoringConfiguration(disabled, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := projects.Update(ctx, &project, expectedUpdatedAt); err != nil {
+		t.Fatal(err)
+	}
 	if err := projects.Delete(ctx, project.ID); !errors.Is(err, domain.ErrProjectHasDependencies) {
 		t.Fatalf("Project delete with history = %v", err)
 	}
@@ -149,8 +158,9 @@ func insertProject(t *testing.T, db *gorm.DB, now time.Time) domain.Project {
 	}
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
 	application, _ := domain.NewDokployApplication(server.ID, "app", "instance", "service", "production", domain.DokployApplicationRunning)
+	source, _ := domain.SourceFromApplication(application)
 	configuration, _ := domain.NewMonitoringConfiguration(true, []string{}, []string{}, 30*time.Minute, 2, 2)
-	project, err := domain.NewProject(uuid.New(), "Service", "", repository, application, configuration, now)
+	project, err := domain.NewProject(uuid.New(), "Service", "", repository, source, configuration, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +185,7 @@ func newEvent(t *testing.T, incidentID uuid.UUID, project domain.Project, occurr
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := value.AssociateOccurrence(incidentID, "app", "instance", occurrenceKey); err != nil {
+	if err := value.AssociateOccurrence(incidentID, project.DokploySource, occurrenceKey); err != nil {
 		t.Fatal(err)
 	}
 	return value

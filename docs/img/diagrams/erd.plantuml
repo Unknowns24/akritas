@@ -133,11 +133,13 @@ entity "Investigation" as investigation {
 }
 
 entity "GitHubIssueReference" as github_issue {
-  * incident_id
+  * investigation_id
   --
-  number
-  url
+  incident_id
+  issue_number
+  issue_url
   repository
+  created_at
 }
 
 entity "Remediation" as remediation {
@@ -170,7 +172,8 @@ project ||--o{ incident : incidents
 
 incident ||--o{ log_event : groups
 incident ||--|{ investigation : investigations
-incident ||--|| github_issue : issue
+incident ||--o{ github_issue : issues
+investigation ||--o| github_issue : published_issue
 incident ||--o| remediation : remediation
 
 remediation ||--o| pull_request : pull_request

@@ -34,7 +34,8 @@ func TestRepositoryPersistsSnapshotsEnforcesUsageAndOptimisticUpdate(t *testing.
 	}
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "Unknowns24", "akritas", "main", true, "https://github.com/Unknowns24/akritas")
 	application, _ := domain.NewDokployApplication(server.ID, "app-1", "api", "API", "production", domain.DokployApplicationRunning)
-	value, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, _ := domain.SourceFromApplication(application)
+	value, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +47,7 @@ func TestRepositoryPersistsSnapshotsEnforcesUsageAndOptimisticUpdate(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.GitHubRepository.RepositoryIdentifier != "42" || got.DokployApplication.Environment != "production" || got.MonitoringConfiguration.GroupingWindow != 30*time.Minute {
+	if got.GitHubRepository.RepositoryIdentifier != "42" || got.DokploySource.Environment != "production" || got.MonitoringConfiguration.GroupingWindow != 30*time.Minute {
 		t.Fatalf("round trip = %+v", got)
 	}
 	if used, err := store.GitHubAccountInUse(ctx, account.ID); err != nil || !used {
@@ -70,7 +71,7 @@ func TestRepositoryPersistsSnapshotsEnforcesUsageAndOptimisticUpdate(t *testing.
 	duplicateName := *got
 	duplicateName.ID = uuid.New()
 	duplicateName.Name = "RENAMED"
-	duplicateName.DokployApplication.ApplicationIdentifier = "app-2"
+	duplicateName.DokploySource.ResourceIdentifier = "app-2"
 	if err := store.Create(ctx, &duplicateName); !errors.Is(err, domain.ErrProjectConcurrentModification) {
 		t.Fatalf("case-insensitive name constraint = %v", err)
 	}
@@ -80,11 +81,27 @@ func TestRepositoryPersistsSnapshotsEnforcesUsageAndOptimisticUpdate(t *testing.
 	if err := store.Create(ctx, &duplicateApplication); !errors.Is(err, domain.ErrProjectConcurrentModification) {
 		t.Fatalf("exclusive application constraint = %v", err)
 	}
+	composeAPI, _ := domain.NewDokploySource(server.ID, domain.DokploySourceComposeService, "compose-1", "api", "stack-prod", "Platform / api", "production", domain.DokploySourceRunning, domain.DokployRuntimeCompose, "")
+	composeWorker, _ := domain.NewDokploySource(server.ID, domain.DokploySourceComposeService, "compose-1", "worker", "stack-prod", "Platform / worker", "production", domain.DokploySourceRunning, domain.DokployRuntimeCompose, "")
+	apiProject, _ := domain.NewProject(uuid.New(), "Compose API", "", repository, composeAPI, domain.DefaultMonitoringConfiguration(), now)
+	workerProject, _ := domain.NewProject(uuid.New(), "Compose Worker", "", repository, composeWorker, domain.DefaultMonitoringConfiguration(), now)
+	if err := store.Create(ctx, apiProject); err != nil {
+		t.Fatalf("create compose API = %v", err)
+	}
+	if err := store.Create(ctx, workerProject); err != nil {
+		t.Fatalf("different service in same Compose = %v", err)
+	}
+	duplicateService := *apiProject
+	duplicateService.ID = uuid.New()
+	duplicateService.Name = "Compose API duplicate"
+	if err := store.Create(ctx, &duplicateService); !errors.Is(err, domain.ErrProjectConcurrentModification) {
+		t.Fatalf("exclusive compose service constraint = %v", err)
+	}
 	missingAccount := *got
 	missingAccount.ID = uuid.New()
 	missingAccount.Name = "Missing account"
 	missingAccount.GitHubRepository.GitHubAccountID = uuid.New()
-	missingAccount.DokployApplication.ApplicationIdentifier = "app-3"
+	missingAccount.DokploySource.ResourceIdentifier = "app-3"
 	if err := store.Create(ctx, &missingAccount); err == nil {
 		t.Fatal("foreign key constraint accepted a missing GitHub account")
 	}

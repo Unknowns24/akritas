@@ -1,0 +1,316 @@
+package investigation
+
+import (
+	"context"
+	"time"
+
+	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	"github.com/Unknowns24/akritas/backend/internal/core/ports/out"
+	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
+	"github.com/google/uuid"
+)
+
+type fakeIncidentStore struct {
+	exists    bool
+	getResult *domain.Incident
+	getErr    error
+	updated   []domain.Incident
+}
+
+func (f *fakeIncidentStore) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	if !f.exists {
+		return nil, domain.ErrIncidentNotFound
+	}
+	if f.getResult == nil {
+		return &domain.Incident{ID: id, ProjectID: uuid.New(), Phase: domain.IncidentPhaseDetected}, nil
+	}
+	return f.getResult, f.getErr
+}
+
+func (f *fakeIncidentStore) Lock(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
+	return f.Get(ctx, id)
+}
+
+func (f *fakeIncidentStore) Update(ctx context.Context, value *domain.Incident) error {
+	f.updated = append(f.updated, *value)
+	copied := *value
+	f.getResult = &copied
+	f.exists = true
+	return nil
+}
+
+type fakeInvestigationStore struct {
+	createErr         error
+	updateErr         error
+	created           *domain.Investigation
+	updated           []domain.Investigation
+	findByIDResult    *domain.Investigation
+	findByIDErr       error
+	listResult        paging.Slice[domain.Investigation]
+	listErr           error
+	activeForIncident bool
+	activeErr         error
+	open              []domain.Investigation
+}
+
+func (f *fakeInvestigationStore) Create(ctx context.Context, value *domain.Investigation) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+	f.created = value
+	return nil
+}
+
+func (f *fakeInvestigationStore) Update(ctx context.Context, value *domain.Investigation) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = append(f.updated, *value)
+	return nil
+}
+
+func (f *fakeInvestigationStore) FindByID(ctx context.Context, id uuid.UUID) (*domain.Investigation, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+	return f.findByIDResult, nil
+}
+
+func (f *fakeInvestigationStore) FindLatestByIncident(ctx context.Context, incidentID uuid.UUID) (*domain.Investigation, error) {
+	if f.findByIDResult == nil {
+		return nil, domain.ErrInvestigationNotFound
+	}
+	return f.findByIDResult, nil
+}
+
+func (f *fakeInvestigationStore) ListByIncident(ctx context.Context, incidentID uuid.UUID, params paging.Params) (paging.Slice[domain.Investigation], error) {
+	return f.listResult, f.listErr
+}
+
+func (f *fakeInvestigationStore) ExistsActiveForIncident(ctx context.Context, incidentID uuid.UUID) (bool, error) {
+	return f.activeForIncident, f.activeErr
+}
+
+func (f *fakeInvestigationStore) ListOpen(context.Context) ([]domain.Investigation, error) {
+	return append([]domain.Investigation(nil), f.open...), nil
+}
+
+type fakeOperationStore struct {
+	createErr       error
+	updateErr       error
+	created         *domain.Operation
+	updated         []domain.Operation
+	findByIDResult  *domain.Operation
+	findByIDErr     error
+	findByKeyResult *domain.Operation
+	findByKeyErr    error
+	findByKeyCalled bool
+}
+
+func (f *fakeOperationStore) Create(ctx context.Context, value *domain.Operation) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+	f.created = value
+	return nil
+}
+
+func (f *fakeOperationStore) Update(ctx context.Context, value *domain.Operation) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = append(f.updated, *value)
+	return nil
+}
+
+func (f *fakeOperationStore) FindByID(ctx context.Context, id uuid.UUID) (*domain.Operation, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+	return f.findByIDResult, nil
+}
+
+func (f *fakeOperationStore) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Operation, error) {
+	f.findByKeyCalled = true
+	if f.findByKeyErr != nil {
+		return nil, f.findByKeyErr
+	}
+	return f.findByKeyResult, nil
+}
+
+func (f *fakeOperationStore) FindByResource(context.Context, domain.OperationResourceType, uuid.UUID) (*domain.Operation, error) {
+	if f.findByIDErr != nil {
+		return nil, f.findByIDErr
+	}
+	if f.findByIDResult == nil {
+		return nil, domain.ErrOperationNotFound
+	}
+	return f.findByIDResult, nil
+}
+
+type fakeInvestigationDispatcher struct {
+	dispatched                   bool
+	investigationID, operationID uuid.UUID
+}
+
+func (f *fakeInvestigationDispatcher) Dispatch(investigationID, operationID uuid.UUID) {
+	f.dispatched = true
+	f.investigationID = investigationID
+	f.operationID = operationID
+}
+
+type fakeInvestigationRunner struct {
+	result  out.InvestigationRunResult
+	err     error
+	calls   int
+	context out.InvestigationRunContext
+}
+
+func (f *fakeInvestigationRunner) Run(ctx context.Context, runContext out.InvestigationRunContext) (out.InvestigationRunResult, error) {
+	f.calls++
+	f.context = runContext
+	return f.result, f.err
+}
+
+type fakeEvidenceStore struct {
+	createErr error
+	created   []domain.Evidence
+}
+
+func (f *fakeEvidenceStore) Create(ctx context.Context, value *domain.Evidence) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+	f.created = append(f.created, *value)
+	return nil
+}
+
+func (f *fakeEvidenceStore) ListByInvestigation(ctx context.Context, investigationID uuid.UUID, params paging.Params) (paging.Slice[domain.Evidence], error) {
+	return paging.Slice[domain.Evidence]{Items: append([]domain.Evidence(nil), f.created...), Total: int64(len(f.created))}, nil
+}
+
+type fakeEvidenceAssembler struct {
+	result out.InvestigationRunContext
+	err    error
+}
+
+func (f *fakeEvidenceAssembler) Assemble(ctx context.Context, investigation domain.Investigation) (out.InvestigationRunContext, error) {
+	f.result.Investigation = investigation
+	return f.result, f.err
+}
+
+type fakeProjectStore struct {
+	project *domain.Project
+	err     error
+}
+
+func (f fakeProjectStore) Create(context.Context, *domain.Project) error { return nil }
+func (f fakeProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, error) {
+	return f.project, f.err
+}
+func (f fakeProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (f fakeProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
+	return nil, domain.ErrProjectNotFound
+}
+func (f fakeProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
+	return paging.Slice[domain.Project]{}, nil
+}
+func (f fakeProjectStore) Update(context.Context, *domain.Project, time.Time) error { return nil }
+func (f fakeProjectStore) Delete(context.Context, uuid.UUID) error                  { return nil }
+
+type fakeGitHubAccountReader struct {
+	account *domain.GitHubAccount
+	err     error
+}
+
+func (f fakeGitHubAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
+	return f.account, f.err
+}
+
+type fakeIssueReferenceStore struct {
+	existing *domain.GitHubIssueReference
+	created  *domain.GitHubIssueReference
+	err      error
+}
+
+func (f *fakeIssueReferenceStore) Create(ctx context.Context, value *domain.GitHubIssueReference) error {
+	if f.err != nil {
+		return f.err
+	}
+	copied := *value
+	f.created = &copied
+	return nil
+}
+func (f *fakeIssueReferenceStore) FindByInvestigation(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return f.existing, f.err
+}
+func (f *fakeIssueReferenceStore) FindLatestByIncident(context.Context, uuid.UUID) (*domain.GitHubIssueReference, error) {
+	return f.existing, f.err
+}
+
+type fakeIssuePublisher struct {
+	result out.PublishedIssue
+	err    error
+	calls  int
+}
+
+func (f *fakeIssuePublisher) PublishIssue(ctx context.Context, account domain.GitHubAccount, repository domain.GitHubRepository, content out.IssueContent) (out.PublishedIssue, error) {
+	f.calls++
+	return f.result, f.err
+}
+
+type fakeIssueContentBuilder struct {
+	content out.IssueContent
+	err     error
+}
+
+func (f fakeIssueContentBuilder) BuildIssueContent(out.IssueContentInput) (out.IssueContent, error) {
+	return f.content, f.err
+}
+
+func fakeProject(t time.Time) (*domain.Project, *domain.GitHubAccount) {
+	account, _ := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, t)
+	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
+	application, _ := domain.NewDokployApplication(uuid.New(), "app", "instance", "Service", "prod", domain.DokployApplicationRunning)
+	source, _ := domain.SourceFromApplication(application)
+	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, source, domain.DefaultMonitoringConfiguration(), t)
+	return project, account
+}
+
+func projectForIncident(incident *domain.Incident, at time.Time) *domain.Project {
+	project, _ := fakeProject(at)
+	if incident != nil {
+		project.ID = incident.ProjectID
+	}
+	return project
+}
+
+func accountForProject(project *domain.Project, at time.Time) *domain.GitHubAccount {
+	account, _ := domain.NewGitHubAccount(project.GitHubRepository.GitHubAccountID, "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, at)
+	return account
+}
+
+type fakeTransactor struct{}
+
+func (fakeTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	return fn(ctx)
+}
+
+type failNthTransactor struct {
+	calls  int
+	failAt int
+	err    error
+}
+
+func (f *failNthTransactor) WithinTransaction(ctx context.Context, fn func(context.Context) error) error {
+	f.calls++
+	if f.calls == f.failAt {
+		return f.err
+	}
+	return fn(ctx)
+}

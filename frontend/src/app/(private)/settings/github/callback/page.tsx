@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { env } from "@/core/config/env.config";
 import { RefreshCw, AlertCircle } from "lucide-react";
+import { env } from "@/core/config/env.config";
 import styles from "./CallbackPage.module.css";
 
 function GitHubCallbackContent() {
   const searchParams = useSearchParams();
 
-  // Compute params and derived error synchronously during render
-  const errorParam = searchParams.get("error_description") || searchParams.get("error");
+  const errorParam =
+    searchParams.get("error_description") ?? searchParams.get("error");
+
   const code = searchParams.get("code");
   const state = searchParams.get("state");
   const installationId = searchParams.get("installation_id");
@@ -19,32 +20,55 @@ function GitHubCallbackContent() {
 
   const isManifest = Boolean(code && state);
   const isInstallation = Boolean(installationId);
+  const hasValidCallback = isManifest || isInstallation;
 
   const error = errorParam
     ? errorParam
-    : !isManifest && !isInstallation
-    ? "No valid callback parameters found in URL."
-    : null;
+    : !hasValidCallback
+      ? "No valid callback parameters found in URL."
+      : null;
 
   useEffect(() => {
-    // Only perform the side effect (external redirect) if parameters are valid and error-free
     if (error) return;
 
     if (isManifest && code && state) {
-      // 1. Return from App Manifest Creation
-      const url = new URL(`${env.apiUrl}/integrations/github/app-manifest/callback`, window.location.origin);
+      const url = new URL(
+        `${env.apiUrl}/integrations/github/app-manifest/callback`,
+      );
+
       url.searchParams.set("code", code);
       url.searchParams.set("state", state);
-      window.location.href = url.toString();
-    } else if (isInstallation && installationId) {
-      // 2. Return from App Installation
-      const url = new URL(`${env.apiUrl}/integrations/github/app-installations/callback`, window.location.origin);
-      url.searchParams.set("installation_id", installationId);
-      if (setupAction) url.searchParams.set("setup_action", setupAction);
-      if (state) url.searchParams.set("state", state);
-      window.location.href = url.toString();
+
+      window.location.assign(url.toString());
+      return;
     }
-  }, [error, isManifest, isInstallation, code, state, installationId, setupAction]);
+
+    if (isInstallation && installationId) {
+      const url = new URL(
+        `${env.apiUrl}/integrations/github/app-installations/callback`,
+      );
+
+      url.searchParams.set("installation_id", installationId);
+
+      if (setupAction) {
+        url.searchParams.set("setup_action", setupAction);
+      }
+
+      if (state) {
+        url.searchParams.set("state", state);
+      }
+
+      window.location.assign(url.toString());
+    }
+  }, [
+    error,
+    isManifest,
+    isInstallation,
+    code,
+    state,
+    installationId,
+    setupAction,
+  ]);
 
   if (error) {
     return (
@@ -52,6 +76,7 @@ function GitHubCallbackContent() {
         <AlertCircle size={48} className={styles.error} />
         <h2>Error in GitHub Integration</h2>
         <p className={styles.error}>{error}</p>
+
         <Link href="/settings/github" className={styles.link}>
           Return to GitHub Settings
         </Link>
@@ -63,7 +88,9 @@ function GitHubCallbackContent() {
     <div className={styles.container}>
       <RefreshCw size={48} className={styles.spin} />
       <h2>Connecting to GitHub...</h2>
-      <p>Please wait while we complete the setup. You will be redirected shortly.</p>
+      <p>
+        Please wait while we complete the setup. You will be redirected shortly.
+      </p>
     </div>
   );
 }

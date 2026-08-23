@@ -76,13 +76,13 @@ Toda investigación debe producir dos clasificaciones independientes:
 
 ## 7. Issue Creation
 
-La Issue se crea siempre.
+La Issue se crea siempre para toda Investigation completada.
 
-La Issue es la salida obligatoria de la investigación y el registro humano/auditable del incidente.
+La Issue es la salida obligatoria de la investigacion y el registro humano/auditable del incidente. Akritas persiste una `GitHubIssueReference` ligada a `Incident` e `Investigation`; si la misma Investigation ya tiene referencia, el workflow reutiliza ese resultado y no republica. Si GitHub crea la Issue pero falla la persistencia local, el workflow falla de forma explicita y el marcador HTML con el UUID de Investigation queda preparado para reconciliacion futura.
 
 ## 8. Optional Remediation
 
-Sólo si `resolution_status = fixable`.
+Solo si `resolution_status = fixable`. En H4, un incidente fixable queda esperando en `publishing_issue` despues de crear la Issue; H5 reutiliza esa fase para iniciar remediation.
 
 Flujo:
 

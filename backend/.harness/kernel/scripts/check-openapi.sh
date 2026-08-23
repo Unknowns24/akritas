@@ -30,8 +30,8 @@ if not isinstance(data, dict):
     raise SystemExit('OpenAPI YAML is not an object')
 if data.get('openapi') != '3.1.0':
     raise SystemExit('openapi must be 3.1.0')
-if data.get('info', {}).get('version') != '1.5.0':
-    raise SystemExit('info.version must be 1.5.0')
+if data.get('info', {}).get('version') != '2.0.0':
+    raise SystemExit('info.version must be 2.0.0')
 if data.get('security') != [{'cookieAuth': []}]:
     raise SystemExit('cookieAuth must be the default security requirement')
 
@@ -119,6 +119,8 @@ expected_paths = {
     '/integrations/dokploy/servers', '/integrations/dokploy/servers/{server_id}',
     '/integrations/dokploy/servers/{server_id}/connection-test',
     '/integrations/dokploy/servers/{server_id}/applications',
+    '/integrations/dokploy/servers/{server_id}/composes',
+    '/integrations/dokploy/servers/{server_id}/composes/{compose_id}/services',
     '/integrations/qvac/configuration', '/integrations/qvac/connection-test',
     '/integrations/qvac/status', '/projects', '/projects/{project_id}',
     '/projects/{project_id}/monitoring-configuration', '/settings/automation',

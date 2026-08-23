@@ -50,8 +50,45 @@ func TestFetchLogsUsesExistingCredentialTransportAndPublishedReadLogsQuery(t *te
 		t.Fatal(err)
 	}
 	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("dokploy-key")})
-	records, err := client.FetchLogs(context.Background(), portsout.LogFetchRequest{Server: serverEntity, Application: application, Tail: 10000, Since: "all"})
+	source, err := domain.SourceFromApplication(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, err := client.FetchLogs(context.Background(), portsout.LogFetchRequest{Server: serverEntity, Source: source, Tail: 10000, Since: "all"})
 	if err != nil || len(records) != 1 || records[0].Message != "ERROR failed" {
 		t.Fatalf("FetchLogs() = %+v, %v", records, err)
+	}
+}
+
+func TestFetchComposeLogsResolvesDeterministicRunningContainer(t *testing.T) {
+	requests := make([]string, 0, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.URL.String())
+		switch r.URL.Path {
+		case "/api/docker.getContainersByAppNameMatch":
+			_ = json.NewEncoder(w).Encode([]map[string]any{
+				{"Id": "bbb", "State": "running", "Labels": map[string]string{"com.docker.compose.project": "stack-prod", "com.docker.compose.service": "api"}},
+				{"Id": "aaa", "State": "running", "Labels": map[string]string{"com.docker.compose.project": "stack-prod", "com.docker.compose.service": "api"}},
+				{"Id": "000", "State": "exited", "Labels": map[string]string{"com.docker.compose.project": "stack-prod", "com.docker.compose.service": "api"}},
+			})
+		case "/api/compose.readLogs":
+			if r.URL.Query().Get("containerId") != "aaa" || r.URL.Query().Get("composeId") != "compose-1" {
+				t.Fatalf("read logs query = %s", r.URL.String())
+			}
+			_ = json.NewEncoder(w).Encode("2026-08-22T12:00:00Z ready\n")
+		default:
+			t.Fatalf("unexpected request %s", r.URL.String())
+		}
+	}))
+	defer server.Close()
+	serverEntity := dokployServer(t, server.URL)
+	source, err := domain.NewDokploySource(serverEntity.ID, domain.DokploySourceComposeService, "compose-1", "api", "stack-prod", "Platform / api", "production", domain.DokploySourceRunning, domain.DokployRuntimeCompose, "remote-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	records, err := client.FetchLogs(context.Background(), portsout.LogFetchRequest{Server: serverEntity, Source: source, Tail: 100, Since: "1h"})
+	if err != nil || len(records) != 1 || records[0].Message != "ready" || len(requests) != 2 {
+		t.Fatalf("FetchLogs() = %+v, %v, requests=%v", records, err, requests)
 	}
 }

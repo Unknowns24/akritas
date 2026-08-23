@@ -37,6 +37,10 @@ func (s incidentUseCaseStub) ListLogEvents(context.Context, uuid.UUID, paging.Pa
 	return paging.Slice[domain.LogEvent]{Items: s.events, Total: int64(len(s.events))}, nil
 }
 
+func (s incidentUseCaseStub) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
+}
+
 func TestIncidentListDetailAndLogEventsSerialization(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	projectID, incidentID := uuid.New(), uuid.New()

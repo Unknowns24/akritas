@@ -104,6 +104,7 @@ type Incident struct {
 	GitHubIssueReference *GitHubIssueReference `gorm:"-"`
 	PullRequestReference *PullRequestReference `gorm:"serializer:json;type:jsonb;column:pull_request_reference"`
 	Project              *ProjectReference     `gorm:"-"`
+	LatestInvestigation  *Investigation        `gorm:"-"`
 }
 
 type ProjectReference struct {
@@ -171,6 +172,9 @@ func (i Incident) Validate() error {
 	}
 	if i.PullRequestReference != nil && i.PullRequestReference.Validate() != nil {
 		return ErrInvalidIncident.Wrap(validationCause("pull request reference"))
+	}
+	if i.LatestInvestigation != nil && (i.LatestInvestigation.Validate() != nil || i.LatestInvestigation.IncidentID != i.ID) {
+		return ErrInvalidIncident.Wrap(validationCause("latest investigation"))
 	}
 	return nil
 }

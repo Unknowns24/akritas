@@ -14,6 +14,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/dbtest"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/migrations/schema"
 	evidencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/evidence"
+	githubissuereferencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubissuereference"
 	incidentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/incident"
 	investigationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/investigation"
 	monitoringrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/monitoring"
@@ -24,6 +25,7 @@ import (
 	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
 	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
+	"github.com/Unknowns24/akritas/backend/internal/service/issuecontent"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	investigationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/investigation"
 	"github.com/google/uuid"
@@ -46,6 +48,16 @@ type fixedAccountReader struct{ account *domain.GitHubAccount }
 
 func (r fixedAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
 	return r.account, nil
+}
+
+type fixedIssuePublisher struct {
+	number    int
+	url       string
+	createdAt time.Time
+}
+
+func (p fixedIssuePublisher) PublishIssue(context.Context, domain.GitHubAccount, domain.GitHubRepository, portsout.IssueContent) (portsout.PublishedIssue, error) {
+	return portsout.PublishedIssue{Number: p.number, URL: p.url, CreatedAt: p.createdAt}, nil
 }
 
 type evidenceAwareRunner struct {
@@ -121,11 +133,14 @@ func TestH2IncidentToPersistedH3ResultAgainstPostgreSQL(t *testing.T) {
 	operations, _ := operationrepo.New(db)
 	evidences, _ := evidencerepo.New(db)
 	projects, _ := projectrepo.New(db)
+	issueReferences, _ := githubissuereferencerepo.New(db)
 	transactor := dbadapter.NewTransactor(db)
 	clock := monotonicClock(base)
-	assembler := evidenceassembly.New(incidents, projects, fixedAccountReader{account: account}, uuid.New, clock)
+	githubAccounts := fixedAccountReader{account: account}
+	assembler := evidenceassembly.New(incidents, projects, githubAccounts, uuid.New, clock)
 	runner := &evidenceAwareRunner{now: base.Add(10 * time.Second)}
-	run := investigationusecase.NewRunUseCase(incidents, investigations, operations, evidences, assembler, runner, transactor, clock)
+	publisher := fixedIssuePublisher{number: 99, url: "https://github.com/acme/service-a/issues/99", createdAt: base.Add(20 * time.Second)}
+	run := investigationusecase.NewRunUseCase(incidents, investigations, operations, evidences, projects, githubAccounts, issueReferences, publisher, issuecontent.New(), assembler, runner, transactor, clock)
 	dispatcher := &recordingDispatcher{}
 	start := investigationusecase.New(incidents, investigations, operations, transactor, dispatcher, uuid.New, clock)
 
@@ -167,8 +182,12 @@ func TestH2IncidentToPersistedH3ResultAgainstPostgreSQL(t *testing.T) {
 		t.Fatalf("incomplete persisted structured result: %+v", completed)
 	}
 	storedIncident, err := incidents.Get(ctx, incident.ID)
-	if err != nil || storedIncident.Phase != domain.IncidentPhaseInvestigating {
-		t.Fatalf("H3 incorrectly entered H4 state: incident=%+v err=%v", storedIncident, err)
+	if err != nil || storedIncident.Phase != domain.IncidentPhasePublishingIssue {
+		t.Fatalf("H4 did not leave fixable Incident waiting for remediation: incident=%+v err=%v", storedIncident, err)
+	}
+	reference, err := issueReferences.FindByInvestigation(ctx, completed.ID)
+	if err != nil || reference == nil || reference.Number != 99 || reference.IncidentID != incident.ID {
+		t.Fatalf("IssueReference was not persisted: reference=%+v err=%v", reference, err)
 	}
 	page, err := evidenceusecase.New(investigations, evidences).ListInvestigationEvidence(ctx, completed.ID, paging.Params{Limit: 25})
 	if err != nil || len(page.Items) != completed.EvidenceCount {
@@ -201,6 +220,9 @@ func TestH2IncidentToPersistedH3ResultAgainstPostgreSQL(t *testing.T) {
 	if err := investigations.Create(ctx, secondActive); !errors.Is(err, domain.ErrInvestigationAlreadyActive) {
 		t.Fatalf("active unique index did not map conflict: %v", err)
 	}
+	if err := schema.SCHEMA_20260823_06_AddGitHubIssueReferences().Rollback(db); err != nil {
+		t.Fatalf("rollback issue references: %v", err)
+	}
 	if err := schema.SCHEMA_20260823_05_AddInvestigationEvidenceIDs().Rollback(db); err != nil {
 		t.Fatalf("rollback evidence_ids: %v", err)
 	}
@@ -215,6 +237,9 @@ func TestH2IncidentToPersistedH3ResultAgainstPostgreSQL(t *testing.T) {
 	}
 	if err := schema.SCHEMA_20260823_05_AddInvestigationEvidenceIDs().Migrate(db); err != nil {
 		t.Fatalf("reapply evidence_ids: %v", err)
+	}
+	if err := schema.SCHEMA_20260823_06_AddGitHubIssueReferences().Migrate(db); err != nil {
+		t.Fatalf("reapply issue references: %v", err)
 	}
 }
 

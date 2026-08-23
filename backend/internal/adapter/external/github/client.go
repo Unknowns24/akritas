@@ -76,3 +76,4 @@ func isLoopbackHost(host string) bool {
 
 var _ portsout.GitHubGateway = (*Client)(nil)
 var _ portsout.GitHubAppGateway = (*Client)(nil)
+var _ portsout.IssuePublisher = (*Client)(nil)

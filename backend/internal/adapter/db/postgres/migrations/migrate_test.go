@@ -21,6 +21,7 @@ func TestMigrationRegistryIsOrderedAndReversible(t *testing.T) {
 		"20260823_03_add_log_events",
 		"20260823_04_link_investigation_history",
 		"20260823_05_add_investigation_evidence_ids",
+		"20260823_06_add_github_issue_references",
 	}
 	migrations := All()
 	if len(migrations) != len(expected) {

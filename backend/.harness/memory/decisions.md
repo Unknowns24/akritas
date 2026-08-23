@@ -51,3 +51,11 @@ Record durable project decisions here.
 - Repository/application snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
 - The requested GitHub `default_branch` must match provider metadata.
 - Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.
+
+## 2026-08-23 — GitHub Issue publication idempotency
+
+- H4 creates one GitHub Issue per completed `Investigation`, not one per `Incident`.
+- `GitHubIssueReference` is durable PostgreSQL state linked to both `Incident` and `Investigation`; a preexisting reference for the same Investigation is the idempotency boundary and prevents a second publish.
+- `Incident.github_issue_reference` remains a singular REST projection of the most recent Issue for that Incident.
+- `resolution_status = requires_human` completes the Incident after IssueReference persistence; `resolution_status = fixable` leaves the Incident in `publishing_issue` for H5 remediation.
+- GitHub publication happens outside PostgreSQL transactions. The workflow uses a transaction before the external call to persist QVAC completion and a second transaction after the call to persist IssueReference and Operation completion.

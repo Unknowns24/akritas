@@ -112,6 +112,9 @@ func (*fakeIncidents) List(context.Context, paging.Params) (paging.Slice[domain.
 func (*fakeIncidents) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
 	return paging.Slice[domain.LogEvent]{}, nil
 }
+func (*fakeIncidents) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
+}
 
 func (f *fakeProjects) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
 	f.createCalls++
@@ -358,6 +361,7 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/incidents",
 		"GET /api/v1/incidents/{incident_id}",
 		"GET /api/v1/incidents/{incident_id}/log-events",
+		"GET /api/v1/incidents/{incident_id}/timeline",
 		"GET /api/v1/integrations/dokploy/servers",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}/applications",

@@ -187,6 +187,10 @@ func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (pa
 	return paging.Slice[domain.LogEvent]{}, nil
 }
 
+func (incidentStub) ListTimeline(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.TimelineEvent], error) {
+	return paging.Slice[domain.TimelineEvent]{}, nil
+}
+
 type startAdministratorRecoveryStub struct{}
 
 func (startAdministratorRecoveryStub) Execute(

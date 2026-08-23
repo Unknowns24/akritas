@@ -118,9 +118,10 @@ var (
 
 	ErrInvalidInitialLogIngestion = newDomainError("0x50300AV", "invalid initial log ingestion", "La opción de ingesta inicial no es válida.")
 
-	ErrIncidentNotFound           = newDomainError("0x504001N", "incident not found", "El incidente no existe.")
-	ErrInvestigationNotFound      = newDomainError("0x504002N", "investigation not found", "La investigación no existe.")
-	ErrInvestigationAlreadyActive = newDomainError("0x504003C", "investigation already active", "Ya hay una investigación en curso para este incidente.")
+	ErrIncidentNotFound            = newDomainError("0x504001N", "incident not found", "El incidente no existe.")
+	ErrInvestigationNotFound       = newDomainError("0x504002N", "investigation not found", "La investigación no existe.")
+	ErrInvestigationAlreadyActive  = newDomainError("0x504003C", "investigation already active", "Ya hay una investigación en curso para este incidente.")
+	ErrGitHubIssueAlreadyPublished = newDomainError("0x504004C", "GitHub issue already published", "La investigación ya tiene una Issue publicada.")
 
 	ErrOperationNotFound                = newDomainError("0x505001N", "operation not found", "La operación no existe.")
 	ErrMonitoringContinuityLost         = newDomainError("0x505001I", "monitoring log continuity lost", "No se pudo verificar la continuidad de los logs.")
@@ -234,8 +235,9 @@ func MonitoringErrors() map[string]*Error {
 // InvestigationErrors returns stable errors introduced by the investigation application boundary.
 func InvestigationErrors() map[string]*Error {
 	return map[string]*Error{
-		"ErrInvestigationNotFound":      ErrInvestigationNotFound,
-		"ErrInvestigationAlreadyActive": ErrInvestigationAlreadyActive,
+		"ErrInvestigationNotFound":       ErrInvestigationNotFound,
+		"ErrInvestigationAlreadyActive":  ErrInvestigationAlreadyActive,
+		"ErrGitHubIssueAlreadyPublished": ErrGitHubIssueAlreadyPublished,
 	}
 }
 

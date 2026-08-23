@@ -24,16 +24,15 @@ const (
 
 var ErrInvalidInput = errors.New("invalid Issue content input")
 
-type Input struct {
-	Project       domain.Project
-	Incident      domain.Incident
-	Investigation domain.Investigation
-	Evidence      []domain.Evidence
-}
+type Input = portsout.IssueContentInput
 
 type Builder struct{}
 
 func New() *Builder { return &Builder{} }
+
+func (b *Builder) BuildIssueContent(input portsout.IssueContentInput) (portsout.IssueContent, error) {
+	return b.Build(Input(input))
+}
 
 func (b *Builder) Build(input Input) (portsout.IssueContent, error) {
 	if input.Project.Validate() != nil || input.Incident.Validate() != nil || input.Investigation.Validate() != nil ||

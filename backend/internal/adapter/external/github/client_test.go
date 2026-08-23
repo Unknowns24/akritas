@@ -252,6 +252,50 @@ func TestGetRepositorySupportsOwnerNameAndNormalizesProviderFailures(t *testing.
 	}
 }
 
+func TestPublishIssuePostsRepositoryIssueAndMapsResponse(t *testing.T) {
+	t.Parallel()
+	createdAt := time.Date(2026, 8, 23, 10, 15, 0, 0, time.UTC)
+	var payload createIssueRequestDTO
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/repos/Unknowns24/akritas/issues" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer secret" {
+			t.Fatalf("authorization = %q", r.Header.Get("Authorization"))
+		}
+		if r.Header.Get("X-GitHub-Api-Version") != APIVersion || r.Header.Get("Content-Type") != "application/json" {
+			t.Fatal("missing versioned JSON headers")
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.NewEncoder(w).Encode(createIssueResponseDTO{
+			Number:    42,
+			HTMLURL:   "https://github.com/Unknowns24/akritas/issues/42",
+			CreatedAt: createdAt,
+		})
+	}))
+	defer server.Close()
+	account := githubAccount(t)
+	credentials := credentialStoreFake{values: map[string][]byte{credentialKey(account.ID, portsout.SecretKindGitHubPAT): []byte("secret")}}
+	client := newTestClient(t, server.URL, credentials)
+	repository, err := domain.NewGitHubRepository(account.ID, "42", "Unknowns24", "akritas", "main", true, "https://github.com/Unknowns24/akritas")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := client.PublishIssue(context.Background(), account, repository, portsout.IssueContent{Title: "Incident", Body: "Body"})
+	if err != nil {
+		t.Fatalf("PublishIssue() error = %v", err)
+	}
+	if payload.Title != "Incident" || payload.Body != "Body" {
+		t.Fatalf("payload = %+v", payload)
+	}
+	if result.Number != 42 || result.URL != "https://github.com/Unknowns24/akritas/issues/42" || !result.CreatedAt.Equal(createdAt) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
 func newTestClient(t *testing.T, rawURL string, credentials portsout.CredentialStore) *Client {
 	t.Helper()
 	base, err := url.Parse(rawURL)

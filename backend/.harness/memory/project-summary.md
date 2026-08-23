@@ -15,7 +15,7 @@ Architecture guidance:
 - `backend_service`: log collection, detection, incident grouping, investigation and remediation workflows.
 - Frontend: Next.js App Router, feature-based architecture.
 - API contract: OpenAPI is authoritative for frontend/backend integration.
-- Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.4.0 under `/api/v1`.
+- Canonical API contract: `backend/docs/openapi.yaml`, OpenAPI 3.1.0, API v1.6.0 under `/api/v1`.
 - Persistence: GORM repositories + gormigrate/v2 migrations.
 - Backend foundation: Go 1.26 module with a transport-independent MVP domain under `internal/core/domain`; persistible entities may carry passive GORM tags under ADR-012, without GORM imports or repository behavior.
 - Pagination: Uker v1.2.2 with signed cursors and a default page size of 25.
@@ -25,6 +25,7 @@ Architecture guidance:
 - Integration credentials are backend-only and must never reach browser code.
 - An installation has one administrator enrolled with password + TOTP; opaque sessions are server-side and recovery requires the deployment bootstrap token.
 - GitHub connections support either a write-only PAT or the GitHub App Manifest flow. Account ownership (`personal|organization`) is independent from authentication method.
+- GitHub Issue publication is mandatory after completed Investigation. H4 persists one `GitHubIssueReference` per Investigation and projects only the latest Issue on Incident detail.
 
 MVP execution order:
 

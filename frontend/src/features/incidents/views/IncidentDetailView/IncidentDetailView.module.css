@@ -93,7 +93,7 @@
 
 .contentGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr; /* approx 66% / 33% */
   gap: var(--space-6);
   align-items: start;
 }
@@ -180,7 +180,8 @@
 /* Context row */
 .contextRow {
   display: flex;
-  gap: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .contextCard {

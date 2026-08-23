@@ -32,7 +32,9 @@ export function RootCauseCard({ incident }: { incident: Incident }) {
           </div>
         );
       case "completed":
-        if (investigation.root_cause_status === "unknown" || incident.root_cause_status === "unknown") {
+        const isUnknown = investigation.root_cause_status === "unknown" || incident.root_cause_status === "unknown";
+        
+        if (isUnknown) {
           return (
             <div className={`${styles.card} ${styles.rootCauseCard}`} style={{ borderColor: "var(--border-strong)", background: "var(--surface-2)" }}>
               <div className={styles.cardHeader} style={{ color: "var(--text-secondary)" }}>
@@ -46,28 +48,76 @@ export function RootCauseCard({ incident }: { incident: Incident }) {
           );
         }
         
-        if (!investigation.root_cause) return null;
-
-        // Custom simple syntax highlighter for the root cause text based on the screenshot format
-        const formattedText = investigation.root_cause.split(' ').map((word: string, i: number) => {
-          if (word.includes('.go') || word === 'FindByID' || word === 'user.Name') {
-            return <span key={i} className={styles.inlineCode}>{word}</span>;
-          }
-          return word + ' ';
-        });
+        // Custom simple syntax highlighter for the root cause text
+        const formatText = (text: string) => {
+          return text.split(' ').map((word: string, i: number) => {
+            if (word.includes('.go') || word === 'FindByID' || word === 'user.Name') {
+              return <span key={i} className={styles.inlineCode}>{word}</span>;
+            }
+            return word + ' ';
+          });
+        };
 
         return (
           <div className={`${styles.card} ${styles.rootCauseCard}`}>
             <div className={styles.cardHeader}>
               <Sparkles size={16} className={styles.iconCritical} style={{ color: "var(--accent-indigo-light)" }} />
-              <span style={{ color: "var(--accent-indigo-light)" }}>Root cause identified</span>
-              <div className={styles.confidenceBadge}>
-                CONFIDENCE: {Math.round((investigation.confidence ?? 0) * 100)}%
+              <span style={{ color: "var(--accent-indigo-light)" }}>
+                Root cause {investigation.root_cause_status}
+              </span>
+              <div style={{ display: "flex", gap: "var(--space-2)", marginLeft: "auto" }}>
+                {investigation.resolution_status && (
+                  <div className={styles.confidenceBadge} style={{ background: "var(--surface-2)", color: "var(--text-secondary)", borderColor: "var(--border-strong)" }}>
+                    RESOLUTION: {investigation.resolution_status.toUpperCase().replace(/_/g, " ")}
+                  </div>
+                )}
+                {investigation.confidence !== undefined && (
+                  <div className={styles.confidenceBadge}>
+                    CONFIDENCE: {Math.round(investigation.confidence * 100)}%
+                  </div>
+                )}
               </div>
             </div>
-            <div className={styles.rootCauseText}>
-              {formattedText}
-            </div>
+
+            {investigation.summary && (
+              <div>
+                <div className={styles.contextLabel}>Summary</div>
+                <div className={styles.rootCauseText}>
+                  {investigation.summary}
+                </div>
+              </div>
+            )}
+
+            {investigation.root_cause && (
+              <div>
+                <div className={styles.contextLabel}>Root Cause Analysis</div>
+                <div className={styles.rootCauseText}>
+                  {formatText(investigation.root_cause)}
+                </div>
+              </div>
+            )}
+
+            {investigation.relevant_files && investigation.relevant_files.length > 0 && (
+              <div>
+                <div className={styles.contextLabel}>Relevant Files</div>
+                <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", marginTop: "var(--space-2)" }}>
+                  {investigation.relevant_files.map((file, idx) => (
+                    <span key={idx} className={styles.inlineCode}>{file}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {investigation.recommended_actions && investigation.recommended_actions.length > 0 && (
+              <div>
+                <div className={styles.contextLabel}>Recommended Actions</div>
+                <ul style={{ margin: "var(--space-2) 0 0", paddingLeft: "var(--space-4)", color: "var(--text-secondary)", fontSize: "14px", lineHeight: 1.6 }}>
+                  {investigation.recommended_actions.map((action, idx) => (
+                    <li key={idx} style={{ marginBottom: "var(--space-1)" }}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         );
       default:

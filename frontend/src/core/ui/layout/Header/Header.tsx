@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
-import { usePathname } from "next/navigation";
-import { Menu, Sparkles } from "lucide-react";
+import React, { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, Sparkles, LogOut, Loader2 } from "lucide-react";
 import { Breadcrumbs, BreadcrumbItem } from "@/core/ui/layout/Breadcrumbs";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+import { logoutAdministratorService } from "@/features/auth/services/auth.service";
+import { useAuth } from "@/features/auth/components/AuthProvider/AuthProvider";
 import styles from "./Header.module.css";
 
 export interface HeaderProps {
@@ -12,8 +14,14 @@ export interface HeaderProps {
   breadcrumbs?: BreadcrumbItem[];
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, breadcrumbs }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onToggleMobileMenu,
+  breadcrumbs,
+}) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { session } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const getAutoBreadcrumbs = (): BreadcrumbItem[] => {
     if (breadcrumbs && breadcrumbs.length > 0) {
@@ -25,7 +33,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, breadcrumbs 
     }
 
     const segments = pathname.split("/").filter(Boolean);
-    const items: BreadcrumbItem[] = [{ label: "Home", href: APP_ROUTES.OVERVIEW }];
+    const items: BreadcrumbItem[] = [
+      { label: "Home", href: APP_ROUTES.OVERVIEW },
+    ];
 
     let currentHref = "";
     segments.forEach((segment) => {
@@ -37,7 +47,21 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, breadcrumbs 
     return items;
   };
 
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logoutAdministratorService();
+    } catch (e) {
+      console.error("Logout failed", e);
+    } finally {
+      router.push(APP_ROUTES.AUTH.LOGIN);
+    }
+  };
+
   const currentBreadcrumbs = getAutoBreadcrumbs();
+
+  const displayName = session?.administrator?.display_name || "Administrator";
+  const initial = displayName.charAt(0).toUpperCase();
 
   return (
     <header className={styles.header}>
@@ -59,6 +83,26 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu, breadcrumbs 
         <div className={styles.envTag}>
           <Sparkles size={12} aria-hidden="true" />
           <span>QVAC Local AI Engine</span>
+        </div>
+
+        <div className={styles.userProfilePill}>
+          <div className={styles.avatar}>{initial}</div>
+          <div className={styles.userInfo}>
+            <span className={styles.userName}>{displayName}</span>
+          </div>
+          <button
+            className={styles.logoutAction}
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            title="Log out"
+            aria-label="Log out"
+          >
+            {isLoggingOut ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <LogOut size={14} />
+            )}
+          </button>
         </div>
       </div>
     </header>

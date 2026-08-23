@@ -27,15 +27,15 @@ export async function getIncidentsService(
       data: [
         {
           id: "inc-1",
-          key: "AKR-1",
+          key: "AKR-184",
           project: { id: "1", name: "E-Commerce Platform" },
           fingerprint: "db_conn_timeout",
           severity: "critical",
-          title: "Database connection timeout in production",
+          title: "Nil pointer panic on GET /users/:id",
           summary:
             "Multiple instances reporting timeouts when connecting to the primary DB.",
-          phase: "investigating",
-          occurrence_count: 42,
+          phase: "detected",
+          occurrence_count: 37,
           first_seen_at: new Date(Date.now() - 3600000).toISOString(),
           last_seen_at: new Date().toISOString(),
         },
@@ -47,7 +47,7 @@ export async function getIncidentsService(
           severity: "warning",
           title: "Stripe API Rate Limit Exceeded",
           summary: "Payment processing degraded due to rate limiting.",
-          phase: "completed",
+          phase: "failed",
           occurrence_count: 5,
           first_seen_at: new Date(Date.now() - 86400000).toISOString(),
           last_seen_at: new Date(Date.now() - 82800000).toISOString(),

@@ -1,12 +1,8 @@
-
 import React from "react";
-import Link from "next/link";
-import { Plus, Search } from "lucide-react";
-import { Button } from "@/core/ui/primitives/Button";
-import { APP_ROUTES } from "@/core/routes/routes.config";
 import { getProjectsService } from "../../services/get-projects.service";
-import { ProjectGrid } from "./components/ProjectGrid/ProjectGrid";
+import { ProjectsListClient } from "./ProjectsListClient";
 import styles from "./ProjectsListView.module.css";
+import { FolderGit2 } from "lucide-react";
 
 export const ProjectsListView = async () => {
   let projectResponse;
@@ -17,7 +13,8 @@ export const ProjectsListView = async () => {
     throw error;
   }
 
-  const hasProjects = projectResponse.data && projectResponse.data.length > 0;
+  const projects = projectResponse.data || [];
+  const hasProjects = projects.length > 0;
 
   return (
     <div className={styles.container}>
@@ -27,29 +24,16 @@ export const ProjectsListView = async () => {
         </div>
       </div>
 
-      <div className={styles.actionBar}>
-        <div className={styles.searchWrapper}>
-          <Search size={16} className={styles.searchIcon} />
-          <input 
-            type="text" 
-            placeholder="Search projects..." 
-            className={styles.searchInput}
-          />
+      {!hasProjects ? (
+        <div className={styles.emptyCard}>
+          <FolderGit2 size={48} className={styles.emptyIcon} />
+          <h3 className={styles.emptyTitle}>No projects configured</h3>
+          <p className={styles.emptyText}>
+            You haven't connected any projects yet. Create your first project to start monitoring your infrastructure and deployments.
+          </p>
         </div>
-        
-        <Link href={APP_ROUTES.PROJECTS.NEW}>
-          <Button variant="ghost" size="md" className={styles.newProjectBtn}>
-            New Project
-          </Button>
-        </Link>
-      </div>
-      
-      <div className={styles.divider} />
-
-      {hasProjects ? (
-        <ProjectGrid projects={projectResponse.data} />
       ) : (
-        <ProjectGrid projects={[]} />
+        <ProjectsListClient initialProjects={projects} />
       )}
     </div>
   );

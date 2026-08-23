@@ -5,8 +5,8 @@
 }
 
 .card {
-  background-color: var(--surface-2);
-  border: 1px solid var(--surface-3);
+  background-color: var(--surface-1);
+  border: 1px solid var(--surface-2);
   border-radius: 8px;
   padding: 20px;
   display: flex;

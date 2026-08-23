@@ -1,16 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, createContext, useContext } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getAuthSetupStatusService, getCurrentSessionService } from "../../services/auth.service";
+import { getAuthSetupStatusService, getCurrentSessionService, SessionResponse } from "../../services/auth.service";
 import styles from "./AuthProvider.module.css";
 import { APP_ROUTES } from "@/core/routes/routes.config";
+
+interface AuthContextValue {
+  session: SessionResponse["data"] | null;
+}
+
+const AuthContext = createContext<AuthContextValue>({ session: null });
+
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const pathname = usePathname();
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
+  const [session, setSession] = useState<SessionResponse["data"] | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -44,8 +53,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 2. Check session
         const isAuthRoute = Object.values(APP_ROUTES.AUTH).includes(pathname as any);
         try {
-          const session = await getCurrentSessionService();
-          if (session && session.administrator) {
+          const fetchedSession = await getCurrentSessionService();
+          if (fetchedSession && fetchedSession.administrator) {
+            if (mounted) setSession(fetchedSession);
             if (isAuthRoute) {
               if (mounted) router.replace(APP_ROUTES.OVERVIEW);
             } else {
@@ -93,5 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }
 
-  return authorized ? <>{children}</> : null;
+  return (
+    <AuthContext.Provider value={{ session }}>
+      {authorized ? children : null}
+    </AuthContext.Provider>
+  );
 };

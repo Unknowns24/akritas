@@ -13,7 +13,9 @@ interface IncidentsListClientProps {
   initialIncidents: IncidentSummary[];
 }
 
-export function IncidentsListClient({ initialIncidents }: IncidentsListClientProps) {
+export function IncidentsListClient({
+  initialIncidents,
+}: IncidentsListClientProps) {
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
 
   const filteredIncidents = initialIncidents.filter((inc) => {
@@ -27,9 +29,11 @@ export function IncidentsListClient({ initialIncidents }: IncidentsListClientPro
       <div className={styles.header}>
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>Incidents</h1>
-          <p className={styles.subtitle}>Production incidents requiring autonomous remediation.</p>
+          <p className={styles.subtitle}>
+            Production incidents requiring autonomous remediation.
+          </p>
         </div>
-        
+
         <div className={styles.filters}>
           <Button
             variant={filter === "all" ? "secondary" : "ghost"}
@@ -75,18 +79,48 @@ export function IncidentsListClient({ initialIncidents }: IncidentsListClientPro
                   <div className={styles.incidentMeta}>
                     <span className={styles.projectId}>{inc.project.name}</span>
                     <span className={styles.dot}>•</span>
-                    <span className={styles.time}>{new Date(inc.first_seen_at).toLocaleString()}</span>
+                    <span className={styles.time}>
+                      {new Date(inc.first_seen_at).toLocaleString()}
+                    </span>
                   </div>
                 </div>
               </div>
-              
+
               <div className={styles.incidentStatus}>
-                <Badge variant={
-                  inc.phase === "completed" ? "success" : 
-                  inc.phase === "failed" ? "error" : "warning"
-                }>
+                <Badge
+                  variant={
+                    inc.phase === "completed"
+                      ? "success"
+                      : inc.phase === "failed"
+                        ? "error"
+                        : "warning"
+                  }
+                >
                   {inc.phase.toUpperCase()}
                 </Badge>
+              </div>
+
+              <div className={styles.incidentActions}>
+                {inc.phase === "detected" && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className={styles.actionBtn}
+                    onClick={() => window.location.href = `/incidents/${inc.id}`}
+                  >
+                    Examine
+                  </Button>
+                )}
+                {inc.phase === "failed" && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className={styles.actionBtn}
+                    onClick={() => alert("Retry Investigation mock triggered")}
+                  >
+                    Retry Investigation
+                  </Button>
+                )}
               </div>
             </div>
           ))

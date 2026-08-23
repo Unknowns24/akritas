@@ -135,3 +135,15 @@ export async function verifyAdministratorRecoveryService(totp_code: string, enro
     };
   }
 }
+
+export async function logoutAdministratorService(): Promise<void> {
+  try {
+    const { error } = await api.DELETE("/auth/session");
+    if (error) throw error;
+  } catch (e) {
+    console.warn("[MOCK] API failed, simulating logout by removing mock_auth");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("mock_auth");
+    }
+  }
+}

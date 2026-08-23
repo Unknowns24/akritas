@@ -1,8 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/config"
@@ -102,7 +108,7 @@ func main() {
 		LogoutAdministrator:      authusecase.NewLogoutAdministratorUseCase(administratorSessions, now),
 	}
 
-	handler, err := integrationbootstrap.Build(configuration, integrationbootstrap.Dependencies{
+	runtime, err := integrationbootstrap.BuildRuntime(configuration, integrationbootstrap.Dependencies{
 		DB: db, Credentials: credentials,
 		Admin:    middleware.RequireSession(useCases.AuthenticateSession),
 		UseCases: useCases,
@@ -111,8 +117,30 @@ func main() {
 		log.Fatalf("build application: %v", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	server := &http.Server{Addr: listenAddr, Handler: runtime.Handler, ReadHeaderTimeout: 10 * time.Second}
+	var workers sync.WaitGroup
+	workers.Add(1)
+	go func() {
+		defer workers.Done()
+		runtime.Monitor.Run(ctx)
+	}()
+	serverErrors := make(chan error, 1)
+	go func() { serverErrors <- server.ListenAndServe() }()
 	log.Printf("akritas backend listening on %s", listenAddr)
-	if err := http.ListenAndServe(listenAddr, handler); err != nil {
-		log.Fatalf("server error: %v", err)
+	select {
+	case <-ctx.Done():
+	case serveErr := <-serverErrors:
+		if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			log.Printf("server error: %v", serveErr)
+		}
+		stop()
 	}
+	shutdownContext, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownContext); err != nil {
+		log.Printf("server shutdown: %v", err)
+	}
+	workers.Wait()
 }

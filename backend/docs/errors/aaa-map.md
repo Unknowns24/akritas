@@ -68,9 +68,15 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrProjectConcurrentModification` | `0x503007C` | Project usecase | Conflict | El proyecto cambió durante la operación. |
 | `ErrProjectDefaultBranchMismatch` | `0x503008V` | Project usecase | Validation | La rama predeterminada no coincide con GitHub. |
 | `ErrProjectHasDependencies` | `0x503009C` | Project usecase | Conflict | El proyecto tiene registros asociados y no puede eliminarse. |
+| `ErrInvalidInitialLogIngestion` | `0x50300AV` | Project usecase | Validation | La opción de ingesta inicial no es válida. |
+| `ErrIncidentNotFound` | `0x504001N` | Incident usecase | Not found | El incidente no existe. |
+| `ErrMonitoringContinuityLost` | `0x505001I` | Monitoring service | Internal | No se pudo verificar la continuidad de los logs. |
+| `ErrMonitoringConcurrentModification` | `0x505002C` | Monitoring service | Conflict | El estado de monitoreo cambió durante el procesamiento. |
 | `ErrAuthenticationRateLimited` | `0x501001R` | Auth usecase | Rate limited | Alcanzaste el límite de intentos. Probá nuevamente más tarde. |
 | `ErrIntegrationPersistence` | `0x202001I` | Integrations database | Internal | No se pudo guardar la integración. |
 | `ErrProjectPersistence` | `0x203001I` | Project database | Internal | No se pudo guardar el proyecto. |
+| `ErrIncidentPersistence` | `0x204001I` | Incident database | Internal | No se pudo consultar el incidente. |
+| `ErrMonitoringPersistence` | `0x205001I` | Monitoring database | Internal | No se pudo guardar el estado de monitoreo. |
 | `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
 | `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
 | `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |

@@ -67,7 +67,7 @@ func TestIntegrationErrorCatalogIsUniqueAndDocumented(t *testing.T) {
 		t.Fatal(err)
 	}
 	seen := make(map[string]string)
-	for _, catalog := range []map[string]*Error{IntegrationErrors(), AuthenticationErrors(), ProjectErrors()} {
+	for _, catalog := range []map[string]*Error{IntegrationErrors(), AuthenticationErrors(), ProjectErrors(), IncidentErrors(), MonitoringErrors()} {
 		for name, stable := range catalog {
 			if !codePattern.MatchString(stable.Code) || stable.Message == "" || stable.UserMessage == "" {
 				t.Fatalf("invalid stable error %s: %#v", name, stable)

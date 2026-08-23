@@ -11,3 +11,4 @@
 | AKR-AUTH-LOGIN-SESSION | complete | backend-api-feature | Login, sesión opaca (idle TTL deslizante) y logout |
 | AKR-REST-CHI | complete | backend-api-feature | Migración modular del adaptador REST a Chi |
 | AKR-H1-PROJECTS | complete | backend-api-feature | Project CRUD, snapshots verificados y MonitoringConfiguration |
+| AKR-H2-DETECTION-INCIDENTS | complete | backend-api-feature | Ingesta incremental, Detection Engine determinístico, LogEvents e Incidents |

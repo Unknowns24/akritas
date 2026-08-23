@@ -35,6 +35,7 @@ func New(config Config) (http.Handler, error) {
 		config.Handlers.GitHubHandler == nil ||
 		config.Handlers.DokployHandler == nil ||
 		config.Handlers.ProjectHandler == nil ||
+		config.Handlers.IncidentHandler == nil ||
 		config.Authenticate == nil ||
 		len(config.AllowedOrigins) == 0 {
 		return nil, ErrInvalidRouterConfiguration
@@ -63,6 +64,7 @@ func New(config Config) (http.Handler, error) {
 			private.Use(config.Admin)
 			private.Use(authmiddleware.RequireAllowedOrigin(config.AllowedOrigins))
 			registerProjectRoutes(private, config.Handlers.ProjectHandler)
+			registerIncidentRoutes(private, config.Handlers.IncidentHandler)
 		})
 	})
 	return root, nil

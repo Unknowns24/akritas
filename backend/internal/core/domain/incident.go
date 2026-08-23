@@ -86,23 +86,50 @@ func (s ResolutionStatus) Validate() error {
 }
 
 type Incident struct {
-	ID                   uuid.UUID
-	Key                  string
-	ProjectID            uuid.UUID
-	Fingerprint          string
-	Severity             Severity
-	Phase                IncidentPhase
-	TerminalOutcome      *TerminalOutcome
-	FirstSeenAt          time.Time
-	LastSeenAt           time.Time
-	OccurrenceCount      int64
-	Title                string
-	Summary              string
-	RootCauseStatus      *RootCauseStatus
-	ResolutionStatus     *ResolutionStatus
-	Confidence           *float64
-	GitHubIssueReference *GitHubIssueReference
-	PullRequestReference *PullRequestReference
+	ID                   uuid.UUID             `gorm:"column:id;type:uuid;primaryKey"`
+	Key                  string                `gorm:"column:key"`
+	ProjectID            uuid.UUID             `gorm:"column:project_id;type:uuid"`
+	Fingerprint          string                `gorm:"column:fingerprint"`
+	Severity             Severity              `gorm:"column:severity"`
+	Phase                IncidentPhase         `gorm:"column:phase"`
+	TerminalOutcome      *TerminalOutcome      `gorm:"column:terminal_outcome"`
+	FirstSeenAt          time.Time             `gorm:"column:first_seen_at"`
+	LastSeenAt           time.Time             `gorm:"column:last_seen_at"`
+	OccurrenceCount      int64                 `gorm:"column:occurrence_count"`
+	Title                string                `gorm:"column:title"`
+	Summary              string                `gorm:"column:summary"`
+	RootCauseStatus      *RootCauseStatus      `gorm:"column:root_cause_status"`
+	ResolutionStatus     *ResolutionStatus     `gorm:"column:resolution_status"`
+	Confidence           *float64              `gorm:"column:confidence"`
+	GitHubIssueReference *GitHubIssueReference `gorm:"serializer:json;type:jsonb;column:github_issue_reference"`
+	PullRequestReference *PullRequestReference `gorm:"serializer:json;type:jsonb;column:pull_request_reference"`
+	Project              *ProjectReference     `gorm:"-"`
+}
+
+type ProjectReference struct {
+	ID   uuid.UUID
+	Name string
+}
+
+func (i *Incident) PromoteSeverity(severity Severity) {
+	if i != nil && severityRank(severity) > severityRank(i.Severity) {
+		i.Severity = severity
+	}
+}
+
+func severityRank(severity Severity) int {
+	switch severity {
+	case SeverityCritical:
+		return 4
+	case SeverityError:
+		return 3
+	case SeverityWarning:
+		return 2
+	case SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
 }
 
 var incidentKeyPattern = regexp.MustCompile(`^AKR-[0-9]+$`)

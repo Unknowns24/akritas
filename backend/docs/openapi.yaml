@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.4.0
+  version: 1.5.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -2742,6 +2742,11 @@ components:
           maxLength: 255
         monitoring_configuration:
           $ref: "#/components/schemas/MonitoringConfiguration"
+        initial_log_ingestion:
+          type: string
+          enum: [from_now, last_10000]
+          default: from_now
+          description: One-shot initial ingestion policy; it is not returned as Project configuration.
     UpdateProjectRequest:
       type: object
       additionalProperties: false

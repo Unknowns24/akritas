@@ -147,6 +147,18 @@ func (projectStub) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringCo
 	return domain.MonitoringConfiguration{}, nil
 }
 
+type incidentStub struct{}
+
+func (incidentStub) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
+	return &domain.Incident{}, nil
+}
+func (incidentStub) List(context.Context, paging.Params) (paging.Slice[domain.Incident], error) {
+	return paging.Slice[domain.Incident]{}, nil
+}
+func (incidentStub) ListLogEvents(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.LogEvent], error) {
+	return paging.Slice[domain.LogEvent]{}, nil
+}
+
 func completeUseCases() *portsin.UseCases {
 	return &portsin.UseCases{
 		GetSetupStatus:           getSetupStatusStub{},
@@ -160,6 +172,7 @@ func completeUseCases() *portsin.UseCases {
 		GitHubApp:                githubAppStub{},
 		DokployServer:            dokployServerStub{},
 		Project:                  projectStub{},
+		Incident:                 incidentStub{},
 	}
 }
 
@@ -179,7 +192,7 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandlers() error = %v", err)
 	}
-	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil || handlers.ProjectHandler == nil {
+	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil || handlers.ProjectHandler == nil || handlers.IncidentHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -201,6 +214,7 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing GitHub app", mutate: func(config *HandlersConfig) { config.UseCases.GitHubApp = nil }},
 		{name: "missing Dokploy server", mutate: func(config *HandlersConfig) { config.UseCases.DokployServer = nil }},
 		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
+		{name: "missing Incident", mutate: func(config *HandlersConfig) { config.UseCases.Incident = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 	}
 

@@ -13,7 +13,6 @@ import (
 	administratorsessionrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/administrator_session"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	pendingenrollmentrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/pending_enrollment"
-	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/security/bootstrap"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/security/password"
@@ -21,6 +20,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/security/sessiontoken"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/security/totp"
 	integrationbootstrap "github.com/Unknowns24/akritas/backend/internal/bootstrap/integrations"
+	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 	authusecase "github.com/Unknowns24/akritas/backend/internal/usecase/auth"
 )
 
@@ -92,17 +92,20 @@ func main() {
 	authenticateSession := authusecase.NewAuthenticateSessionUseCase(
 		administratorSessions, sessionTokens, now, configuration.SessionIdleTTL,
 	)
-	authHandler := authhandler.NewHandler(
-		getSetupStatus, startSetup, verifySetup, loginAdministrator,
-		authusecase.NewGetCurrentSessionUseCase(administrators),
-		authusecase.NewLogoutAdministratorUseCase(administratorSessions, now),
-		configuration.SessionCookieSecure,
-	)
+	useCases := &portsin.UseCases{
+		GetSetupStatus:           getSetupStatus,
+		StartAdministratorSetup:  startSetup,
+		VerifyAdministratorSetup: verifySetup,
+		LoginAdministrator:       loginAdministrator,
+		AuthenticateSession:      authenticateSession,
+		GetCurrentSession:        authusecase.NewGetCurrentSessionUseCase(administrators),
+		LogoutAdministrator:      authusecase.NewLogoutAdministratorUseCase(administratorSessions, now),
+	}
 
 	handler, err := integrationbootstrap.Build(configuration, integrationbootstrap.Dependencies{
 		DB: db, Credentials: credentials,
-		Admin: middleware.RequireSession(authenticateSession),
-		Auth:  authHandler, Authenticate: authenticateSession,
+		Admin:    middleware.RequireSession(useCases.AuthenticateSession),
+		UseCases: useCases,
 	})
 	if err != nil {
 		log.Fatalf("build application: %v", err)

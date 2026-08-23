@@ -12,7 +12,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/integrationusage"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
-	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
+	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
@@ -25,11 +25,10 @@ import (
 )
 
 type Dependencies struct {
-	DB           *gorm.DB
-	Credentials  *credentialstore.Store
-	Admin        router.AdminMiddleware
-	Auth         *authhandler.Handler
-	Authenticate portsin.AuthenticateSessionUseCase
+	DB          *gorm.DB
+	Credentials *credentialstore.Store
+	Admin       router.AdminMiddleware
+	UseCases    *portsin.UseCases
 }
 
 // Build composes integrations over the application's shared PostgreSQL
@@ -39,7 +38,10 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	if dependencies.Admin == nil {
 		return nil, router.ErrAdminMiddlewareUnavailable
 	}
-	if dependencies.DB == nil || dependencies.Credentials == nil || dependencies.Auth == nil || dependencies.Authenticate == nil {
+	if dependencies.UseCases == nil {
+		return nil, resthandler.ErrInvalidHandlersConfiguration
+	}
+	if dependencies.DB == nil || dependencies.Credentials == nil {
 		return nil, router.ErrInvalidRouterConfiguration
 	}
 	githubAccounts, err := githubrepo.New(dependencies.DB, dependencies.Credentials)
@@ -73,9 +75,20 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	if err != nil {
 		return nil, err
 	}
+	useCases := *dependencies.UseCases
+	useCases.GitHubAccount = githubAccountUseCase
+	useCases.GitHubApp = githubAppUseCase
+	useCases.DokployServer = dokployUseCase
+	handlers, err := resthandler.NewHandlers(resthandler.HandlersConfig{
+		UseCases:            &useCases,
+		Pagination:          pagingConfig,
+		SessionCookieSecure: configuration.SessionCookieSecure,
+	})
+	if err != nil {
+		return nil, err
+	}
 	return router.New(router.Config{
-		GitHubAccounts: githubAccountUseCase, GitHubApps: githubAppUseCase,
-		DokployServers: dokployUseCase, Pagination: pagingConfig, Admin: dependencies.Admin,
-		Auth: dependencies.Auth, Authenticate: dependencies.Authenticate, AllowedOrigins: configuration.AllowedOrigins,
+		Handlers: handlers, Admin: dependencies.Admin,
+		Authenticate: useCases.AuthenticateSession, AllowedOrigins: configuration.AllowedOrigins,
 	})
 }

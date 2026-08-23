@@ -9,6 +9,7 @@ import (
 	commondto "github.com/Unknowns24/akritas/backend/internal/adapter/rest/dto/common"
 	resterrors "github.com/Unknowns24/akritas/backend/internal/adapter/rest/errors"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 )
 
@@ -80,9 +81,15 @@ func Invalid(w http.ResponseWriter, r *http.Request) {
 
 func requestID(r *http.Request) string {
 	if r != nil {
-		value := strings.TrimSpace(r.Header.Get("X-Request-ID"))
-		if len(value) >= 8 && len(value) <= 100 {
-			return value
+		values := []string{
+			r.Header.Get("X-Request-ID"),
+			chimiddleware.GetReqID(r.Context()),
+		}
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if len(value) >= 8 && len(value) <= 100 {
+				return value
+			}
 		}
 	}
 	return "req-" + uuid.NewString()

@@ -36,6 +36,22 @@
   gap: var(--space-6);
 }
 
+.unavailableHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--status-warning);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.unavailableText {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 992px) {
   .contentGrid {
     grid-template-columns: 1fr;

@@ -1718,8 +1718,9 @@ components:
       in: cookie
       name: akritas_session
       description: |
-        Opaque server-side session cookie. Production uses Secure, HttpOnly,
-        SameSite=Lax and Path=/. The value is never exposed to JavaScript.
+        Opaque server-side session cookie. It uses Secure, HttpOnly, Path=/ and
+        a deployment-configured SameSite mode (Lax by default). The value is
+        never exposed to JavaScript.
 
   headers:
     SessionCookie:

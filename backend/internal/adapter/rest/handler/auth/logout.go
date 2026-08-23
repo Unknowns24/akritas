@@ -16,6 +16,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expireSessionCookie(w, h.sessionCookieSecure)
+	expireSessionCookie(w, h.sessionCookieSecure, h.sessionCookieSameSite)
 	w.WriteHeader(http.StatusNoContent)
 }

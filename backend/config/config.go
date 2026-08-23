@@ -22,6 +22,7 @@ const (
 	defaultSessionIdleTTL         = 12 * time.Hour
 	defaultSessionAbsoluteTTL     = 7 * 24 * time.Hour
 	defaultSessionCookieSecure    = true
+	defaultSessionCookieSameSite  = "lax"
 	defaultAuthRateLimitAttempts  = 5
 	defaultAuthRateLimitWindow    = 15 * time.Minute
 	defaultAuthRateLimitMaxKeys   = 4096
@@ -55,6 +56,7 @@ type Config struct {
 	SessionIdleTTL                time.Duration `mapstructure:"AKRITAS_SESSION_IDLE_TTL"`
 	SessionAbsoluteTTL            time.Duration `mapstructure:"AKRITAS_SESSION_ABSOLUTE_TTL"`
 	SessionCookieSecure           bool          `mapstructure:"AKRITAS_SESSION_COOKIE_SECURE"`
+	SessionCookieSameSite         string        `mapstructure:"AKRITAS_SESSION_COOKIE_SAME_SITE"`
 	AuthRateLimitAttempts         int           `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS"`
 	AuthRateLimitWindow           time.Duration `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_WINDOW"`
 	AuthRateLimitMaxKeys          int           `mapstructure:"AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS"`
@@ -132,8 +134,9 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 
 	paginationSecret := []byte(raw.PaginationSecretValue)
 	bootstrapToken := []byte(raw.BootstrapTokenValue)
+	sessionCookieSameSite := strings.ToLower(strings.TrimSpace(raw.SessionCookieSameSite))
 
-	if len(paginationSecret) < minimumPaginationSecretLength || len(bootstrapToken) < minimumBootstrapTokenLength || len(bootstrapToken) > maximumBootstrapTokenLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 || raw.SessionIdleTTL <= 0 || raw.SessionAbsoluteTTL <= 0 || raw.SessionIdleTTL > raw.SessionAbsoluteTTL || !raw.SessionCookieSecure || raw.AuthRateLimitAttempts < 1 || raw.AuthRateLimitAttempts > maximumAuthRateLimitAttempts || raw.AuthRateLimitWindow <= 0 || raw.AuthRateLimitWindow > maximumAuthRateLimitWindow || raw.AuthRateLimitMaxKeys < 1 || raw.AuthRateLimitMaxKeys > maximumAuthRateLimitMaxKeys || raw.MonitoringPollInterval <= 0 || raw.MonitoringConcurrency < 1 || raw.MonitoringConcurrency > maximumMonitoringConcurrency {
+	if len(paginationSecret) < minimumPaginationSecretLength || len(bootstrapToken) < minimumBootstrapTokenLength || len(bootstrapToken) > maximumBootstrapTokenLength || raw.PaginationTTL <= 0 || raw.DatabaseMaxOpenConnections <= 0 || raw.DatabaseMaxIdleConnections < 0 || raw.DatabaseMaxIdleConnections > raw.DatabaseMaxOpenConnections || raw.DatabaseConnectionMaxLifetime <= 0 || raw.SessionIdleTTL <= 0 || raw.SessionAbsoluteTTL <= 0 || raw.SessionIdleTTL > raw.SessionAbsoluteTTL || !raw.SessionCookieSecure || !validSessionCookieSameSite(sessionCookieSameSite) || raw.AuthRateLimitAttempts < 1 || raw.AuthRateLimitAttempts > maximumAuthRateLimitAttempts || raw.AuthRateLimitWindow <= 0 || raw.AuthRateLimitWindow > maximumAuthRateLimitWindow || raw.AuthRateLimitMaxKeys < 1 || raw.AuthRateLimitMaxKeys > maximumAuthRateLimitMaxKeys || raw.MonitoringPollInterval <= 0 || raw.MonitoringConcurrency < 1 || raw.MonitoringConcurrency > maximumMonitoringConcurrency {
 		clear(masterKey)
 		clear(bootstrapToken)
 		return Config{}, ErrInvalidRuntimeConfiguration
@@ -148,6 +151,7 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 
 	raw.DatabaseURL = databaseURL
 	raw.PublicURL = publicURL
+	raw.SessionCookieSameSite = sessionCookieSameSite
 	raw.MasterKeyEncoded = ""
 	raw.PaginationSecretValue = ""
 	raw.BootstrapTokenValue = ""
@@ -158,6 +162,15 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 	raw.AllowedOrigins = allowedOrigins
 	clear(bootstrapToken)
 	return raw, nil
+}
+
+func validSessionCookieSameSite(value string) bool {
+	switch value {
+	case "lax", "strict", "none":
+		return true
+	default:
+		return false
+	}
 }
 
 func parseAllowedOrigins(publicURL, configured string) ([]string, error) {
@@ -204,6 +217,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("AKRITAS_SESSION_IDLE_TTL", defaultSessionIdleTTL)
 	v.SetDefault("AKRITAS_SESSION_ABSOLUTE_TTL", defaultSessionAbsoluteTTL)
 	v.SetDefault("AKRITAS_SESSION_COOKIE_SECURE", defaultSessionCookieSecure)
+	v.SetDefault("AKRITAS_SESSION_COOKIE_SAME_SITE", defaultSessionCookieSameSite)
 	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS", defaultAuthRateLimitAttempts)
 	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_WINDOW", defaultAuthRateLimitWindow)
 	v.SetDefault("AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS", defaultAuthRateLimitMaxKeys)

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AlertCircle, FileText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
 import { Badge } from "@/core/ui/primitives/Badge";
+import { EmptyState } from "@/core/ui/feedback";
 import styles from "./IncidentsListView.module.css";
 import type { components } from "@/core/libs/api-client";
 
@@ -58,9 +59,11 @@ export function IncidentsListClient({
 
       <div className={styles.list}>
         {filteredIncidents.length === 0 ? (
-          <div className={styles.emptyState}>
-            <p>No incidents found matching the current filter.</p>
-          </div>
+          <EmptyState 
+            icon={<AlertCircle size={32} />}
+            title="No incidents found"
+            description="No incidents found matching the current filter."
+          />
         ) : (
           filteredIncidents.map((inc) => (
             <div key={inc.id} className={styles.incidentRow}>

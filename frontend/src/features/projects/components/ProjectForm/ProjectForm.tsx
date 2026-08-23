@@ -12,6 +12,7 @@ import type { GitHubRepository } from "@/features/settings/services/github/get-g
 import type { DokployApplication } from "@/features/settings/services/dokploy/get-dokploy-applications.service";
 import { createProjectService } from "@/features/projects/services/create-project.service";
 import { updateProjectService } from "@/features/projects/services/update-project.service";
+import { toast } from "sonner";
 
 interface ProjectFormProps {
   initialData?: Project;
@@ -79,6 +80,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
 
         if (updateError) throw updateError;
         if (data) {
+          toast.success("Project updated successfully");
           router.push(`/projects/${data.id}`);
         }
       } else {
@@ -102,6 +104,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
 
         if (createError) throw createError;
         if (data) {
+          toast.success("Project created successfully");
           router.push(`/projects`);
         }
       }

@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
 import { APP_ROUTES } from "@/core/routes/routes.config";
 import { ProjectGrid } from "./components/ProjectGrid/ProjectGrid";
+import { EmptyState } from "@/core/ui/feedback";
 import type { components } from "@/core/libs/api-client";
 import styles from "./ProjectsListView.module.css";
 
@@ -56,13 +57,11 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
       {filteredProjects.length > 0 ? (
         <ProjectGrid projects={filteredProjects} />
       ) : (
-        <div className={styles.emptyCard}>
-          <Search size={32} className={styles.emptyIcon} />
-          <h3 className={styles.emptyTitle}>No projects found</h3>
-          <p className={styles.emptyText}>
-            We couldn't find any projects matching "{searchQuery}". Try adjusting your search query.
-          </p>
-        </div>
+        <EmptyState 
+          icon={<Search size={32} />}
+          title="No projects found"
+          description={`We couldn't find any projects matching "${searchQuery}". Try adjusting your search query.`}
+        />
       )}
     </>
   );

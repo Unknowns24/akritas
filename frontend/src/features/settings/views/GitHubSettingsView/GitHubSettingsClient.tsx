@@ -5,6 +5,7 @@ import styles from "./GitHubSettingsClient.module.css";
 import { Button } from "@/core/ui/primitives/Button";
 import { Modal } from "@/core/ui/primitives/Modal";
 import { Badge } from "@/core/ui/primitives/Badge";
+import { toast } from "sonner";
 import { GitHubAccountForm } from "./components/GitHubAccountForm";
 import { Plus, Trash2, Edit2, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { GitHubAccount, getGitHubAccountsService } from "../../services/github/get-github-accounts.service";
@@ -140,11 +141,13 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
 
     if (res.error) {
       setError(res.error.message || "An error occurred");
+      toast.error(res.error.message || "An error occurred");
       setIsLoading(false);
       return;
     }
 
     await refreshAccounts();
+    toast.success(`GitHub account ${editingAccount ? "updated" : "connected"} successfully`);
     setIsLoading(false);
     setIsModalOpen(false);
   };
@@ -153,6 +156,7 @@ export const GitHubSettingsClient: React.FC<GitHubSettingsClientProps> = ({ init
     if (!confirm("Are you sure you want to remove this GitHub account?")) return;
     await deleteGitHubAccountService(id);
     await refreshAccounts();
+    toast.success("GitHub account removed");
   };
 
   const handleTestConnection = async (id: string) => {

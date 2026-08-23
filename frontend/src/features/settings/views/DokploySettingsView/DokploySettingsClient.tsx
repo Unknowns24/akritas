@@ -5,6 +5,7 @@ import styles from "./DokploySettingsClient.module.css";
 import { Button } from "@/core/ui/primitives/Button";
 import { Modal } from "@/core/ui/primitives/Modal";
 import { Badge } from "@/core/ui/primitives/Badge";
+import { toast } from "sonner";
 import { DokployServerForm } from "./components/DokployServerForm";
 import { Server, Plus, Trash2, Edit2, CheckCircle, AlertCircle, Clock } from "lucide-react";
 import { DokployServer, listDokployServersService } from "../../services/dokploy/list-dokploy-servers.service";
@@ -62,11 +63,13 @@ export const DokploySettingsClient: React.FC = () => {
 
     if (res.error) {
       setError(res.error.message || "An error occurred");
+      toast.error(res.error.message || "An error occurred");
       setIsLoading(false);
       return;
     }
 
     await refreshServers();
+    toast.success(`Dokploy server ${editingServer ? "updated" : "connected"} successfully`);
     setIsLoading(false);
     setIsModalOpen(false);
   };
@@ -81,6 +84,7 @@ export const DokploySettingsClient: React.FC = () => {
 
     await deleteDokployServerService(server.id);
     await refreshServers();
+    toast.success("Dokploy server removed");
   };
 
   return (

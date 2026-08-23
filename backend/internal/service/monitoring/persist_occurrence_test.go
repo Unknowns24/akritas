@@ -16,7 +16,7 @@ func TestPersistOccurrenceCreatesGroupsByLastSeenAndStartsNewWindow(t *testing.T
 	store := &memoryMonitoringStore{}
 	service := &Service{store: store, newID: uuid.New}
 	project := domain.Project{
-		ID: uuid.New(), DokployApplication: domain.DokployApplication{ApplicationIdentifier: "app", InstanceIdentifier: "instance"},
+		ID: uuid.New(), DokploySource: domain.DokploySource{Type: domain.DokploySourceApplication, DokployServerID: uuid.New(), ResourceIdentifier: "app", InstanceIdentifier: "instance", DisplayName: "App", Status: domain.DokploySourceUnknown},
 		MonitoringConfiguration: domain.MonitoringConfiguration{GroupingWindow: 30 * time.Minute},
 	}
 	occurrences := []domain.PendingLogOccurrence{

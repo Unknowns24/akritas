@@ -100,7 +100,7 @@ func itoa(value int) string {
 }
 
 func occurrenceKey(checkpoint *domain.MonitoringCheckpoint, identity string) string {
-	payload := checkpoint.ID.String() + "\x00" + checkpoint.SourceApplicationID + "\x00" + checkpoint.SourceInstanceID + "\x00" + identity
+	payload := checkpoint.ID.String() + "\x00" + string(checkpoint.SourceType) + "\x00" + checkpoint.SourceResourceID + "\x00" + checkpoint.SourceServiceName + "\x00" + checkpoint.SourceInstanceID + "\x00" + identity
 	sum := sha256.Sum256([]byte(payload))
 	return "occurrence:" + hex.EncodeToString(sum[:])
 }

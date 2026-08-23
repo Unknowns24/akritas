@@ -37,7 +37,7 @@ func (f *fakeProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, err
 func (f *fakeProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
 	return nil, nil
 }
-func (f *fakeProjectStore) FindByDokployApplication(context.Context, uuid.UUID, string) (*domain.Project, error) {
+func (f *fakeProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
 	return nil, nil
 }
 func (f *fakeProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
@@ -63,7 +63,11 @@ func fixtureProject(t *testing.T) domain.Project {
 	if err != nil {
 		t.Fatal(err)
 	}
-	project, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, err := domain.SourceFromApplication(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := domain.NewProject(uuid.New(), "Akritas", "demo", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +90,7 @@ func fixtureLogEvent(t *testing.T, incidentID, projectID uuid.UUID, now time.Tim
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := event.AssociateOccurrence(incidentID, "app-1", "instance-1", "occ-1"); err != nil {
+	if err := event.AssociateOccurrence(incidentID, evidenceSource(t, "app-1", "instance-1"), "occ-1"); err != nil {
 		t.Fatal(err)
 	}
 	return *event
@@ -163,7 +167,7 @@ func TestAssembleEnforcesInitialCorpusCountAndRedactsSecrets(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := event.AssociateOccurrence(incident.ID, "app", "instance", uuid.NewString()); err != nil {
+		if err := event.AssociateOccurrence(incident.ID, evidenceSource(t, "app", "instance"), uuid.NewString()); err != nil {
 			t.Fatal(err)
 		}
 		logs = append(logs, *event)
@@ -186,4 +190,13 @@ func TestAssembleEnforcesInitialCorpusCountAndRedactsSecrets(t *testing.T) {
 	if total > maximumCorpusBytes {
 		t.Fatalf("initial persisted corpus=%d", total)
 	}
+}
+
+func evidenceSource(t *testing.T, identifier, instance string) domain.DokploySource {
+	t.Helper()
+	source, err := domain.NewDokploySource(uuid.New(), domain.DokploySourceApplication, identifier, "", instance, "App", "production", domain.DokploySourceUnknown, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return source
 }

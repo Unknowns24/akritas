@@ -30,12 +30,12 @@ func (uc *UseCase) Update(ctx context.Context, command portsin.UpdateProjectComm
 		}
 	}
 	githubChanged := command.GitHubAccountID != nil || command.RepositoryIdentifier != nil || command.DefaultBranch != nil
-	dokployChanged := command.DokployServerID != nil || command.ApplicationIdentifier != nil
+	dokployChanged := command.DokploySource != nil
 	if githubChanged || dokployChanged {
 		if project.MonitoringConfiguration.Enabled {
 			return nil, domain.ErrProjectMustBeDisabled
 		}
-		repository, application := project.GitHubRepository, project.DokployApplication
+		repository, source := project.GitHubRepository, project.DokploySource
 		if githubChanged {
 			accountID, identifier, branch := repository.GitHubAccountID, repository.RepositoryIdentifier, repository.DefaultBranch
 			if command.GitHubAccountID != nil {
@@ -53,22 +53,15 @@ func (uc *UseCase) Update(ctx context.Context, command portsin.UpdateProjectComm
 			}
 		}
 		if dokployChanged {
-			serverID, identifier := application.DokployServerID, application.ApplicationIdentifier
-			if command.DokployServerID != nil {
-				serverID = *command.DokployServerID
-			}
-			if command.ApplicationIdentifier != nil {
-				identifier = *command.ApplicationIdentifier
-			}
-			if err := uc.ensureApplicationAvailable(ctx, serverID, identifier, project.ID); err != nil {
+			if err := uc.ensureSourceAvailable(ctx, *command.DokploySource, project.ID); err != nil {
 				return nil, err
 			}
-			application, err = uc.resolveApplication(ctx, serverID, identifier)
+			source, err = uc.resolveSource(ctx, *command.DokploySource)
 			if err != nil {
 				return nil, err
 			}
 		}
-		if err := project.ReplaceIntegrations(repository, application, now); err != nil {
+		if err := project.ReplaceIntegrations(repository, source, now); err != nil {
 			return nil, err
 		}
 	}

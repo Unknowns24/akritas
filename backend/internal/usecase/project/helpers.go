@@ -32,16 +32,42 @@ func (uc *UseCase) resolveRepository(ctx context.Context, accountID uuid.UUID, i
 	return repository, nil
 }
 
-func (uc *UseCase) resolveApplication(ctx context.Context, serverID uuid.UUID, identifier string) (domain.DokployApplication, error) {
-	server, err := uc.servers.Get(ctx, serverID)
+func (uc *UseCase) resolveSource(ctx context.Context, selector domain.DokploySourceSelector) (domain.DokploySource, error) {
+	selector = selector.Normalize()
+	if err := selector.Validate(); err != nil {
+		return domain.DokploySource{}, err
+	}
+	server, err := uc.servers.Get(ctx, selector.DokployServerID)
 	if err != nil {
-		return domain.DokployApplication{}, err
+		return domain.DokploySource{}, err
 	}
-	application, err := uc.dokploy.GetApplication(ctx, *server, strings.TrimSpace(identifier))
+	if selector.Type == domain.DokploySourceApplication {
+		application, resolveErr := uc.dokploy.GetApplication(ctx, *server, selector.ResourceIdentifier)
+		if errors.Is(resolveErr, domain.ErrIntegrationNotFound) {
+			return domain.DokploySource{}, domain.ErrProjectDokploySourceNotFound
+		}
+		if resolveErr != nil {
+			return domain.DokploySource{}, resolveErr
+		}
+		return domain.SourceFromApplication(application)
+	}
+	compose, err := uc.dokploy.GetCompose(ctx, *server, selector.ResourceIdentifier)
 	if errors.Is(err, domain.ErrIntegrationNotFound) {
-		return domain.DokployApplication{}, domain.ErrProjectApplicationNotFound
+		return domain.DokploySource{}, domain.ErrProjectDokploySourceNotFound
 	}
-	return application, err
+	if err != nil {
+		return domain.DokploySource{}, err
+	}
+	services, err := uc.dokploy.ListComposeServices(ctx, *server, selector.ResourceIdentifier, false)
+	if err != nil {
+		return domain.DokploySource{}, err
+	}
+	for _, service := range services {
+		if service.ServiceName == selector.ServiceName {
+			return compose.Source(selector.ServiceName)
+		}
+	}
+	return domain.DokploySource{}, domain.ErrProjectDokploySourceNotFound
 }
 
 func (uc *UseCase) ensureNameAvailable(ctx context.Context, name string, exclude uuid.UUID) error {
@@ -58,8 +84,12 @@ func (uc *UseCase) ensureNameAvailable(ctx context.Context, name string, exclude
 	return nil
 }
 
-func (uc *UseCase) ensureApplicationAvailable(ctx context.Context, serverID uuid.UUID, identifier string, exclude uuid.UUID) error {
-	existing, err := uc.projects.FindByDokployApplication(ctx, serverID, strings.TrimSpace(identifier))
+func (uc *UseCase) ensureSourceAvailable(ctx context.Context, selector domain.DokploySourceSelector, exclude uuid.UUID) error {
+	selector = selector.Normalize()
+	if err := selector.Validate(); err != nil {
+		return err
+	}
+	existing, err := uc.projects.FindByDokploySource(ctx, selector)
 	if errors.Is(err, domain.ErrProjectNotFound) {
 		return nil
 	}
@@ -67,7 +97,7 @@ func (uc *UseCase) ensureApplicationAvailable(ctx context.Context, serverID uuid
 		return err
 	}
 	if existing.ID != exclude {
-		return domain.ErrProjectApplicationConflict
+		return domain.ErrProjectDokploySourceConflict
 	}
 	return nil
 }

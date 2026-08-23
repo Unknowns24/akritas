@@ -48,8 +48,8 @@ func (b *Builder) Build(input Input) (portsout.IssueContent, error) {
 	body.WriteString("> Automatically documented by Akritas from a completed local QVAC investigation.\n\n")
 	body.WriteString("## Project Context\n\n")
 	bullet(&body, "Project", input.Project.Name)
-	bullet(&body, "Application", input.Project.DokployApplication.DisplayName)
-	bullet(&body, "Environment", valueOr(input.Project.DokployApplication.Environment, "not specified"))
+	bullet(&body, "Application", input.Project.DokploySource.DisplayName)
+	bullet(&body, "Environment", valueOr(input.Project.DokploySource.Environment, "not specified"))
 	bullet(&body, "Repository", input.Project.GitHubRepository.FullName)
 	bullet(&body, "Default branch", input.Project.GitHubRepository.DefaultBranch)
 

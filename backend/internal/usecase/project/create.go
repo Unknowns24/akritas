@@ -12,18 +12,18 @@ func (uc *UseCase) Create(ctx context.Context, command portsin.CreateProjectComm
 	if err := uc.ensureNameAvailable(ctx, command.Name, uuid.Nil); err != nil {
 		return nil, err
 	}
-	if err := uc.ensureApplicationAvailable(ctx, command.DokployServerID, command.ApplicationIdentifier, uuid.Nil); err != nil {
+	if err := uc.ensureSourceAvailable(ctx, command.DokploySource, uuid.Nil); err != nil {
 		return nil, err
 	}
 	repository, err := uc.resolveRepository(ctx, command.GitHubAccountID, command.RepositoryIdentifier, command.DefaultBranch)
 	if err != nil {
 		return nil, err
 	}
-	application, err := uc.resolveApplication(ctx, command.DokployServerID, command.ApplicationIdentifier)
+	source, err := uc.resolveSource(ctx, command.DokploySource)
 	if err != nil {
 		return nil, err
 	}
-	created, err := domain.NewProject(uc.newID(), command.Name, command.Description, repository, application, command.MonitoringConfiguration, uc.now().UTC())
+	created, err := domain.NewProject(uc.newID(), command.Name, command.Description, repository, source, command.MonitoringConfiguration, uc.now().UTC())
 	if err != nil {
 		return nil, err
 	}

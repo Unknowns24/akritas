@@ -7,5 +7,10 @@ import (
 )
 
 func UpdateProjectToCommand(id uuid.UUID, value projectdto.UpdateProjectRequestDTO) portsin.UpdateProjectCommand {
-	return portsin.UpdateProjectCommand{ID: id, Name: value.Name, Description: value.Description, GitHubAccountID: value.GitHubAccountID, RepositoryIdentifier: value.RepositoryIdentifier, DefaultBranch: value.DefaultBranch, DokployServerID: value.DokployServerID, ApplicationIdentifier: value.ApplicationIdentifier}
+	command := portsin.UpdateProjectCommand{ID: id, Name: value.Name, Description: value.Description, GitHubAccountID: value.GitHubAccountID, RepositoryIdentifier: value.RepositoryIdentifier, DefaultBranch: value.DefaultBranch}
+	if value.DokploySource != nil {
+		selector := DokploySourceSelectorToDomain(*value.DokploySource)
+		command.DokploySource = &selector
+	}
+	return command
 }

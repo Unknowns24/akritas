@@ -32,5 +32,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func validCreate(value projectdto.CreateProjectRequestDTO) bool {
-	return value.GitHubAccountID != uuid.Nil && value.DokployServerID != uuid.Nil && len(strings.TrimSpace(value.Name)) >= 1 && len(value.Name) <= 150 && len(value.Description) <= 2000 && len(strings.TrimSpace(value.RepositoryIdentifier)) >= 1 && len(value.RepositoryIdentifier) <= 255 && len(strings.TrimSpace(value.DefaultBranch)) >= 1 && len(value.DefaultBranch) <= 255 && len(strings.TrimSpace(value.ApplicationIdentifier)) >= 1 && len(value.ApplicationIdentifier) <= 255
+	return value.GitHubAccountID != uuid.Nil && validSource(value.DokploySource) && len(strings.TrimSpace(value.Name)) >= 1 && len(value.Name) <= 150 && len(value.Description) <= 2000 && len(strings.TrimSpace(value.RepositoryIdentifier)) >= 1 && len(value.RepositoryIdentifier) <= 255 && len(strings.TrimSpace(value.DefaultBranch)) >= 1 && len(value.DefaultBranch) <= 255
+}
+
+func validSource(value projectdto.DokploySourceRequestDTO) bool {
+	return mapper.DokploySourceSelectorToDomain(value).Validate() == nil && len(value.ResourceIdentifier) <= 255 && len(value.ServiceName) <= 255
 }

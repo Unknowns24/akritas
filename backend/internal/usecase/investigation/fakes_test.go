@@ -214,7 +214,7 @@ func (f fakeProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, erro
 func (f fakeProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
 	return nil, domain.ErrProjectNotFound
 }
-func (f fakeProjectStore) FindByDokployApplication(context.Context, uuid.UUID, string) (*domain.Project, error) {
+func (f fakeProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
 	return nil, domain.ErrProjectNotFound
 }
 func (f fakeProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
@@ -277,7 +277,8 @@ func fakeProject(t time.Time) (*domain.Project, *domain.GitHubAccount) {
 	account, _ := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, t)
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
 	application, _ := domain.NewDokployApplication(uuid.New(), "app", "instance", "Service", "prod", domain.DokployApplicationRunning)
-	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, application, domain.DefaultMonitoringConfiguration(), t)
+	source, _ := domain.SourceFromApplication(application)
+	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, source, domain.DefaultMonitoringConfiguration(), t)
 	return project, account
 }
 

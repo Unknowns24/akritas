@@ -126,7 +126,7 @@ func (s memProjectStore) Get(context.Context, uuid.UUID) (*domain.Project, error
 func (s memProjectStore) FindByNormalizedName(context.Context, string) (*domain.Project, error) {
 	return nil, domain.ErrProjectNotFound
 }
-func (s memProjectStore) FindByDokployApplication(context.Context, uuid.UUID, string) (*domain.Project, error) {
+func (s memProjectStore) FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error) {
 	return nil, domain.ErrProjectNotFound
 }
 func (s memProjectStore) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
@@ -217,7 +217,8 @@ func TestRunUseCasePersistsStructuredQVACResult(t *testing.T) {
 	account, _ := domain.NewGitHubAccount(uuid.New(), "Acme", domain.GitHubAccountPersonal, domain.GitHubAuthenticationPersonalAccessToken, "acme", domain.IntegrationStatusConnected, now)
 	repository, _ := domain.NewGitHubRepository(account.ID, "42", "acme", "service", "main", true, "https://github.com/acme/service")
 	application, _ := domain.NewDokployApplication(uuid.New(), "app", "instance", "Service", "prod", domain.DokployApplicationRunning)
-	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, _ := domain.SourceFromApplication(application)
+	project, _ := domain.NewProject(uuid.New(), "Service", "", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	incident := &domain.Incident{ID: investigation.IncidentID, ProjectID: project.ID, Phase: domain.IncidentPhaseInvestigating}
 	uc := investigationusecase.NewRunUseCase(
 		&memIncidentStore{incident: incident}, investigations, operations, &memEvidenceStore{},

@@ -27,6 +27,7 @@ func All() []*gormigrate.Migration {
 		schema.SCHEMA_20260823_05_AddInvestigationEvidenceIDs(),
 		schema.SCHEMA_20260823_06_AddGitHubIssueReferences(),
 		schema.SCHEMA_20260823_07_EnforceIssueReferenceInvestigationIncident(),
+		schema.SCHEMA_20260823_08_AddDokployComposeSources(),
 	}
 }
 

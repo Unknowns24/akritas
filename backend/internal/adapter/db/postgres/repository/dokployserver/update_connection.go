@@ -10,6 +10,7 @@ func (r *Repository) UpdateConnection(ctx context.Context, server *domain.Dokplo
 	result := r.db.WithContext(ctx).Table("dokploy_servers").Model(&domain.DokployServer{}).Where("id = ?", server.ID).Updates(map[string]any{
 		"connection_status": server.ConnectionStatus,
 		"application_count": server.ApplicationCount,
+		"compose_count":     server.ComposeCount,
 		"last_synced_at":    server.LastSyncedAt,
 		"updated_at":        server.UpdatedAt,
 	})

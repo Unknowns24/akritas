@@ -27,4 +27,7 @@ type DokployGateway interface {
 	ValidateUpdate(context.Context, domain.DokployServer, string, *string) (DokployValidation, error)
 	TestConnection(context.Context, domain.DokployServer) (ProviderConnectionResult, error)
 	ListApplications(context.Context, domain.DokployServer, paging.Params) (paging.Slice[domain.DokployApplication], error)
+	ListComposes(context.Context, domain.DokployServer, paging.Params) (paging.Slice[domain.DokployCompose], error)
+	ListComposeServices(context.Context, domain.DokployServer, string, bool) ([]domain.DokployComposeService, error)
+	GetCompose(context.Context, domain.DokployServer, string) (domain.DokployCompose, error)
 }

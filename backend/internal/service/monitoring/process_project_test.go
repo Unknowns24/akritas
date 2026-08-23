@@ -14,8 +14,8 @@ import (
 func TestDisabledProjectFinalizesStateWithoutAcquiringLogs(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	configuration := domain.DefaultMonitoringConfiguration()
-	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusDisabled, MonitoringConfiguration: configuration, DokployApplication: domain.DokployApplication{ApplicationIdentifier: "app", InstanceIdentifier: "instance"}}
-	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceApplicationID: "app", SourceInstanceID: "instance", Version: 1, State: domain.MonitoringAssemblyState{Pending: []domain.PendingLogOccurrence{}}}
+	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusDisabled, MonitoringConfiguration: configuration, DokploySource: domain.DokploySource{Type: domain.DokploySourceApplication, ResourceIdentifier: "app", InstanceIdentifier: "instance"}}
+	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceType: domain.DokploySourceApplication, SourceResourceID: "app", SourceInstanceID: "instance", Version: 1, State: domain.MonitoringAssemblyState{Pending: []domain.PendingLogOccurrence{}}}
 	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint}
 	servers := &serverReaderStub{}
 	logs := &logSourceStub{}
@@ -39,9 +39,9 @@ func TestPersistenceFailureDoesNotAdvanceCursor(t *testing.T) {
 	configuration := domain.DefaultMonitoringConfiguration()
 	configuration.Enabled = true
 	serverID := uuid.New()
-	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusStarting, MonitoringConfiguration: configuration, DokployApplication: domain.DokployApplication{DokployServerID: serverID, ApplicationIdentifier: "app", InstanceIdentifier: "instance"}}
+	project := &domain.Project{ID: uuid.New(), MonitoringStatus: domain.MonitoringStatusStarting, MonitoringConfiguration: configuration, DokploySource: domain.DokploySource{Type: domain.DokploySourceApplication, DokployServerID: serverID, ResourceIdentifier: "app", InstanceIdentifier: "instance"}}
 	anchor := now.Add(-time.Minute)
-	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceApplicationID: "app", SourceInstanceID: "instance", Version: 1, CursorTimestamp: &anchor, CursorContentHash: "anchor", State: domain.MonitoringAssemblyState{}}
+	checkpoint := &domain.MonitoringCheckpoint{ID: uuid.New(), ProjectID: project.ID, SourceType: domain.DokploySourceApplication, SourceResourceID: "app", SourceInstanceID: "instance", Version: 1, CursorTimestamp: &anchor, CursorContentHash: "anchor", State: domain.MonitoringAssemblyState{}}
 	persistenceFailure := errors.New("persistence failed")
 	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint, updateCheckpointErr: persistenceFailure}
 	servers := &serverReaderStub{}

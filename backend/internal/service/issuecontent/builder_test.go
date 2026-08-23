@@ -16,7 +16,8 @@ func TestBuilderProducesDeterministicAuditableAndSafeContent(t *testing.T) {
 	accountID, incidentID, investigationID := uuid.New(), uuid.New(), uuid.New()
 	repository, _ := domain.NewGitHubRepository(accountID, "42", "Unknowns24", "akritas", "main", true, "https://github.com/Unknowns24/akritas")
 	application, _ := domain.NewDokployApplication(uuid.New(), "app-1", "instance-1", "Akritas API", "production", domain.DokployApplicationRunning)
-	project, err := domain.NewProject(uuid.New(), "Akritas", "", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, _ := domain.SourceFromApplication(application)
+	project, err := domain.NewProject(uuid.New(), "Akritas", "", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,8 +91,8 @@ func TestBuilderRedactsSecretsAcrossPublishedFieldsAndKeepsAuditContent(t *testi
 			name: "project application and repository context",
 			mutate: func(input *Input) []string {
 				input.Project.Name = `Akritas PASSWORD="project secret"`
-				input.Project.DokployApplication.DisplayName = `API TOKEN='application secret'`
-				input.Project.DokployApplication.Environment = `production SECRET="environment secret"`
+				input.Project.DokploySource.DisplayName = `API TOKEN='application secret'`
+				input.Project.DokploySource.Environment = `production SECRET="environment secret"`
 				input.Project.GitHubRepository.Name = `backend-token=repository-secret`
 				input.Project.GitHubRepository.FullName = input.Project.GitHubRepository.Owner + "/" + input.Project.GitHubRepository.Name
 				input.Project.GitHubRepository.DefaultBranch = `main API_KEY="branch secret"`
@@ -170,7 +171,11 @@ func issueContentFixture(t *testing.T) (Input, uuid.UUID, uuid.UUID) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	project, err := domain.NewProject(uuid.New(), "Akritas", "", repository, application, domain.DefaultMonitoringConfiguration(), now)
+	source, err := domain.SourceFromApplication(application)
+	if err != nil {
+		t.Fatal(err)
+	}
+	project, err := domain.NewProject(uuid.New(), "Akritas", "", repository, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatal(err)
 	}

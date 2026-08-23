@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.6.0
+  version: 2.0.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -926,6 +926,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DokployApplicationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/composes:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Dokploy]
+      operationId: listDokployComposes
+      summary: Discover Composes available on a configured Dokploy server
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: name_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Cursor-paginated Composes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployComposeListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/composes/{compose_id}/services:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: compose_id
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+    get:
+      tags: [Dokploy]
+      operationId: listDokployComposeServices
+      summary: List declared services in a Dokploy Compose
+      parameters:
+        - name: refresh
+          in: query
+          description: When true, Dokploy refreshes the configured source before loading services.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Declared Compose services, sorted by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployComposeServiceListResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -2345,6 +2423,7 @@ components:
         - connection_status
         - credential_configured
         - application_count
+        - compose_count
         - created_at
         - updated_at
       properties:
@@ -2365,6 +2444,9 @@ components:
         credential_configured:
           type: boolean
         application_count:
+          type: integer
+          minimum: 0
+        compose_count:
           type: integer
           minimum: 0
         last_synced_at:
@@ -2432,6 +2514,138 @@ components:
         status:
           type: string
           enum: [running, stopped, degraded, unknown]
+    DokployCompose:
+      type: object
+      additionalProperties: false
+      required: [dokploy_server_id, compose_identifier, instance_identifier, display_name, status]
+      properties:
+        dokploy_server_id:
+          type: string
+          format: uuid
+        compose_identifier:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment_identifier:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+    DokployComposeService:
+      type: object
+      additionalProperties: false
+      required: [dokploy_server_id, compose_identifier, service_name]
+      properties:
+        dokploy_server_id:
+          type: string
+          format: uuid
+        compose_identifier:
+          type: string
+        service_name:
+          type: string
+    DokploySourceStatus:
+      type: string
+      enum: [running, stopped, degraded, unknown]
+    DokployApplicationSourceSelector:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier]
+      properties:
+        type:
+          type: string
+          const: application
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DokployComposeServiceSourceSelector:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, service_name]
+      properties:
+        type:
+          type: string
+          const: compose_service
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+        service_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DokploySourceSelector:
+      oneOf:
+        - $ref: "#/components/schemas/DokployApplicationSourceSelector"
+        - $ref: "#/components/schemas/DokployComposeServiceSourceSelector"
+      discriminator:
+        propertyName: type
+        mapping:
+          application: "#/components/schemas/DokployApplicationSourceSelector"
+          compose_service: "#/components/schemas/DokployComposeServiceSourceSelector"
+    DokployApplicationSource:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, instance_identifier, display_name, status]
+      properties:
+        type:
+          type: string
+          const: application
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+    DokployComposeServiceSource:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, service_name, instance_identifier, display_name, status, runtime_type]
+      properties:
+        type:
+          type: string
+          const: compose_service
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+        service_name:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+        runtime_type:
+          type: string
+          enum: [docker-compose, stack]
+    DokploySource:
+      oneOf:
+        - $ref: "#/components/schemas/DokployApplicationSource"
+        - $ref: "#/components/schemas/DokployComposeServiceSource"
+      discriminator:
+        propertyName: type
+        mapping:
+          application: "#/components/schemas/DokployApplicationSource"
+          compose_service: "#/components/schemas/DokployComposeServiceSource"
     DokployServerResponse:
       type: object
       additionalProperties: false
@@ -2461,6 +2675,26 @@ components:
             $ref: "#/components/schemas/DokployApplication"
         paging:
           $ref: "#/components/schemas/Paging"
+    DokployComposeListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployCompose"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    DokployComposeServiceListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployComposeService"
 
     QvacAuthenticationType:
       type: string
@@ -2664,7 +2898,7 @@ components:
         - monitoring_status
         - health_status
         - github_repository
-        - dokploy_application
+        - dokploy_source
         - created_at
         - updated_at
       properties:
@@ -2681,8 +2915,8 @@ components:
           $ref: "#/components/schemas/ProjectHealthStatus"
         github_repository:
           $ref: "#/components/schemas/GitHubRepository"
-        dokploy_application:
-          $ref: "#/components/schemas/DokployApplication"
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySource"
         last_observed_at:
           type: string
           format: date-time
@@ -2713,8 +2947,7 @@ components:
         - github_account_id
         - repository_identifier
         - default_branch
-        - dokploy_server_id
-        - application_identifier
+        - dokploy_source
         - monitoring_configuration
       properties:
         name:
@@ -2735,13 +2968,8 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-        dokploy_server_id:
-          type: string
-          format: uuid
-        application_identifier:
-          type: string
-          minLength: 1
-          maxLength: 255
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySourceSelector"
         monitoring_configuration:
           $ref: "#/components/schemas/MonitoringConfiguration"
         initial_log_ingestion:
@@ -2772,13 +3000,8 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-        dokploy_server_id:
-          type: string
-          format: uuid
-        application_identifier:
-          type: string
-          minLength: 1
-          maxLength: 255
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySourceSelector"
     ProjectResponse:
       type: object
       additionalProperties: false

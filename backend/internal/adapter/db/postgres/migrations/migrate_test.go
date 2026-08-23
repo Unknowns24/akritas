@@ -23,6 +23,7 @@ func TestMigrationRegistryIsOrderedAndReversible(t *testing.T) {
 		"20260823_05_add_investigation_evidence_ids",
 		"20260823_06_add_github_issue_references",
 		"20260823_07_enforce_issue_reference_investigation_incident",
+		"20260823_08_add_dokploy_compose_sources",
 	}
 	migrations := All()
 	if len(migrations) != len(expected) {

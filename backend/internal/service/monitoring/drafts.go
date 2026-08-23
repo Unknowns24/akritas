@@ -3,6 +3,7 @@ package monitoring
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 	"strings"
 	"time"
 
@@ -52,6 +53,7 @@ func buildDrafts(project domain.Project, checkpoint *domain.MonitoringCheckpoint
 	engine, err := detection.NewEngine(configuration)
 	if err == nil && configuration.Enabled {
 		events := detection.Reconstruct(records)
+		detectedCount := 0
 		physicalOffset := 0
 		for _, event := range events {
 			start := physicalOffset
@@ -60,6 +62,7 @@ func buildDrafts(project domain.Project, checkpoint *domain.MonitoringCheckpoint
 			if detected == nil {
 				continue
 			}
+			detectedCount++
 			beforePool := append(append([]domain.SanitizedLogRecord(nil), state.RecentRecords...), records[:start]...)
 			before := tail(beforePool, configuration.ContextBefore)
 			after := head(records[physicalOffset:], configuration.ContextAfter)
@@ -78,7 +81,9 @@ func buildDrafts(project domain.Project, checkpoint *domain.MonitoringCheckpoint
 			} else {
 				state.Pending = append(state.Pending, pending)
 			}
+			log.Printf("monitoring: detected log occurrence project_id=%s project_name=%q rules=%s severity=%s timestamp=%s context_before=%d context_after=%d pending=%t fingerprint=%s", project.ID, project.Name, strings.Join(detected.Rules, ","), detected.Severity, detected.Timestamp.Format(time.RFC3339Nano), len(before), len(after), len(after) < configuration.ContextAfter, detected.Fingerprint)
 		}
+		log.Printf("monitoring: detection summary project_id=%s project_name=%q records=%d events=%d detected=%d ready=%d pending=%d", project.ID, project.Name, len(records), len(events), detectedCount, len(ready), len(state.Pending))
 	}
 	state.RecentRecords = tail(append(state.RecentRecords, records...), configuration.ContextBefore)
 	state.OpenRecords = []domain.SanitizedLogRecord{}

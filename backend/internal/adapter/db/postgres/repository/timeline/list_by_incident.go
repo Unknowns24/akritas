@@ -2,21 +2,18 @@ package timeline
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/txcontext"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
 	"github.com/google/uuid"
-	ukerpagination "github.com/unknowns24/uker/uker/pagination"
 	"gorm.io/gorm"
 )
 
 func (r *Repository) ListTimeline(ctx context.Context, incidentID uuid.UUID, params paging.Params) (paging.Slice[domain.TimelineEvent], error) {
 	base := timelineBase(txcontext.From(ctx, r.db).WithContext(ctx), incidentID)
-	query, err := ukerpagination.Apply(base, params)
-	if err != nil {
-		return paging.Slice[domain.TimelineEvent]{}, domain.ErrInvalidIncident.Wrap(err)
-	}
+	query := applyTimelinePaging(base, params)
 	var items []domain.TimelineEvent
 	if err := query.Find(&items).Error; err != nil {
 		return paging.Slice[domain.TimelineEvent]{}, mapError(err)
@@ -32,6 +29,39 @@ func (r *Repository) ListTimeline(ctx context.Context, incidentID uuid.UUID, par
 		return paging.Slice[domain.TimelineEvent]{}, mapError(err)
 	}
 	return paging.Slice[domain.TimelineEvent]{Items: items, Total: total}, nil
+}
+
+func applyTimelinePaging(query *gorm.DB, params paging.Params) *gorm.DB {
+	order := timelineOrder(params)
+	if order == "" {
+		order = "timeline.occurred_at ASC, timeline.id ASC"
+	}
+	query = query.Order(order)
+	if params.Limit > 0 {
+		query = query.Limit(params.Limit)
+	}
+	return query
+}
+
+func timelineOrder(params paging.Params) string {
+	parts := make([]string, 0, len(params.Sort))
+	for _, sort := range params.Sort {
+		field := ""
+		switch sort.Field {
+		case "occurred_at":
+			field = "timeline.occurred_at"
+		case "id":
+			field = "timeline.id"
+		default:
+			continue
+		}
+		direction := "ASC"
+		if strings.EqualFold(string(sort.Direction), "desc") {
+			direction = "DESC"
+		}
+		parts = append(parts, field+" "+direction)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func timelineBase(db *gorm.DB, incidentID uuid.UUID) *gorm.DB {

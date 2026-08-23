@@ -9,7 +9,7 @@ import (
 func QvacConfigurationToDTO(value domain.QvacConfiguration) qvacdto.ConfigurationDTO {
 	return qvacdto.ConfigurationDTO{
 		EndpointURL: value.EndpointURL, ConnectionTimeoutSeconds: value.ConnectionTimeoutSeconds,
-		AuthenticationType: string(value.AuthenticationType), CredentialConfigured: value.CredentialConfigured,
+		ContextSize: value.ContextSize, AuthenticationType: string(value.AuthenticationType), CredentialConfigured: value.CredentialConfigured,
 		UpdatedAt: value.UpdatedAt,
 	}
 }
@@ -24,6 +24,7 @@ func QvacStatusToDTO(value portsin.QvacRuntimeStatus) qvacdto.RuntimeStatusDTO {
 func PutQvacConfigurationToCommand(value qvacdto.PutConfigurationRequestDTO) portsin.PutQvacConfigurationCommand {
 	return portsin.PutQvacConfigurationCommand{
 		EndpointURL: value.EndpointURL, ConnectionTimeoutSeconds: value.ConnectionTimeoutSeconds,
+		ContextSize: value.ContextSize,
 		Authentication: portsin.QvacAuthenticationCommand{
 			Type: domain.QvacAuthenticationType(value.Authentication.Type), BearerToken: value.Authentication.BearerToken,
 			BasicUsername: value.Authentication.BasicUsername, BasicPassword: value.Authentication.BasicPassword,

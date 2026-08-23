@@ -53,7 +53,11 @@ func (uc *UseCase) PutConfiguration(ctx context.Context, cmd portsin.PutQvacConf
 			return domain.QvacConfiguration{}, domain.ErrInvalidIntegrationStatus
 		}
 	}
-	config, err := domain.NewQvacConfiguration(cmd.EndpointURL, cmd.ConnectionTimeoutSeconds, authType, credentialConfigured, basicUsername, uc.now().UTC())
+	contextSize := cmd.ContextSize
+	if contextSize == 0 {
+		contextSize = domain.DefaultQvacContextSize
+	}
+	config, err := domain.NewQvacConfigurationWithContext(cmd.EndpointURL, cmd.ConnectionTimeoutSeconds, contextSize, authType, credentialConfigured, basicUsername, uc.now().UTC())
 	if err != nil {
 		return domain.QvacConfiguration{}, err
 	}
@@ -87,6 +91,7 @@ func (uc *UseCase) Client(ctx context.Context) (*qvacexternal.Client, error) {
 	clientConfig := qvacexternal.ClientConfig{
 		EndpointURL: config.EndpointURL,
 		Timeout:     time.Duration(config.ConnectionTimeoutSeconds) * time.Second,
+		ContextSize: config.ContextSize,
 	}
 	switch config.AuthenticationType {
 	case domain.QvacAuthenticationBearer:

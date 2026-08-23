@@ -2,11 +2,13 @@ package monitoring
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/google/uuid"
 )
@@ -25,7 +27,7 @@ func TestPersistOccurrenceCreatesGroupsByLastSeenAndStartsNewWindow(t *testing.T
 		occurrence("three", now.Add(51*time.Minute), domain.SeverityError),
 	}
 	for index := range occurrences {
-		if err := service.persistOccurrence(context.Background(), project, &occurrences[index]); err != nil {
+		if _, _, err := service.persistOccurrence(context.Background(), project, &occurrences[index]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -41,11 +43,62 @@ func TestPersistOccurrenceCreatesGroupsByLastSeenAndStartsNewWindow(t *testing.T
 	}
 
 	duplicate := occurrence("two", now.Add(20*time.Minute), domain.SeverityCritical)
-	if err := service.persistOccurrence(context.Background(), project, &duplicate); err != nil {
+	if _, _, err := service.persistOccurrence(context.Background(), project, &duplicate); err != nil {
 		t.Fatal(err)
 	}
 	if len(store.events) != 3 || store.incidents[0].OccurrenceCount != 2 {
 		t.Fatal("retry duplicated durable effects")
+	}
+}
+
+func TestAutomaticInvestigationQueuesCreatedIncidentWhenEnabled(t *testing.T) {
+	project := domain.Project{ID: uuid.New(), Name: "payments"}
+	incidentID := uuid.New()
+	automation := &automationPolicyStub{policy: domain.AutomationPolicy{AutomaticInvestigation: true}}
+	starter := &investigationStarterStub{}
+	service := &Service{automation: automation, investigations: starter}
+
+	service.startAutomaticInvestigations(context.Background(), project, []automaticInvestigationCandidate{{incidentID: incidentID, incidentKey: "AKR-1"}})
+
+	if automation.calls != 1 {
+		t.Fatalf("policy calls = %d", automation.calls)
+	}
+	if len(starter.commands) != 1 || starter.commands[0].IncidentID != incidentID || starter.commands[0].IdempotencyKey == uuid.Nil {
+		t.Fatalf("start commands = %+v", starter.commands)
+	}
+	service.startAutomaticInvestigations(context.Background(), project, []automaticInvestigationCandidate{{incidentID: incidentID, incidentKey: "AKR-1"}})
+	if len(starter.commands) != 2 || starter.commands[0].IdempotencyKey != starter.commands[1].IdempotencyKey {
+		t.Fatalf("automatic idempotency key must be deterministic: %+v", starter.commands)
+	}
+}
+
+func TestAutomaticInvestigationSkipsWhenDisabled(t *testing.T) {
+	project := domain.Project{ID: uuid.New(), Name: "payments"}
+	automation := &automationPolicyStub{policy: domain.AutomationPolicy{AutomaticInvestigation: false}}
+	starter := &investigationStarterStub{}
+	service := &Service{automation: automation, investigations: starter}
+
+	service.startAutomaticInvestigations(context.Background(), project, []automaticInvestigationCandidate{{incidentID: uuid.New(), incidentKey: "AKR-1"}})
+
+	if automation.calls != 1 {
+		t.Fatalf("policy calls = %d", automation.calls)
+	}
+	if len(starter.commands) != 0 {
+		t.Fatalf("unexpected start commands = %+v", starter.commands)
+	}
+}
+
+func TestAutomaticInvestigationFailureDoesNotPanicOrRetryInline(t *testing.T) {
+	project := domain.Project{ID: uuid.New(), Name: "payments"}
+	starterFailure := errors.New("starter failed")
+	automation := &automationPolicyStub{policy: domain.AutomationPolicy{AutomaticInvestigation: true}}
+	starter := &investigationStarterStub{err: starterFailure}
+	service := &Service{automation: automation, investigations: starter}
+
+	service.startAutomaticInvestigations(context.Background(), project, []automaticInvestigationCandidate{{incidentID: uuid.New(), incidentKey: "AKR-1"}})
+
+	if len(starter.commands) != 1 {
+		t.Fatalf("start commands = %+v", starter.commands)
 	}
 }
 
@@ -153,4 +206,36 @@ type logSourceStub struct {
 func (s *logSourceStub) FetchLogs(context.Context, portsout.LogFetchRequest) ([]portsout.RawLogRecord, error) {
 	s.calls++
 	return append([]portsout.RawLogRecord(nil), s.records...), nil
+}
+
+type automationPolicyStub struct {
+	calls  int
+	policy domain.AutomationPolicy
+	err    error
+}
+
+func (s *automationPolicyStub) Get(context.Context) (domain.AutomationPolicy, error) {
+	s.calls++
+	if s.err != nil {
+		return domain.AutomationPolicy{}, s.err
+	}
+	return s.policy, nil
+}
+
+type investigationStarterStub struct {
+	commands []portsin.StartIncidentInvestigationCommand
+	err      error
+}
+
+func (s *investigationStarterStub) StartIncidentInvestigation(_ context.Context, command portsin.StartIncidentInvestigationCommand) (*domain.Operation, error) {
+	s.commands = append(s.commands, command)
+	if s.err != nil {
+		return nil, s.err
+	}
+	now := time.Now().UTC()
+	operation, err := domain.NewOperation(uuid.New(), domain.OperationTypeInvestigation, nil, nil, nil, "queued", now)
+	if err != nil {
+		return nil, err
+	}
+	return operation, nil
 }

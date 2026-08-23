@@ -3,6 +3,7 @@ import { AlertTriangle, Clock, Activity, ExternalLink, GitPullRequest, Hash, Zap
 import { Button } from "@/core/ui/primitives/Button";
 import { Badge } from "@/core/ui/primitives/Badge";
 import type { Incident } from "../../../services/get-incident.service";
+import { InvestigationActionButton } from "./InvestigationActionButton";
 import styles from "../IncidentDetailView.module.css";
 
 export function IncidentHeader({ incident }: { incident: Incident }) {
@@ -63,6 +64,7 @@ export function IncidentHeader({ incident }: { incident: Incident }) {
       </div>
       
       <div className={styles.headerActions}>
+        <InvestigationActionButton incidentId={incident.id} phase={incident.phase} />
         <Button variant="ghost" className={styles.actionButton}>
           <ExternalLink size={14} />
           View GitHub Issue

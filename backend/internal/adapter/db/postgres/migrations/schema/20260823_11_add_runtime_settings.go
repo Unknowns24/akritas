@@ -27,6 +27,7 @@ func SCHEMA_20260823_11_AddRuntimeSettings() *gormigrate.Migration {
 					id smallint PRIMARY KEY CHECK (id = 1),
 					endpoint_url text NOT NULL,
 					connection_timeout_seconds integer NOT NULL CHECK (connection_timeout_seconds BETWEEN 1 AND 300),
+					context_size integer NOT NULL DEFAULT 32768 CHECK (context_size BETWEEN 4096 AND 131072),
 					authentication_type varchar(16) NOT NULL CHECK (authentication_type IN ('none','bearer','basic')),
 					basic_username varchar(255) NOT NULL DEFAULT '',
 					credential_configured boolean NOT NULL DEFAULT false,
@@ -37,8 +38,8 @@ func SCHEMA_20260823_11_AddRuntimeSettings() *gormigrate.Migration {
 						(authentication_type = 'basic' AND credential_configured = true AND basic_username <> '')
 					)
 				)`,
-				`INSERT INTO qvac_configurations (id, endpoint_url, connection_timeout_seconds, authentication_type, basic_username, credential_configured, updated_at)
-				 VALUES (1, 'http://127.0.0.1:11434/v1', 30, 'none', '', false, now())`,
+				`INSERT INTO qvac_configurations (id, endpoint_url, connection_timeout_seconds, context_size, authentication_type, basic_username, credential_configured, updated_at)
+				 VALUES (1, 'http://127.0.0.1:11434/v1', 180, 32768, 'none', '', false, now())`,
 				"CREATE INDEX ix_operations_type_updated_at ON operations (type, updated_at DESC)",
 				"CREATE INDEX ix_remediations_pull_request_created_at ON remediations (pull_request_created_at DESC) WHERE pull_request_number > 0",
 			} {

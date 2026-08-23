@@ -13,7 +13,8 @@ type AuthType = "none" | "bearer" | "basic";
 
 export const QvacSettingsView: React.FC = () => {
   const [endpointUrl, setEndpointUrl] = useState("");
-  const [connectionTimeout, setConnectionTimeout] = useState(30);
+  const [connectionTimeout, setConnectionTimeout] = useState(180);
+  const [contextSize, setContextSize] = useState(32768);
   const [authType, setAuthType] = useState<AuthType>("none");
   
   const [bearerToken, setBearerToken] = useState("");
@@ -31,7 +32,8 @@ export const QvacSettingsView: React.FC = () => {
     try {
       const config = await getQvacConfigurationService();
       setEndpointUrl(config.endpoint_url || "");
-      setConnectionTimeout(config.connection_timeout_seconds || 30);
+      setConnectionTimeout(config.connection_timeout_seconds || 180);
+      setContextSize(config.context_size || 32768);
       setAuthType(config.authentication_type || "none");
       setCredentialConfigured(config.credential_configured || false);
       setBearerToken("");
@@ -46,7 +48,7 @@ export const QvacSettingsView: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    loadConfig();
+    void Promise.resolve().then(loadConfig);
   }, [loadConfig]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -58,6 +60,7 @@ export const QvacSettingsView: React.FC = () => {
       const request: PutQvacConfigurationRequest = {
         endpoint_url: endpointUrl,
         connection_timeout_seconds: connectionTimeout,
+        context_size: contextSize,
         authentication: {
           type: authType,
         },
@@ -74,6 +77,7 @@ export const QvacSettingsView: React.FC = () => {
       
       setEndpointUrl(config.endpoint_url);
       setConnectionTimeout(config.connection_timeout_seconds);
+      setContextSize(config.context_size);
       setAuthType(config.authentication_type);
       setCredentialConfigured(config.credential_configured);
       
@@ -123,6 +127,37 @@ export const QvacSettingsView: React.FC = () => {
           </div>
 
           <div className={styles.formGroup}>
+            <label htmlFor="connectionTimeout" className={styles.label}>Connection Timeout</label>
+            <input
+              id="connectionTimeout"
+              type="number"
+              min={1}
+              max={300}
+              value={connectionTimeout}
+              onChange={(e) => setConnectionTimeout(Number(e.target.value))}
+              className={styles.input}
+              required
+            />
+            <span className={styles.hint}>Seconds Akritas waits for each QVAC request.</span>
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="contextSize" className={styles.label}>Context Size</label>
+            <input
+              id="contextSize"
+              type="number"
+              min={4096}
+              max={131072}
+              step={1024}
+              value={contextSize}
+              onChange={(e) => setContextSize(Number(e.target.value))}
+              className={styles.input}
+              required
+            />
+            <span className={styles.hint}>Token window requested from QVAC and used to budget investigation evidence.</span>
+          </div>
+
+          <div className={styles.formGroup}>
             <label htmlFor="authType" className={styles.label}>Authentication Type</label>
             <select
               id="authType"
@@ -154,7 +189,7 @@ export const QvacSettingsView: React.FC = () => {
                 required={!credentialConfigured}
               />
               <span className={styles.hint}>
-                Enter the token value without the 'Bearer ' prefix.
+                Enter the token value without the &apos;Bearer &apos; prefix.
               </span>
             </div>
           )}

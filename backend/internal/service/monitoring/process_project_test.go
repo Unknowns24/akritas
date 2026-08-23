@@ -19,7 +19,7 @@ func TestDisabledProjectFinalizesStateWithoutAcquiringLogs(t *testing.T) {
 	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint}
 	servers := &serverReaderStub{}
 	logs := &logSourceStub{}
-	service, err := New(store, servers, logs, immediateTransactor{}, uuid.New, func() time.Time { return now })
+	service, err := New(store, servers, logs, immediateTransactor{}, nil, nil, uuid.New, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestPersistenceFailureDoesNotAdvanceCursor(t *testing.T) {
 	store := &memoryMonitoringStore{project: project, checkpoint: checkpoint, updateCheckpointErr: persistenceFailure}
 	servers := &serverReaderStub{}
 	logs := &logSourceStub{records: []portsout.RawLogRecord{{Timestamp: now, Ordinal: 0, ContentHash: "new", Message: "ordinary log"}}}
-	service, err := New(store, servers, logs, immediateTransactor{}, uuid.New, func() time.Time { return now })
+	service, err := New(store, servers, logs, immediateTransactor{}, nil, nil, uuid.New, func() time.Time { return now })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,5 +58,34 @@ func TestPersistenceFailureDoesNotAdvanceCursor(t *testing.T) {
 	}
 	if project.MonitoringStatus != domain.MonitoringStatusError {
 		t.Fatalf("initial failure status = %s", project.MonitoringStatus)
+	}
+}
+
+func TestShouldStartAutomaticInvestigationForNewDetectedOrFailedIncidents(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	incident, err := domain.NewIncident(uuid.New(), "AKR-1", uuid.New(), "fingerprint", domain.SeverityError, "failure", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !shouldStartAutomaticInvestigation(incident, true) {
+		t.Fatal("created incident should start automatic investigation")
+	}
+	if !shouldStartAutomaticInvestigation(incident, false) {
+		t.Fatal("existing detected incident should start automatic investigation")
+	}
+	if err := incident.StartInvestigation(); err != nil {
+		t.Fatal(err)
+	}
+	if shouldStartAutomaticInvestigation(incident, false) {
+		t.Fatal("investigating incident should not start another automatic investigation")
+	}
+	if err := incident.FailInvestigation(); err != nil {
+		t.Fatal(err)
+	}
+	if !shouldStartAutomaticInvestigation(incident, false) {
+		t.Fatal("failed incident should be eligible for retry")
+	}
+	if shouldStartAutomaticInvestigation(nil, true) {
+		t.Fatal("nil incident should not start automatic investigation")
 	}
 }

@@ -21,7 +21,7 @@ func validateEndpoint(raw string) (*url.URL, error) {
 		if !ip.IsLoopback() && !ip.IsPrivate() {
 			return nil, ErrInvalidEndpoint
 		}
-	case strings.EqualFold(host, "localhost"):
+	case strings.EqualFold(host, "localhost"), strings.EqualFold(host, "host.docker.internal"), strings.EqualFold(host, "gateway.docker.internal"):
 	default:
 		return nil, ErrInvalidEndpoint
 	}

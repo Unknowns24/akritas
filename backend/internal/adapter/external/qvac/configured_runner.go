@@ -29,7 +29,11 @@ func (r *ConfiguredRunner) Run(ctx context.Context, runContext portsout.Investig
 	if err != nil {
 		return portsout.InvestigationRunResult{}, err
 	}
-	runner, err := NewRunner(client, r.tools, r.config)
+	config := r.config
+	if config.ContextSize <= 0 {
+		config.ContextSize = client.ContextSize()
+	}
+	runner, err := NewRunner(client, r.tools, config)
 	if err != nil {
 		return portsout.InvestigationRunResult{}, err
 	}

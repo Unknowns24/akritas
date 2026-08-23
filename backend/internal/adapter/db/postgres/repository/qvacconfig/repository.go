@@ -17,6 +17,7 @@ type record struct {
 	ID                       int       `gorm:"column:id"`
 	EndpointURL              string    `gorm:"column:endpoint_url"`
 	ConnectionTimeoutSeconds int       `gorm:"column:connection_timeout_seconds"`
+	ContextSize              int       `gorm:"column:context_size"`
 	AuthenticationType       string    `gorm:"column:authentication_type"`
 	BasicUsername            string    `gorm:"column:basic_username"`
 	CredentialConfigured     bool      `gorm:"column:credential_configured"`
@@ -38,7 +39,11 @@ func (r *Repository) Get(ctx context.Context) (domain.QvacConfiguration, error) 
 		}
 		return domain.QvacConfiguration{}, domain.ErrIntegrationUnavailable.Wrap(err)
 	}
-	return domain.NewQvacConfiguration(row.EndpointURL, row.ConnectionTimeoutSeconds, domain.QvacAuthenticationType(row.AuthenticationType), row.CredentialConfigured, row.BasicUsername, row.UpdatedAt)
+	contextSize := row.ContextSize
+	if contextSize == 0 {
+		contextSize = domain.DefaultQvacContextSize
+	}
+	return domain.NewQvacConfigurationWithContext(row.EndpointURL, row.ConnectionTimeoutSeconds, contextSize, domain.QvacAuthenticationType(row.AuthenticationType), row.CredentialConfigured, row.BasicUsername, row.UpdatedAt)
 }
 
 func (r *Repository) Put(ctx context.Context, value domain.QvacConfiguration) error {
@@ -47,7 +52,7 @@ func (r *Repository) Put(ctx context.Context, value domain.QvacConfiguration) er
 	}
 	row := record{
 		ID: 1, EndpointURL: value.EndpointURL, ConnectionTimeoutSeconds: value.ConnectionTimeoutSeconds,
-		AuthenticationType: string(value.AuthenticationType), BasicUsername: value.BasicUsername,
+		ContextSize: value.ContextSize, AuthenticationType: string(value.AuthenticationType), BasicUsername: value.BasicUsername,
 		CredentialConfigured: value.CredentialConfigured, UpdatedAt: value.UpdatedAt,
 	}
 	return r.db.WithContext(ctx).Table("qvac_configurations").Save(&row).Error

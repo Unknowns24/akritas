@@ -53,8 +53,8 @@ type ruleDefinition struct {
 }
 
 var (
-	errorLevelPattern = regexp.MustCompile(`(?:^|[\s\[{,(])(?:ERROR|ERR)(?:$|[\s\]}:,)])|(?i:["']?level["']?\s*[=:]\s*["']?(?:error|err)["']?)`)
-	fatalPattern      = regexp.MustCompile(`(?:^|[\s\[{,(])FATAL(?:$|[\s\]}:,)])|(?i:["']?level["']?\s*[=:]\s*["']?fatal["']?)`)
+	errorLevelPattern = regexp.MustCompile(`(?i)(?:^|[\s\[{,(])(?:ERROR|ERR)(?:$|[\s\]}:,)])|["']?level["']?\s*[=:]\s*["']?(?:error|err)["']?`)
+	fatalPattern      = regexp.MustCompile(`(?i)(?:^|[\s\[{,(])FATAL(?:$|[\s\]}:,)])|["']?level["']?\s*[=:]\s*["']?fatal["']?`)
 	panicPattern      = regexp.MustCompile(`(?i)(?:^|\s)panic(?:ed)?(?:\s|:|$)`)
 	http5xxPattern    = regexp.MustCompile(`(?i)(?:\bstatus(?:_code)?\s*[=:]\s*5\d\d\b|\"\s+5\d\d\s+\d+\b|\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+\s+5\d\d\b)`)
 	crashPattern      = regexp.MustCompile(`(?i)(?:segmentation fault|segfault|core dumped|out of memory|oom(?:killed)?|process (?:exited|exit) (?:with )?(?:status|code) [1-9]\d*)`)

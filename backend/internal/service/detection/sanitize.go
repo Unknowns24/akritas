@@ -9,7 +9,10 @@ var secretPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?s)-----BEGIN [^-]*PRIVATE KEY-----.*?-----END [^-]*PRIVATE KEY-----`),
 }
 
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+
 func Sanitize(value string) (string, bool) {
+	value = ansiEscapePattern.ReplaceAllString(value, "")
 	redacted := false
 	for index, pattern := range secretPatterns {
 		replacement := "[REDACTED]"

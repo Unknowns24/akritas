@@ -2746,7 +2746,7 @@ components:
     PutQvacConfigurationRequest:
       type: object
       additionalProperties: false
-      required: [endpoint_url, connection_timeout_seconds, authentication]
+      required: [endpoint_url, connection_timeout_seconds, context_size, authentication]
       properties:
         endpoint_url:
           type: string
@@ -2756,13 +2756,18 @@ components:
           type: integer
           minimum: 1
           maximum: 300
-          default: 30
+          default: 180
+        context_size:
+          type: integer
+          minimum: 4096
+          maximum: 131072
+          default: 32768
         authentication:
           $ref: "#/components/schemas/QvacAuthenticationRequest"
     QvacConfiguration:
       type: object
       additionalProperties: false
-      required: [endpoint_url, connection_timeout_seconds, authentication_type, credential_configured, updated_at]
+      required: [endpoint_url, connection_timeout_seconds, context_size, authentication_type, credential_configured, updated_at]
       properties:
         endpoint_url:
           type: string
@@ -2771,6 +2776,10 @@ components:
           type: integer
           minimum: 1
           maximum: 300
+        context_size:
+          type: integer
+          minimum: 4096
+          maximum: 131072
         authentication_type:
           $ref: "#/components/schemas/QvacAuthenticationType"
         credential_configured:

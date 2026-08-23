@@ -293,27 +293,6 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 
 	incidentUseCase := incidentusecase.New(incidents, investigations, issueReferences, timeline)
 
-	monitoringService, err := monitoringservice.New(
-		monitoringStore,
-		dokployServers,
-		dokployClient,
-		transactor,
-		uuid.New,
-		time.Now,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	monitoringRunner, err := monitoringservice.NewRunner(
-		monitoringService,
-		configuration.MonitoringPollInterval,
-		configuration.MonitoringConcurrency,
-	)
-	if err != nil {
-		return nil, err
-	}
-
 	//
 	// H3 — Investigation / Evidence / QVAC
 	//
@@ -332,7 +311,7 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	investigationRunner, err := qvac.NewConfiguredRunner(
 		qvacUseCase.Client,
 		nil,
-		qvac.RunnerConfig{RepositoryInspector: githubClient, ContextSize: 16384},
+		qvac.RunnerConfig{RepositoryInspector: githubClient},
 	)
 	if err != nil {
 		return nil, err
@@ -371,6 +350,29 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		uuid.New,
 		time.Now,
 	)
+
+	monitoringService, err := monitoringservice.New(
+		monitoringStore,
+		dokployServers,
+		dokployClient,
+		transactor,
+		automationPolicy,
+		investigationUseCase,
+		uuid.New,
+		time.Now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	monitoringRunner, err := monitoringservice.NewRunner(
+		monitoringService,
+		configuration.MonitoringPollInterval,
+		configuration.MonitoringConcurrency,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	operationUseCase := operationusecase.New(operations)
 

@@ -33,6 +33,7 @@ func All() []*gormigrate.Migration {
 		schema.SCHEMA_20260823_09_AllowTruthfulValidationOutputRedacted(),
 		schema.SCHEMA_20260823_10_ExtendRemediationLifecycle(),
 		schema.SCHEMA_20260823_11_AddRuntimeSettings(),
+		schema.SCHEMA_20260823_12_AddQvacContextSize(),
 	}
 }
 

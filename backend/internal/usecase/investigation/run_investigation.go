@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
@@ -25,6 +26,7 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 	var investigation *domain.Investigation
 	var operation *domain.Operation
 	startedAt := uc.now().UTC()
+	log.Printf("investigation: starting investigation_id=%s operation_id=%s", investigationID, operationID)
 	if err := uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
 		var err error
 		investigation, err = uc.investigations.FindByID(txCtx, investigationID)
@@ -46,20 +48,30 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 		}
 		return uc.operations.Update(txCtx, operation)
 	}); err != nil {
+		log.Printf("investigation: failed to mark running investigation_id=%s operation_id=%s error=%v", investigationID, operationID, err)
 		return err
 	}
 
 	runContext, err := uc.assembler.Assemble(ctx, *investigation)
 	if err != nil {
+		log.Printf("investigation: context assembly failed investigation_id=%s operation_id=%s incident_id=%s error=%v", investigation.ID, operation.ID, investigation.IncidentID, err)
 		return uc.failInvestigation(ctx, investigation, operation, uc.now().UTC(), err)
 	}
+	log.Printf("investigation: context assembled investigation_id=%s operation_id=%s incident_id=%s evidence=%d repository=%s/%s", investigation.ID, operation.ID, investigation.IncidentID, len(runContext.Evidence), runContext.Repository.Owner, runContext.Repository.Name)
 	if err = uc.persistEvidence(ctx, investigation, runContext.Evidence); err != nil {
+		log.Printf("investigation: initial evidence persistence failed investigation_id=%s operation_id=%s incident_id=%s evidence=%d error=%v", investigation.ID, operation.ID, investigation.IncidentID, len(runContext.Evidence), err)
 		return uc.failInvestigation(ctx, investigation, operation, uc.now().UTC(), err)
 	}
 	runContext.Investigation = *investigation
 
 	result, runErr := uc.runner.Run(ctx, runContext)
+	if runErr != nil {
+		log.Printf("investigation: runner failed investigation_id=%s operation_id=%s incident_id=%s error=%v cause=%v", investigation.ID, operation.ID, investigation.IncidentID, runErr, rootCause(runErr))
+	} else {
+		log.Printf("investigation: runner completed investigation_id=%s operation_id=%s incident_id=%s discovered_evidence=%d confidence=%.4f", investigation.ID, operation.ID, investigation.IncidentID, len(result.DiscoveredEvidence), result.Confidence)
+	}
 	if persistErr := uc.persistEvidence(ctx, investigation, result.DiscoveredEvidence); persistErr != nil {
+		log.Printf("investigation: discovered evidence persistence failed investigation_id=%s operation_id=%s incident_id=%s evidence=%d error=%v", investigation.ID, operation.ID, investigation.IncidentID, len(result.DiscoveredEvidence), persistErr)
 		return uc.failInvestigation(ctx, investigation, operation, uc.now().UTC(), persistErr)
 	}
 	finishedAt := uc.now().UTC()
@@ -92,6 +104,7 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 		return uc.incidents.Update(txCtx, &incident)
 	})
 	if err != nil {
+		log.Printf("investigation: completion persistence failed investigation_id=%s operation_id=%s incident_id=%s error=%v", investigation.ID, operation.ID, investigation.IncidentID, err)
 		return uc.failInvestigation(ctx, investigation, operation, finishedAt, err)
 	}
 
@@ -121,6 +134,7 @@ func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID 
 	}
 	published, err := uc.issuePublisher.PublishIssue(ctx, *account, project.GitHubRepository, content)
 	if err != nil {
+		log.Printf("investigation: github issue publication failed investigation_id=%s operation_id=%s incident_id=%s repository=%s error=%v", completedInvestigation.ID, operation.ID, incident.ID, project.GitHubRepository.FullName, err)
 		return uc.failIssuePublication(ctx, &incident, operation, uc.now().UTC(), err)
 	}
 	reference, err := domain.NewGitHubIssueReference(incident.ID, completedInvestigation.ID, published.Number, published.URL, project.GitHubRepository.FullName, published.CreatedAt)
@@ -178,6 +192,7 @@ func evidenceDedupKey(evidence domain.Evidence) string {
 
 func (uc *RunUseCase) failInvestigation(ctx context.Context, investigation *domain.Investigation, operation *domain.Operation, at time.Time, cause error) error {
 	message, failureCode := publicFailure(cause)
+	log.Printf("investigation: failing investigation_id=%s operation_id=%s incident_id=%s public_message=%q failure_code=%s cause=%v root_cause=%v", investigation.ID, operation.ID, investigation.IncidentID, message, failureCodeValue(failureCode), cause, rootCause(cause))
 	persistErr := uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
 		incident, err := uc.incidents.Lock(txCtx, investigation.IncidentID)
 		if err != nil {
@@ -253,6 +268,7 @@ func (uc *RunUseCase) failIssuePublication(ctx context.Context, incident *domain
 	if message == publicInvestigationFailure {
 		message = publicIssuePublicationFailure
 	}
+	log.Printf("investigation: failing issue publication operation_id=%s incident_id=%s public_message=%q failure_code=%s cause=%v root_cause=%v", operation.ID, incident.ID, message, failureCodeValue(failureCode), cause, rootCause(cause))
 	persistErr := uc.transactor.WithinTransaction(ctx, func(txCtx context.Context) error {
 		locked, err := uc.incidents.Lock(txCtx, incident.ID)
 		if err != nil {
@@ -289,4 +305,21 @@ func publicFailure(cause error) (string, *string) {
 		return stable.UserMessage, &code
 	}
 	return publicInvestigationFailure, nil
+}
+
+func failureCodeValue(code *string) string {
+	if code == nil {
+		return ""
+	}
+	return *code
+}
+
+func rootCause(err error) error {
+	for {
+		unwrapped := errors.Unwrap(err)
+		if unwrapped == nil {
+			return err
+		}
+		err = unwrapped
+	}
 }

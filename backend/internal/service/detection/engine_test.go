@@ -78,8 +78,8 @@ func TestNoPositiveRuleProducesNoDetection(t *testing.T) {
 
 func TestEveryBuiltInRuleHasAnExplicitPositiveExample(t *testing.T) {
 	cases := map[string]string{
-		"error_level":       "level=ERROR operation failed",
-		"fatal_level":       "FATAL startup failed",
+		"error_level":       "\x1b[31m[error]\x1b[0m failed to initialize database",
+		"fatal_level":       "[fatal] startup failed",
 		"panic":             "panic: nil pointer",
 		"stack_trace":       "Traceback (most recent call last):\nFile \"app.py\", line 42",
 		"http_5xx":          "GET /checkout 503",
@@ -127,6 +127,13 @@ func TestSanitizeRedactsCredentialsAndPEM(t *testing.T) {
 	got, redacted := Sanitize(input)
 	if !redacted || strings.Contains(got, "abc.def") || strings.Contains(got, "hunter2") || strings.Contains(got, "PRIVATE KEY-----\nabc") {
 		t.Fatalf("secret remained in %q", got)
+	}
+}
+
+func TestSanitizeStripsANSIControlSequences(t *testing.T) {
+	got, _ := Sanitize("\x1b[0m\x1b[31m[error]\x1b[0m failed")
+	if got != "[error] failed" {
+		t.Fatalf("sanitized = %q", got)
 	}
 }
 

@@ -16,6 +16,7 @@ type QvacAuthenticationCommand struct {
 type PutQvacConfigurationCommand struct {
 	EndpointURL              string
 	ConnectionTimeoutSeconds int
+	ContextSize              int
 	Authentication           QvacAuthenticationCommand
 }
 

@@ -48,6 +48,7 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 			checkpoint.InitialBackfillPending = false
 		}
 	}
+	automaticCandidates := make([]automaticInvestigationCandidate, 0, len(ready))
 	err = s.transactor.WithinTransaction(ctx, func(txctx context.Context) error {
 		lockedProject, lockErr := s.store.LockProject(txctx, project.ID)
 		if lockErr != nil {
@@ -63,8 +64,12 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 			return domain.ErrMonitoringConcurrentModification
 		}
 		for index := range ready {
-			if persistErr := s.persistOccurrence(txctx, *lockedProject, &ready[index]); persistErr != nil {
+			incident, created, persistErr := s.persistOccurrence(txctx, *lockedProject, &ready[index])
+			if persistErr != nil {
 				return persistErr
+			}
+			if shouldStartAutomaticInvestigation(incident, created) {
+				automaticCandidates = append(automaticCandidates, automaticInvestigationCandidate{incidentID: incident.ID, incidentKey: incident.Key})
 			}
 		}
 		if updateErr := s.store.UpdateCheckpoint(txctx, checkpoint, expectedVersion); updateErr != nil {
@@ -81,7 +86,15 @@ func (s *Service) ProcessProject(ctx context.Context, project domain.Project) er
 	if err != nil {
 		return s.recordFailure(ctx, project, err)
 	}
+	s.startAutomaticInvestigations(ctx, project, automaticCandidates)
 	return nil
+}
+
+func shouldStartAutomaticInvestigation(incident *domain.Incident, created bool) bool {
+	if incident == nil {
+		return false
+	}
+	return created || incident.Phase == domain.IncidentPhaseDetected || incident.Phase == domain.IncidentPhaseFailed
 }
 
 func nextFinalizeAt(values []domain.PendingLogOccurrence) *time.Time {

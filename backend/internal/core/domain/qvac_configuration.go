@@ -12,6 +12,7 @@ const (
 	QvacAuthenticationNone   QvacAuthenticationType = "none"
 	QvacAuthenticationBearer QvacAuthenticationType = "bearer"
 	QvacAuthenticationBasic  QvacAuthenticationType = "basic"
+	DefaultQvacContextSize   int                    = 32768
 )
 
 func (t QvacAuthenticationType) Validate() error {
@@ -26,6 +27,7 @@ func (t QvacAuthenticationType) Validate() error {
 type QvacConfiguration struct {
 	EndpointURL              string
 	ConnectionTimeoutSeconds int
+	ContextSize              int
 	AuthenticationType       QvacAuthenticationType
 	CredentialConfigured     bool
 	BasicUsername            string
@@ -35,16 +37,22 @@ type QvacConfiguration struct {
 func DefaultQvacConfiguration(now time.Time) QvacConfiguration {
 	return QvacConfiguration{
 		EndpointURL:              "http://127.0.0.1:11434/v1",
-		ConnectionTimeoutSeconds: 30,
+		ConnectionTimeoutSeconds: 180,
+		ContextSize:              DefaultQvacContextSize,
 		AuthenticationType:       QvacAuthenticationNone,
 		UpdatedAt:                now,
 	}
 }
 
 func NewQvacConfiguration(endpoint string, timeoutSeconds int, authType QvacAuthenticationType, credentialConfigured bool, basicUsername string, updatedAt time.Time) (QvacConfiguration, error) {
+	return NewQvacConfigurationWithContext(endpoint, timeoutSeconds, DefaultQvacContextSize, authType, credentialConfigured, basicUsername, updatedAt)
+}
+
+func NewQvacConfigurationWithContext(endpoint string, timeoutSeconds int, contextSize int, authType QvacAuthenticationType, credentialConfigured bool, basicUsername string, updatedAt time.Time) (QvacConfiguration, error) {
 	value := QvacConfiguration{
 		EndpointURL:              strings.TrimRight(strings.TrimSpace(endpoint), "/"),
 		ConnectionTimeoutSeconds: timeoutSeconds,
+		ContextSize:              contextSize,
 		AuthenticationType:       authType,
 		CredentialConfigured:     credentialConfigured,
 		BasicUsername:            strings.TrimSpace(basicUsername),
@@ -63,6 +71,9 @@ func (c QvacConfiguration) Validate() error {
 	}
 	if c.ConnectionTimeoutSeconds < 1 || c.ConnectionTimeoutSeconds > 300 || c.AuthenticationType.Validate() != nil || !validTime(c.UpdatedAt) {
 		return ErrInvalidIntegrationStatus.Wrap(validationCause("QVAC configuration"))
+	}
+	if c.ContextSize < 4096 || c.ContextSize > 131072 {
+		return ErrInvalidIntegrationStatus.Wrap(validationCause("QVAC context size"))
 	}
 	if c.AuthenticationType == QvacAuthenticationBasic && c.BasicUsername == "" {
 		return ErrInvalidIntegrationStatus.Wrap(validationCause("QVAC basic username"))

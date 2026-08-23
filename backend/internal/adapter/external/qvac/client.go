@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ type ClientConfig struct {
 	HTTPClient    *http.Client
 	Model         string
 	Timeout       time.Duration
+	ContextSize   int
 }
 
 type Client struct {
@@ -36,6 +38,7 @@ type Client struct {
 	basicPassword string
 	httpClient    *http.Client
 	model         string
+	contextSize   int
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -59,6 +62,10 @@ func NewClient(config ClientConfig) (*Client, error) {
 	if model == "" {
 		model = defaultModel
 	}
+	contextSize := config.ContextSize
+	if contextSize <= 0 {
+		contextSize = domain.DefaultQvacContextSize
+	}
 	return &Client{
 		base:          strings.TrimRight(base.String(), "/"),
 		apiKey:        config.APIKey,
@@ -66,11 +73,13 @@ func NewClient(config ClientConfig) (*Client, error) {
 		basicPassword: config.BasicPassword,
 		httpClient:    httpClient,
 		model:         model,
+		contextSize:   contextSize,
 	}, nil
 }
 
 func (c *Client) Model() string    { return c.model }
 func (c *Client) Endpoint() string { return c.base }
+func (c *Client) ContextSize() int { return c.contextSize }
 
 type chatMessage struct {
 	Role       string     `json:"role"`
@@ -107,6 +116,10 @@ type responseFormat struct {
 	JSONSchema *jsonSchemaSpec `json:"json_schema,omitempty"`
 }
 
+type chatOptions struct {
+	NumCtx int `json:"num_ctx,omitempty"`
+}
+
 type jsonSchemaSpec struct {
 	Name   string          `json:"name"`
 	Strict bool            `json:"strict"`
@@ -119,6 +132,7 @@ type chatRequest struct {
 	Tools          []toolDefinition `json:"tools,omitempty"`
 	ResponseFormat *responseFormat  `json:"response_format,omitempty"`
 	Temperature    *float64         `json:"temperature,omitempty"`
+	Options        *chatOptions     `json:"options,omitempty"`
 }
 
 type chatResponse struct {
@@ -134,6 +148,9 @@ type chatResponse struct {
 func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chatResponse, error) {
 	if request.Model == "" {
 		request.Model = c.model
+	}
+	if request.Options == nil && c.contextSize > 0 {
+		request.Options = &chatOptions{NumCtx: c.contextSize}
 	}
 	body, err := json.Marshal(request)
 	if err != nil {
@@ -153,8 +170,10 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 	response, err := c.httpClient.Do(httpRequest)
 	if err != nil {
 		if ctx.Err() != nil {
+			log.Printf("qvac: chat completion failed endpoint=%s model=%s context_size=%d error=%v context_error=%v", c.base, request.Model, c.contextSize, err, ctx.Err())
 			return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, ctx.Err()))
 		}
+		log.Printf("qvac: chat completion failed endpoint=%s model=%s context_size=%d error=%v", c.base, request.Model, c.contextSize, err)
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, err))
 	}
 	defer response.Body.Close()
@@ -177,6 +196,7 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 		if decoded.Error != nil && decoded.Error.Message != "" {
 			msg = decoded.Error.Message
 		}
+		log.Printf("qvac: chat completion unavailable endpoint=%s model=%s context_size=%d status=%d response=%q", c.base, request.Model, c.contextSize, response.StatusCode, msg)
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: status %d: %s", ErrUnavailable, response.StatusCode, msg))
 	}
 	if len(decoded.Choices) == 0 {

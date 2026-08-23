@@ -1299,14 +1299,17 @@ export interface components {
         PutQvacConfigurationRequest: {
             /** Format: uri */
             endpoint_url: string;
-            /** @default 30 */
+            /** @default 180 */
             connection_timeout_seconds: number;
+            /** @default 32768 */
+            context_size: number;
             authentication: components["schemas"]["QvacAuthenticationRequest"];
         };
         QvacConfiguration: {
             /** Format: uri */
             endpoint_url: string;
             connection_timeout_seconds: number;
+            context_size: number;
             authentication_type: components["schemas"]["QvacAuthenticationType"];
             credential_configured: boolean;
             /** Format: date-time */

@@ -12,6 +12,7 @@ import { StackTraceCard } from "./components/StackTraceCard";
 import { ContextCards } from "./components/ContextCards";
 import { LogEventsCard } from "./components/LogEventsCard";
 import { RemediationCard } from "./components/RemediationCard";
+import { GitHubIssueCard } from "./components/GitHubIssueCard";
 import styles from "./IncidentDetailView.module.css";
 
 export const IncidentDetailView = async ({ id }: { id: string }) => {
@@ -43,17 +44,36 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
     <div className={styles.container}>
       <IncidentHeader incident={incident} />
 
+      <div className={styles.sectionHeader}>
+        <h2>Deterministic Detection</h2>
+        <p>Hard evidence collected from monitoring</p>
+      </div>
+      
       <div className={styles.contentGrid}>
         <div className={styles.leftColumn}>
-          <RootCauseCard incident={incident} />
-          {timeline.length > 0 && <AgentTimeline timeline={timeline} />}
-          {evidence.length > 0 && <EvidenceList evidence={evidence} />}
           <StackTraceCard incident={incident} />
           <LogEventsCard incidentId={id} />
         </div>
         
         <div className={styles.rightColumn}>
           <ContextCards incident={incident} />
+        </div>
+      </div>
+
+      <div className={styles.sectionHeader}>
+        <h2>QVAC Investigation</h2>
+        <p>AI-driven analysis and resolution</p>
+      </div>
+
+      <div className={styles.contentGrid}>
+        <div className={styles.leftColumn}>
+          <RootCauseCard incident={incident} />
+          {timeline.length > 0 && <AgentTimeline timeline={timeline} />}
+          {evidence.length > 0 && <EvidenceList evidence={evidence} />}
+        </div>
+        
+        <div className={styles.rightColumn}>
+          <GitHubIssueCard incident={incident} />
           <RemediationCard incident={incident} />
         </div>
       </div>

@@ -98,6 +98,28 @@
   align-items: start;
 }
 
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sectionHeader h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.sectionHeader p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 .leftColumn, .rightColumn {
   display: flex;
   flex-direction: column;

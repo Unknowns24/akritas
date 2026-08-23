@@ -51,3 +51,11 @@ Record durable project decisions here.
 - Repository/application snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
 - The requested GitHub `default_branch` must match provider metadata.
 - Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.
+
+## 2026-08-23 — H5 workspace/validation slice (isolated from H4)
+
+- `RepositoryWorkspace` (local git branch creation, `internal/adapter/external/git`) and `ValidationRunner` (closed `ValidationCommand` enum — `go_test`/`go_vet`/`go_build` — `internal/adapter/external/validationrunner`) are the first two adapters to fill `internal/adapter/external/git`, previously an empty placeholder. Both invoke external processes exclusively via `exec.CommandContext` with fixed argv; neither exposes a free-string `Run` capability, by design, to keep QVAC/Evidence/repository content from ever becoming a shell command.
+- `internal/service/validationpolicy` decides WHAT to validate (stack detection); execution and persistence are separate packages/ports (`policy ≠ execution ≠ persistence`).
+- `internal/usecase/remediation.ExecuteRemediationValidations` never calls `Remediation.MarkValidated` or `.Fail`: `MarkValidated` requires `len(Changes) > 0` (AKR-51, not yet implemented), and deciding a Remediation's fate from validation results is AKR-55's responsibility. `Remediation.Status` stays `in_progress` after this task's usecases run.
+- A minimal `remediations` table (Create+Get only, component errors `0x506`) was added now — ahead of AKR-49's trigger and AKR-55's full lifecycle persistence — purely so `validation_results.remediation_id` has a real FK from day one, following the same "build shared infra ahead of its full consumer" precedent as `operations`.
+- Migrations `20260823_06_add_remediations`/`20260823_07_add_validation_results` were added on the same date H4 is expected to add its own — flagged as a probable renumbering point on rebase, not resolved here.

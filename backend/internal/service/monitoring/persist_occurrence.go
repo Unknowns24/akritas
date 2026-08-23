@@ -40,7 +40,7 @@ func (s *Service) persistOccurrence(ctx context.Context, project domain.Project,
 	if err != nil {
 		return err
 	}
-	if err := event.AssociateOccurrence(incident.ID, project.DokployApplication.ApplicationIdentifier, project.DokployApplication.InstanceIdentifier, occurrence.OccurrenceKey); err != nil {
+	if err := event.AssociateOccurrence(incident.ID, project.DokploySource, occurrence.OccurrenceKey); err != nil {
 		return err
 	}
 	return s.store.CreateLogEvent(ctx, event)

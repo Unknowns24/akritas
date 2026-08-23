@@ -53,6 +53,24 @@ func TestUpdateRejectedCredentialPreservesOldState(t *testing.T) {
 	}
 }
 
+func TestListComposesUpdatesOnlyComposeCount(t *testing.T) {
+	now := time.Date(2026, 8, 23, 15, 0, 0, 0, time.UTC)
+	server, err := domain.NewDokployServer(uuid.New(), "Dokploy", "https://dokploy.example.com", "fingerprint", domain.IntegrationStatusConnected, now.Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.ApplicationCount = 7
+	store := &dokployStoreFake{server: server}
+	gateway := &dokployGatewayFake{composePage: paging.Slice[domain.DokployCompose]{Total: 3}}
+	uc := New(store, gateway, usageFake{}, uuid.New, func() time.Time { return now })
+	if _, err := uc.ListComposes(context.Background(), server.ID, paging.Params{Limit: 25}); err != nil {
+		t.Fatal(err)
+	}
+	if store.server.ComposeCount != 3 || store.server.ApplicationCount != 7 || store.server.LastSyncedAt == nil || !store.server.LastSyncedAt.Equal(now) {
+		t.Fatalf("server = %+v", store.server)
+	}
+}
+
 type dokployStoreFake struct {
 	server      *domain.DokployServer
 	secret      string
@@ -101,6 +119,7 @@ type dokployGatewayFake struct {
 	validationErr   error
 	validated       bool
 	validationOrder int
+	composePage     paging.Slice[domain.DokployCompose]
 }
 
 func (f *dokployGatewayFake) Validate(_ context.Context, _, _ string) (portsout.DokployValidation, error) {
@@ -118,6 +137,15 @@ func (f *dokployGatewayFake) TestConnection(context.Context, domain.DokployServe
 }
 func (f *dokployGatewayFake) ListApplications(context.Context, domain.DokployServer, paging.Params) (paging.Slice[domain.DokployApplication], error) {
 	return paging.Slice[domain.DokployApplication]{}, nil
+}
+func (f *dokployGatewayFake) ListComposes(context.Context, domain.DokployServer, paging.Params) (paging.Slice[domain.DokployCompose], error) {
+	return f.composePage, nil
+}
+func (f *dokployGatewayFake) ListComposeServices(context.Context, domain.DokployServer, string, bool) ([]domain.DokployComposeService, error) {
+	return nil, nil
+}
+func (f *dokployGatewayFake) GetCompose(context.Context, domain.DokployServer, string) (domain.DokployCompose, error) {
+	return domain.DokployCompose{}, domain.ErrIntegrationNotFound
 }
 
 type usageFake struct{ dokployInUse bool }

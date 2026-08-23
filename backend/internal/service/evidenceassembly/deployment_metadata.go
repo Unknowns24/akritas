@@ -16,9 +16,11 @@ type deploymentMetadataPayload struct {
 	HealthStatus       string `json:"health_status"`
 	RepositoryFullName string `json:"repository_full_name"`
 	DefaultBranch      string `json:"default_branch"`
-	ApplicationName    string `json:"application_display_name"`
-	Environment        string `json:"application_environment"`
-	ApplicationStatus  string `json:"application_status"`
+	SourceType         string `json:"source_type"`
+	SourceDisplayName  string `json:"source_display_name"`
+	SourceEnvironment  string `json:"source_environment"`
+	SourceStatus       string `json:"source_status"`
+	SourceServiceName  string `json:"source_service_name,omitempty"`
 }
 
 // deploymentMetadataEvidence snapshots non-secret Project fields already
@@ -31,18 +33,20 @@ func deploymentMetadataEvidence(id, investigationID uuid.UUID, project domain.Pr
 		HealthStatus:       string(project.HealthStatus),
 		RepositoryFullName: project.GitHubRepository.FullName,
 		DefaultBranch:      project.GitHubRepository.DefaultBranch,
-		ApplicationName:    project.DokployApplication.DisplayName,
-		Environment:        project.DokployApplication.Environment,
-		ApplicationStatus:  string(project.DokployApplication.Status),
+		SourceType:         string(project.DokploySource.Type),
+		SourceDisplayName:  project.DokploySource.DisplayName,
+		SourceEnvironment:  project.DokploySource.Environment,
+		SourceStatus:       string(project.DokploySource.Status),
+		SourceServiceName:  project.DokploySource.ServiceName,
 	}
 	content, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
 	summary := fmt.Sprintf(
-		"Project %s: repositorio %s@%s, aplicación Dokploy %s (%s) en estado %s.",
+		"Project %s: repositorio %s@%s, fuente Dokploy %s (%s) en estado %s.",
 		payload.ProjectName, payload.RepositoryFullName, payload.DefaultBranch,
-		payload.ApplicationName, payload.Environment, payload.ApplicationStatus,
+		payload.SourceDisplayName, payload.SourceEnvironment, payload.SourceStatus,
 	)
 	return domain.NewEvidence(id, investigationID, domain.EvidenceDeploymentMetadata, evidencesafety.Redact(summary), evidencesafety.Redact(string(content)), now)
 }

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { GithubIcon, DokployIcon } from "@/core/ui/icons";
-import { Code2, Server } from "lucide-react";
 import { Badge } from "@/core/ui/primitives/Badge";
 import styles from "./ProjectGrid.module.css";
 import type { components } from "@/core/libs/api-client";

@@ -17,16 +17,16 @@ api.use({
   async onRequest({ request }) {
     if (typeof window === "undefined") {
       try {
-        const { cookies } = require("next/headers");
+        const { cookies } = await import("next/headers");
         const cookieStore = await cookies();
         const cookieString = cookieStore
           .getAll()
-          .map((c: any) => `${c.name}=${c.value}`)
+          .map((cookie) => `${cookie.name}=${cookie.value}`)
           .join("; ");
         if (cookieString) {
           request.headers.set("cookie", cookieString);
         }
-      } catch (e) {
+      } catch {
         // Ignore errors if next/headers is unavailable or called outside Request scope
       }
     }

@@ -10,6 +10,7 @@ import { updateMonitoringConfigService, getProjectService } from "../../services
 import { Activity, Clock, Code2, Database, ShieldAlert, GitBranch, Box, Settings, ExternalLink, Loader2 } from "lucide-react";
 import type { components } from "@/core/libs/api-client";
 import { GithubIcon, DokployIcon } from "@/core/ui/icons";
+import { getErrorMessage } from "@/core/errors";
 
 type ProjectResponse = components["schemas"]["ProjectResponse"];
 
@@ -35,7 +36,11 @@ export function ProjectDetailClient({ initialProject, projectId }: ProjectDetail
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!project && projectId) {
+    if (project || !projectId) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setIsLoading(true);
       getProjectService(projectId)
         .then((res) => {
@@ -49,8 +54,10 @@ export function ProjectDetailClient({ initialProject, projectId }: ProjectDetail
         .finally(() => {
           setIsLoading(false);
         });
-    }
-  }, [projectId]);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [project, projectId]);
 
   if (isLoading) {
     return (
@@ -65,7 +72,7 @@ export function ProjectDetailClient({ initialProject, projectId }: ProjectDetail
       <div className={styles.emptyState}>
         <ShieldAlert size={48} />
         <h2>Project not found</h2>
-        <p>The project you are looking for does not exist or you don't have access.</p>
+        <p>The project you are looking for does not exist or you do not have access.</p>
       </div>
     );
   }
@@ -87,23 +94,18 @@ export function ProjectDetailClient({ initialProject, projectId }: ProjectDetail
       enabled: !mon.enabled
     };
     
-    const { data, error } = await updateMonitoringConfigService(project.id, newConfig);
-    
-    if (error) {
-      setErrorMsg("Failed to update monitoring configuration.");
-      setIsUpdating(false);
-      return;
-    }
-    
-    if (data) {
+    try {
+      const { data } = await updateMonitoringConfigService(project.id, newConfig);
       setProject({
         ...project,
         monitoring_configuration: data,
         monitoring_status: data.enabled ? "starting" : "disabled" // Optimistic UI update for status
       });
+    } catch (error: unknown) {
+      setErrorMsg(getErrorMessage(error, "Failed to update monitoring configuration."));
+    } finally {
+      setIsUpdating(false);
     }
-    
-    setIsUpdating(false);
   };
 
   const isIngestionWarning = project.monitoring_status === "error" || project.monitoring_status === "degraded" || (!project.last_observed_at && project.monitoring_status !== "disabled");
@@ -231,7 +233,7 @@ export function ProjectDetailClient({ initialProject, projectId }: ProjectDetail
                 <span className={styles.dataLabel}>Environment</span>
                 <span className={styles.dataValue}>
                   <Badge variant={source.type === "application" && source.environment === "production" ? "intel" : "neutral"}>
-                    {(source as any).environment || "None"}
+                    {source.type === "application" && source.environment ? source.environment : "None"}
                   </Badge>
                 </span>
               </div>

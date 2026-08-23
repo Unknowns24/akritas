@@ -934,8 +934,8 @@ export interface components {
          * @example {
          *       "error": {
          *         "code": "1x100001V",
-         *         "message": "The request contains invalid data.",
-         *         "user_message": "Check the fields and try again.",
+         *         "message": "La solicitud contiene datos inválidos.",
+         *         "user_message": "Revisá los campos e intentá nuevamente.",
          *         "request_id": "req-01J5P7M5Q1YJ7G6K7B8P9T0W2X",
          *         "details": [
          *           {

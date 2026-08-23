@@ -14,6 +14,7 @@ type DokploySourceSelectorType = components["schemas"]["DokploySourceSelector"];
 import { createProjectService } from "@/features/projects/services/create-project.service";
 import { updateProjectService } from "@/features/projects/services/update-project.service";
 import { toast } from "sonner";
+import { getErrorDetailsMessage, getErrorMessage } from "@/core/errors";
 
 interface ProjectFormProps {
   initialData?: Project;
@@ -81,28 +82,25 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
       const trimmedDesc = description.trim();
 
       if (isEditing) {
-        const { data, error: updateError } = await updateProjectService(initialData.id, {
+        const { data } = await updateProjectService(initialData.id, {
           name: trimmedName,
           description: trimmedDesc ? trimmedDesc : undefined,
           github_account_id: githubAccountId,
           repository_identifier: repositoryId,
           default_branch: defaultBranch,
-          dokploy_source: dokploySource as any,
+          dokploy_source: dokploySource,
         });
 
-        if (updateError) throw updateError;
-        if (data) {
-          toast.success("Project updated successfully");
-          router.push(`/projects/${data.id}`);
-        }
+        toast.success("Project updated successfully");
+        router.push(`/projects/${data.id}`);
       } else {
-        const { data, error: createError } = await createProjectService({
+        await createProjectService({
           name: trimmedName,
           description: trimmedDesc ? trimmedDesc : undefined,
           github_account_id: githubAccountId,
           repository_identifier: repositoryId,
           default_branch: defaultBranch,
-          dokploy_source: dokploySource as any,
+          dokploy_source: dokploySource,
           monitoring_configuration: {
             enabled: monitoringEnabled,
             grouping_window: groupingWindow.trim() || "PT30M",
@@ -114,24 +112,13 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
           initial_log_ingestion: "from_now",
         });
 
-        if (createError) throw createError;
-        if (data) {
-          toast.success("Project created successfully");
-          router.push(`/projects`);
-        }
+        toast.success("Project created successfully");
+        router.push(`/projects`);
       }
-    } catch (err: any) {
-      console.error("Failed to save project:", err);
-      const details = err?.error?.details || err?.details;
-      const detailsMsg = Array.isArray(details)
-        ? details.map((d: any) => (d.field ? `${d.field}: ${d.reason}` : d.reason || JSON.stringify(d))).join(", ")
-        : "";
-      const baseMsg =
-        err?.error?.user_message ||
-        err?.error?.message ||
-        err?.userMessage ||
-        err?.message ||
-        "An error occurred while saving the project.";
+    } catch (error: unknown) {
+      console.error("Failed to save project:", error);
+      const detailsMsg = getErrorDetailsMessage(error);
+      const baseMsg = getErrorMessage(error, "An error occurred while saving the project.");
       setError(detailsMsg ? `${baseMsg} (${detailsMsg})` : baseMsg);
     } finally {
       setIsSubmitting(false);

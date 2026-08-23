@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, FileText, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/core/ui/primitives/Button";
 import { Badge } from "@/core/ui/primitives/Badge";
 import { EmptyState } from "@/core/ui/feedback";
@@ -17,6 +18,7 @@ interface IncidentsListClientProps {
 export function IncidentsListClient({
   initialIncidents,
 }: IncidentsListClientProps) {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
 
   const filteredIncidents = initialIncidents.filter((inc) => {
@@ -145,7 +147,7 @@ export function IncidentsListClient({
                     variant="primary"
                     size="sm"
                     className={styles.actionBtn}
-                    onClick={() => window.location.href = `/incidents/${inc.id}`}
+                    onClick={() => router.push(`/incidents/${inc.id}`)}
                   >
                     Examine
                   </Button>
@@ -155,7 +157,7 @@ export function IncidentsListClient({
                     variant="secondary"
                     size="sm"
                     className={styles.actionBtn}
-                    onClick={() => window.location.href = `/incidents/${inc.id}`}
+                    onClick={() => router.push(`/incidents/${inc.id}`)}
                   >
                     View Report
                   </Button>
@@ -165,7 +167,8 @@ export function IncidentsListClient({
                     variant="secondary"
                     size="sm"
                     className={styles.actionBtn}
-                    onClick={() => alert("Retry Investigation mock triggered")}
+                    disabled
+                    title="Retry investigation is not wired in this frontend flow yet."
                   >
                     Retry
                   </Button>

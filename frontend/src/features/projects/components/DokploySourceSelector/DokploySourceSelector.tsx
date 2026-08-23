@@ -48,44 +48,51 @@ export const DokploySourceSelector: React.FC<DokploySourceSelectorProps> = ({ on
 
   useEffect(() => {
     if (!selectedServerId) {
-      setApplications([]);
-      setComposes([]);
-      setConnectionStatus("idle");
-      return;
+      const timeoutId = window.setTimeout(() => {
+        setApplications([]);
+        setComposes([]);
+        setConnectionStatus("idle");
+      }, 0);
+
+      return () => window.clearTimeout(timeoutId);
     }
     
-    const testAndFetch = async () => {
-      setConnectionStatus("testing");
-      setApplications([]);
-      setComposes([]);
-      setIsLoadingSources(true);
+    const timeoutId = window.setTimeout(() => {
+      const testAndFetch = async () => {
+        setConnectionStatus("testing");
+        setApplications([]);
+        setComposes([]);
+        setIsLoadingSources(true);
 
-      try {
-        const { data: testResult } = await testDokployConnectionService(selectedServerId);
-        
-        if (testResult?.data?.status !== "connected") {
+        try {
+          const { data: testResult } = await testDokployConnectionService(selectedServerId);
+          
+          if (testResult.status !== "connected") {
+            setConnectionStatus("error");
+            setIsLoadingSources(false);
+            return;
+          }
+          
+          setConnectionStatus("success");
+
+          const [appsRes, composesRes] = await Promise.all([
+            getDokployApplicationsService(selectedServerId),
+            getDokployComposesService(selectedServerId)
+          ]);
+
+          setApplications(appsRes.data);
+          setComposes(composesRes.data);
+        } catch {
           setConnectionStatus("error");
+        } finally {
           setIsLoadingSources(false);
-          return;
         }
-        
-        setConnectionStatus("success");
+      };
+      
+      void testAndFetch();
+    }, 0);
 
-        const [appsRes, composesRes] = await Promise.all([
-          getDokployApplicationsService(selectedServerId).catch(() => ({ data: [] })),
-          getDokployComposesService(selectedServerId).catch(() => ({ data: [] }))
-        ]);
-
-        if (appsRes.data) setApplications(appsRes.data);
-        if (composesRes.data) setComposes(composesRes.data);
-      } catch (err) {
-        setConnectionStatus("error");
-      } finally {
-        setIsLoadingSources(false);
-      }
-    };
-    
-    testAndFetch();
+    return () => window.clearTimeout(timeoutId);
   }, [selectedServerId]);
 
   const handleToggleCompose = async (compose: DokployCompose) => {
@@ -101,8 +108,8 @@ export const DokploySourceSelector: React.FC<DokploySourceSelectorProps> = ({ on
         if (data) {
           setComposeServices(prev => ({ ...prev, [id]: data }));
         }
-      } catch (err) {
-        console.error("Failed to load compose services", err);
+      } catch (error) {
+        console.error("Failed to load compose services", error);
       } finally {
         setLoadingServices(prev => ({ ...prev, [id]: false }));
       }

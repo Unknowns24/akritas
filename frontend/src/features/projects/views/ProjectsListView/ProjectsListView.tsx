@@ -2,8 +2,7 @@ import React from "react";
 import { getProjectsService } from "../../services/get-projects.service";
 import { ProjectsListClient } from "./ProjectsListClient";
 import styles from "./ProjectsListView.module.css";
-import { EmptyState, ErrorState } from "@/core/ui/feedback";
-import { FolderGit2 } from "lucide-react";
+import { ErrorState } from "@/core/ui/feedback";
 
 export const ProjectsListView = async () => {
   let initialProjects = [];

@@ -299,6 +299,134 @@
   gap: var(--space-1);
 }
 
+/* Log Events */
+.loadingState, .errorState {
+  padding: var(--space-4);
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+.errorState {
+  color: var(--status-error);
+}
+
+.logEventsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.logEventContainer {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.logEventHeader {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12px;
+}
+
+.logEventTimestamp {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.logEventSeverity {
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.logEventSeverity.error,
+.logEventSeverity.critical {
+  color: var(--status-error);
+}
+.logEventSeverity.warning {
+  color: var(--status-warning);
+}
+
+.logContextSection {
+  padding: var(--space-2) var(--space-4);
+  background-color: var(--bg-base);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.logContextSection:last-child {
+  border-bottom: none;
+}
+
+.logContextLine {
+  display: flex;
+  gap: var(--space-4);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.logContextTime {
+  color: var(--border-strong);
+  flex-shrink: 0;
+}
+
+.logContextMessage {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.logEvidence {
+  padding: var(--space-4);
+  background-color: var(--surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+
+.logEvidence pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.paginationControls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-4);
+}
+
+.paginationButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: var(--surface-3);
+  color: var(--text-primary);
+}
+
+.paginationButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 @media (max-width: 1024px) {
   .contentGrid {
     grid-template-columns: 1fr;

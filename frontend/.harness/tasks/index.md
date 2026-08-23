@@ -6,3 +6,4 @@
 | FE-H5-02-REMEDIATION-PROGRESS-ARTIFACTS | complete | frontend-feature | Visualizador de progreso branch → changes/tests → validation → commit → PR y artefactos |
 | FE-H5-03-VALIDATION-RESULTS-VIEWER | complete | frontend-feature | Visor detallado de validaciones (test/build/static), evidencias y bloqueo explícito de PR |
 | FE-H5-04-PR-REFERENCE-TRACEABILITY | complete | frontend-feature | Pull Request reference y trazabilidad Incident → Investigation → Issue → Remediation → Branch → Commit → PR |
+| FE-H5-05-AUTONOMY-BOUNDARY-UI | complete | frontend-feature | Límite estricto de autonomía tras PR created (sin merge, deploy, rollback ni promoción automática) |

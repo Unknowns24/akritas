@@ -181,14 +181,77 @@ func (evidenceStub) ListInvestigationEvidence(context.Context, uuid.UUID, paging
 
 type remediationStub struct{}
 
+func (remediationStub) StartIncidentRemediation(context.Context, portsin.StartIncidentRemediationCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+func (remediationStub) GetIncidentRemediation(context.Context, uuid.UUID) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (remediationStub) GetRemediation(context.Context, uuid.UUID) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (remediationStub) ListValidationResults(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.ValidationResult], error) {
+	return paging.Slice[domain.ValidationResult]{}, nil
+}
 func (remediationStub) CreateRemediationBranch(context.Context, portsin.CreateRemediationBranchCommand) (*domain.Remediation, error) {
 	return &domain.Remediation{}, nil
 }
 func (remediationStub) ExecuteRemediationValidations(context.Context, portsin.ExecuteRemediationValidationsCommand) (*domain.Remediation, []domain.ValidationResult, error) {
 	return &domain.Remediation{}, nil, nil
 }
+func (remediationStub) QueueRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
 func (remediationStub) CreateRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Remediation, error) {
 	return &domain.Remediation{}, nil
+}
+func (remediationStub) ListPullRequests(context.Context, paging.Params) (paging.Slice[domain.PullRequestProjection], error) {
+	return paging.Slice[domain.PullRequestProjection]{}, nil
+}
+func (remediationStub) GetPullRequest(context.Context, uuid.UUID) (*domain.PullRequestProjection, error) {
+	return &domain.PullRequestProjection{}, nil
+}
+
+type systemStub struct{}
+
+func (systemStub) GetStatus(context.Context) (domain.SystemStatus, error) {
+	return domain.SystemStatus{}, nil
+}
+func (systemStub) RunDiagnostics(context.Context, uuid.UUID) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
+type dashboardStub struct{}
+
+func (dashboardStub) GetOverview(context.Context) (domain.Overview, error) {
+	return domain.Overview{}, nil
+}
+func (dashboardStub) ListActivity(context.Context, paging.Params) (paging.Slice[domain.ActivityEvent], error) {
+	return paging.Slice[domain.ActivityEvent]{}, nil
+}
+
+type qvacStub struct{}
+
+func (qvacStub) GetConfiguration(context.Context) (domain.QvacConfiguration, error) {
+	return domain.DefaultQvacConfiguration(time.Now().UTC()), nil
+}
+func (qvacStub) PutConfiguration(context.Context, portsin.PutQvacConfigurationCommand) (domain.QvacConfiguration, error) {
+	return domain.DefaultQvacConfiguration(time.Now().UTC()), nil
+}
+func (qvacStub) TestConnection(context.Context) (portsin.ConnectionTestResult, error) {
+	return portsin.ConnectionTestResult{}, nil
+}
+func (qvacStub) GetStatus(context.Context) (portsin.QvacRuntimeStatus, error) {
+	return portsin.QvacRuntimeStatus{}, nil
+}
+
+type automationStub struct{}
+
+func (automationStub) GetPolicy(context.Context) (domain.AutomationPolicy, error) {
+	return domain.DefaultAutomationPolicy(), nil
+}
+func (automationStub) PutPolicy(context.Context, domain.AutomationPolicy) (domain.AutomationPolicy, error) {
+	return domain.DefaultAutomationPolicy(), nil
 }
 
 type incidentStub struct{}
@@ -248,6 +311,10 @@ func completeUseCases() *portsin.UseCases {
 		Operation:     operationStub{},
 		Evidence:      evidenceStub{},
 		Remediation:   remediationStub{},
+		System:        systemStub{},
+		Dashboard:     dashboardStub{},
+		Qvac:          qvacStub{},
+		Automation:    automationStub{},
 	}
 }
 
@@ -277,7 +344,12 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 		handlers.IncidentHandler == nil ||
 		handlers.InvestigationHandler == nil ||
 		handlers.OperationHandler == nil ||
-		handlers.EvidenceHandler == nil {
+		handlers.EvidenceHandler == nil ||
+		handlers.SystemHandler == nil ||
+		handlers.DashboardHandler == nil ||
+		handlers.QvacHandler == nil ||
+		handlers.AutomationHandler == nil ||
+		handlers.RemediationHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -306,6 +378,10 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing Evidence", mutate: func(config *HandlersConfig) { config.UseCases.Evidence = nil }},
 		{name: "missing Remediation", mutate: func(config *HandlersConfig) { config.UseCases.Remediation = nil }},
 		{name: "missing Incident", mutate: func(config *HandlersConfig) { config.UseCases.Incident = nil }},
+		{name: "missing System", mutate: func(config *HandlersConfig) { config.UseCases.System = nil }},
+		{name: "missing Dashboard", mutate: func(config *HandlersConfig) { config.UseCases.Dashboard = nil }},
+		{name: "missing QVAC", mutate: func(config *HandlersConfig) { config.UseCases.Qvac = nil }},
+		{name: "missing Automation", mutate: func(config *HandlersConfig) { config.UseCases.Automation = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 		{name: "invalid cookie same-site", mutate: func(config *HandlersConfig) { config.SessionCookieSameSite = "invalid" }},
 	}

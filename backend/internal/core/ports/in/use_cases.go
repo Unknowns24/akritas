@@ -23,4 +23,8 @@ type UseCases struct {
 	Operation     OperationUseCase
 	Evidence      EvidenceUseCase
 	Remediation   RemediationUseCase
+	System        SystemUseCase
+	Dashboard     DashboardUseCase
+	Qvac          QvacUseCase
+	Automation    AutomationUseCase
 }

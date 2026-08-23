@@ -64,6 +64,7 @@ type Config struct {
 	AllowedOriginsValue           string        `mapstructure:"AKRITAS_ALLOWED_ORIGINS"`
 	MonitoringPollInterval        time.Duration `mapstructure:"AKRITAS_MONITORING_POLL_INTERVAL"`
 	MonitoringConcurrency         int           `mapstructure:"AKRITAS_MONITORING_CONCURRENCY"`
+	RemediationWorkspaceRoot      string        `mapstructure:"AKRITAS_REMEDIATION_WORKSPACE_ROOT"`
 
 	// Derived secrets are populated only after validation. The raw fields above
 	// are cleared before Config leaves this package.
@@ -152,6 +153,7 @@ func loadFromViper(v *viper.Viper) (Config, error) {
 
 	raw.DatabaseURL = databaseURL
 	raw.PublicURL = publicURL
+	raw.RemediationWorkspaceRoot = strings.TrimSpace(raw.RemediationWorkspaceRoot)
 	raw.SessionCookieSameSite = sessionCookieSameSite
 	raw.MasterKeyEncoded = ""
 	raw.PaginationSecretValue = ""

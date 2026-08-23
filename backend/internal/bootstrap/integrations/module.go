@@ -7,6 +7,7 @@ import (
 
 	"github.com/Unknowns24/akritas/backend/config"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres"
+	automationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/automation"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	dokployrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/dokployserver"
 	evidencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/evidence"
@@ -18,6 +19,8 @@ import (
 	monitoringrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/monitoring"
 	operationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/operation"
 	projectrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/project"
+	projectionrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/projection"
+	qvacconfigrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/qvacconfig"
 	remediationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/remediation"
 	timelinerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/timeline"
 	validationresultrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/validationresult"
@@ -34,6 +37,8 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/service/issuecontent"
 	monitoringservice "github.com/Unknowns24/akritas/backend/internal/service/monitoring"
 	"github.com/Unknowns24/akritas/backend/internal/service/validationpolicy"
+	automationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/automation"
+	dashboardusecase "github.com/Unknowns24/akritas/backend/internal/usecase/dashboard"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
@@ -42,7 +47,9 @@ import (
 	investigationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/investigation"
 	operationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/operation"
 	projectusecase "github.com/Unknowns24/akritas/backend/internal/usecase/project"
+	qvacusecase "github.com/Unknowns24/akritas/backend/internal/usecase/qvac"
 	remediationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/remediation"
+	systemusecase "github.com/Unknowns24/akritas/backend/internal/usecase/system"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -167,6 +174,18 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		return nil, err
 	}
 
+	automationPolicy, err := automationrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	qvacConfigurations, err := qvacconfigrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	projections := projectionrepo.New(dependencies.DB)
+
 	transactor := postgres.NewTransactor(dependencies.DB)
 
 	//
@@ -189,11 +208,6 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 			Credentials: dependencies.Credentials,
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	qvacClient, err := qvac.NewClient(qvac.ClientConfig{})
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +254,26 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		uuid.New,
 		time.Now,
 	)
+
+	automationUseCase, err := automationusecase.New(automationPolicy)
+	if err != nil {
+		return nil, err
+	}
+
+	qvacUseCase, err := qvacusecase.New(qvacConfigurations, dependencies.Credentials, time.Now)
+	if err != nil {
+		return nil, err
+	}
+
+	dashboardUseCase, err := dashboardusecase.New(projections)
+	if err != nil {
+		return nil, err
+	}
+
+	systemUseCase, err := systemusecase.New(projections, operations, qvacUseCase, uuid.New, time.Now)
+	if err != nil {
+		return nil, err
+	}
 
 	//
 	// H2 — Projects / Monitoring / Incidents
@@ -295,8 +329,8 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		time.Now,
 	)
 
-	investigationRunner, err := qvac.NewRunner(
-		qvacClient,
+	investigationRunner, err := qvac.NewConfiguredRunner(
+		qvacUseCase.Client,
 		nil,
 		qvac.RunnerConfig{RepositoryInspector: githubClient, ContextSize: 16384},
 	)
@@ -357,6 +391,11 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		validationpolicy.New(gitClient),
 		uuid.New,
 		time.Now,
+		remediationusecase.RuntimeDependencies{
+			Operations:     operations,
+			Investigations: investigations,
+			Projections:    projections,
+		},
 	)
 
 	//
@@ -383,13 +422,18 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	useCases.Operation = operationUseCase
 	useCases.Evidence = evidenceUseCase
 	useCases.Remediation = remediationUseCase
+	useCases.System = systemUseCase
+	useCases.Dashboard = dashboardUseCase
+	useCases.Qvac = qvacUseCase
+	useCases.Automation = automationUseCase
 
 	handlers, err := resthandler.NewHandlers(
 		resthandler.HandlersConfig{
-			UseCases:              &useCases,
-			Pagination:            pagingConfig,
-			SessionCookieSecure:   configuration.SessionCookieSecure,
-			SessionCookieSameSite: configuration.SessionCookieSameSite,
+			UseCases:                 &useCases,
+			Pagination:               pagingConfig,
+			SessionCookieSecure:      configuration.SessionCookieSecure,
+			SessionCookieSameSite:    configuration.SessionCookieSameSite,
+			RemediationWorkspaceRoot: configuration.RemediationWorkspaceRoot,
 		},
 	)
 

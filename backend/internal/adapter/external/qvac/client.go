@@ -20,17 +20,22 @@ const (
 )
 
 type ClientConfig struct {
-	EndpointURL string
-	APIKey      string
-	HTTPClient  *http.Client
-	Model       string
+	EndpointURL   string
+	APIKey        string
+	BasicUsername string
+	BasicPassword string
+	HTTPClient    *http.Client
+	Model         string
+	Timeout       time.Duration
 }
 
 type Client struct {
-	base       string
-	apiKey     string
-	httpClient *http.Client
-	model      string
+	base          string
+	apiKey        string
+	basicUsername string
+	basicPassword string
+	httpClient    *http.Client
+	model         string
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -44,21 +49,28 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 2 * time.Minute}
+		timeout := config.Timeout
+		if timeout <= 0 {
+			timeout = 2 * time.Minute
+		}
+		httpClient = &http.Client{Timeout: timeout}
 	}
 	model := strings.TrimSpace(config.Model)
 	if model == "" {
 		model = defaultModel
 	}
 	return &Client{
-		base:       strings.TrimRight(base.String(), "/"),
-		apiKey:     config.APIKey,
-		httpClient: httpClient,
-		model:      model,
+		base:          strings.TrimRight(base.String(), "/"),
+		apiKey:        config.APIKey,
+		basicUsername: strings.TrimSpace(config.BasicUsername),
+		basicPassword: config.BasicPassword,
+		httpClient:    httpClient,
+		model:         model,
 	}, nil
 }
 
-func (c *Client) Model() string { return c.model }
+func (c *Client) Model() string    { return c.model }
+func (c *Client) Endpoint() string { return c.base }
 
 type chatMessage struct {
 	Role       string     `json:"role"`
@@ -135,6 +147,8 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 	httpRequest.Header.Set("Accept", "application/json")
 	if c.apiKey != "" {
 		httpRequest.Header.Set("Authorization", "Bearer "+c.apiKey)
+	} else if c.basicUsername != "" {
+		httpRequest.SetBasicAuth(c.basicUsername, c.basicPassword)
 	}
 	response, err := c.httpClient.Do(httpRequest)
 	if err != nil {
@@ -169,4 +183,10 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrInvalidModelOutput)
 	}
 	return decoded, nil
+}
+
+func (c *Client) Ping(ctx context.Context) (time.Duration, error) {
+	started := time.Now()
+	_, err := c.chatCompletions(ctx, chatRequest{Messages: []chatMessage{{Role: "user", Content: "Return OK."}}})
+	return time.Since(started), err
 }

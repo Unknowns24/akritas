@@ -22,7 +22,7 @@ func TestValidationResultLifecycle(t *testing.T) {
 	if err := result.Pass(now.Add(time.Minute), "all tests passed", "ok"); err != nil {
 		t.Fatal(err)
 	}
-	if !result.OutputRedacted || result.Status != ValidationStatusPassed {
+	if result.OutputRedacted || result.Status != ValidationStatusPassed {
 		t.Fatalf("unexpected validation result: %+v", result)
 	}
 	if err := result.Fail(now.Add(2*time.Minute), "late", "late"); !errors.Is(err, ErrValidationTransition) {

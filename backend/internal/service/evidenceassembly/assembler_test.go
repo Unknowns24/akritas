@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
 	"github.com/google/uuid"
 )
@@ -50,6 +51,15 @@ type fakeAccountReader struct{ account *domain.GitHubAccount }
 
 func (f fakeAccountReader) Get(context.Context, uuid.UUID) (*domain.GitHubAccount, error) {
 	return f.account, nil
+}
+
+type fakeCommitReader struct {
+	commits []portsout.RepositoryCommitSummary
+	err     error
+}
+
+func (f fakeCommitReader) ListRecentCommits(context.Context, domain.GitHubAccount, string, string, string, int) ([]portsout.RepositoryCommitSummary, error) {
+	return append([]portsout.RepositoryCommitSummary(nil), f.commits...), f.err
 }
 
 func fixtureProject(t *testing.T) domain.Project {
@@ -140,6 +150,62 @@ func TestAssembleDoesNotInventStackEvidence(t *testing.T) {
 	for _, evidence := range result.Evidence {
 		if evidence.Type == domain.EvidenceStackTrace || evidence.Type == domain.EvidenceCommit || evidence.Type == domain.EvidenceDiff {
 			t.Fatalf("invented Evidence: %+v", evidence)
+		}
+	}
+}
+
+func TestAssembleAddsSafePotentialCommitEvidence(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 23, 10, 0, 0, 0, time.UTC)
+	project := fixtureProject(t)
+	incident := &domain.Incident{
+		ID: uuid.New(), ProjectID: project.ID, FirstSeenAt: now, LastSeenAt: now.Add(time.Minute),
+		Title: "DB error", Severity: domain.SeverityError,
+	}
+	incidents := &fakeIncidentEvidenceReader{getResult: incident, logs: []domain.LogEvent{fixtureLogEvent(t, incident.ID, project.ID, now)}}
+	commits := fakeCommitReader{commits: []portsout.RepositoryCommitSummary{{
+		SHA: "deadbeef", Date: now.Add(-time.Hour).Format(time.RFC3339), Author: "dev",
+		Message: "fix TOKEN=secret-value", URL: "https://github.com/acme/api/commit/deadbeef",
+	}}}
+	assembler := NewWithCommitCorrelation(incidents, &fakeProjectStore{getResult: &project}, fakeAccountReader{account: &domain.GitHubAccount{ID: project.GitHubRepository.GitHubAccountID}}, commits, uuid.New, func() time.Time { return now })
+
+	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found *domain.Evidence
+	for index := range result.Evidence {
+		if result.Evidence[index].Type == domain.EvidenceCommit {
+			found = &result.Evidence[index]
+			break
+		}
+	}
+	if found == nil {
+		t.Fatalf("expected commit Evidence, got %+v", result.Evidence)
+	}
+	if found.CommitSHA != "deadbeef" || strings.Contains(found.Content, "secret-value") {
+		t.Fatalf("unsafe commit Evidence: %+v", found)
+	}
+	if !strings.Contains(found.Summary, "potencialmente relacionado") || !strings.Contains(found.Summary, "no es causa confirmada") {
+		t.Fatalf("commit Evidence must not claim causality: %s", found.Summary)
+	}
+}
+
+func TestAssembleCommitCorrelationFailureDoesNotBlockInvestigation(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 23, 10, 0, 0, 0, time.UTC)
+	project := fixtureProject(t)
+	incident := &domain.Incident{ID: uuid.New(), ProjectID: project.ID, FirstSeenAt: now, LastSeenAt: now, Title: "DB error", Severity: domain.SeverityError}
+	incidents := &fakeIncidentEvidenceReader{getResult: incident, logs: []domain.LogEvent{fixtureLogEvent(t, incident.ID, project.ID, now)}}
+	assembler := NewWithCommitCorrelation(incidents, &fakeProjectStore{getResult: &project}, fakeAccountReader{account: &domain.GitHubAccount{ID: project.GitHubRepository.GitHubAccountID}}, fakeCommitReader{err: errors.New("github unavailable TOKEN=secret")}, uuid.New, func() time.Time { return now })
+
+	result, err := assembler.Assemble(context.Background(), domain.Investigation{ID: uuid.New(), IncidentID: incident.ID, CreatedAt: now})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, evidence := range result.Evidence {
+		if evidence.Type == domain.EvidenceCommit || strings.Contains(evidence.Content, "TOKEN=secret") {
+			t.Fatalf("commit correlation failure leaked or blocked incorrectly: %+v", result.Evidence)
 		}
 	}
 }

@@ -4,12 +4,15 @@ package evidenceassembly
 
 import (
 	"context"
+	"encoding/json"
 	"sort"
 	"time"
 
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	"github.com/Unknowns24/akritas/backend/internal/core/ports/paging"
+	"github.com/Unknowns24/akritas/backend/internal/service/commitcorrelation"
+	"github.com/Unknowns24/akritas/backend/internal/service/evidencesafety"
 	"github.com/google/uuid"
 	ukerpagination "github.com/unknowns24/uker/uker/pagination"
 )
@@ -25,15 +28,24 @@ type incidentEvidenceReader interface {
 }
 
 type Assembler struct {
-	incidents incidentEvidenceReader
-	projects  portsout.ProjectStore
-	accounts  portsout.GitHubAccountReader
-	newID     func() uuid.UUID
-	now       func() time.Time
+	incidents    incidentEvidenceReader
+	projects     portsout.ProjectStore
+	accounts     portsout.GitHubAccountReader
+	commitReader commitReader
+	newID        func() uuid.UUID
+	now          func() time.Time
+}
+
+type commitReader interface {
+	ListRecentCommits(context.Context, domain.GitHubAccount, string, string, string, int) ([]portsout.RepositoryCommitSummary, error)
 }
 
 func New(incidents incidentEvidenceReader, projects portsout.ProjectStore, accounts portsout.GitHubAccountReader, newID func() uuid.UUID, now func() time.Time) portsout.InvestigationContextAssembler {
 	return &Assembler{incidents: incidents, projects: projects, accounts: accounts, newID: newID, now: now}
+}
+
+func NewWithCommitCorrelation(incidents incidentEvidenceReader, projects portsout.ProjectStore, accounts portsout.GitHubAccountReader, commitReader commitReader, newID func() uuid.UUID, now func() time.Time) portsout.InvestigationContextAssembler {
+	return &Assembler{incidents: incidents, projects: projects, accounts: accounts, commitReader: commitReader, newID: newID, now: now}
 }
 
 func (a *Assembler) Assemble(ctx context.Context, investigation domain.Investigation) (portsout.InvestigationRunContext, error) {
@@ -68,6 +80,7 @@ func (a *Assembler) Assemble(ctx context.Context, investigation domain.Investiga
 	if err != nil {
 		return portsout.InvestigationRunContext{}, err
 	}
+	evidence = a.appendCommitEvidence(ctx, evidence, investigation.ID, *incident, *project, *account)
 	return portsout.InvestigationRunContext{
 		Investigation: investigation,
 		Incident:      *incident,
@@ -80,6 +93,47 @@ func (a *Assembler) Assemble(ctx context.Context, investigation domain.Investiga
 		},
 		Evidence: evidence,
 	}, nil
+}
+
+func (a *Assembler) appendCommitEvidence(ctx context.Context, current []domain.Evidence, investigationID uuid.UUID, incident domain.Incident, project domain.Project, account domain.GitHubAccount) []domain.Evidence {
+	if a.commitReader == nil || len(current) >= maximumInitialEvidence {
+		return current
+	}
+	commits, err := a.commitReader.ListRecentCommits(ctx, account, project.GitHubRepository.Owner, project.GitHubRepository.Name, project.GitHubRepository.DefaultBranch, 20)
+	if err != nil {
+		return current
+	}
+	correlated := commitcorrelation.Select(commitcorrelation.IncidentWindow{
+		FirstSeenAt: incident.FirstSeenAt,
+		LastSeenAt:  incident.LastSeenAt,
+	}, commits, 3)
+	for _, commit := range correlated {
+		if len(current) >= maximumInitialEvidence {
+			break
+		}
+		payload := struct {
+			SHA       string `json:"sha"`
+			Timestamp string `json:"timestamp,omitempty"`
+			Author    string `json:"author,omitempty"`
+			Message   string `json:"message,omitempty"`
+			URL       string `json:"url,omitempty"`
+			Reason    string `json:"reason"`
+		}{
+			SHA: commit.SHA, Author: commit.Author, Message: commit.Message, URL: commit.URL, Reason: commit.Reason,
+		}
+		if !commit.Timestamp.IsZero() {
+			payload.Timestamp = commit.Timestamp.Format(time.RFC3339)
+		}
+		raw, _ := json.Marshal(payload)
+		content := evidencesafety.RedactAndLimit(string(raw), 8000)
+		evidence, buildErr := domain.NewEvidence(a.newID(), investigationID, domain.EvidenceCommit, "Commit potencialmente relacionado por ventana temporal; no es causa confirmada.", content, a.now().UTC())
+		if buildErr != nil {
+			continue
+		}
+		evidence.CommitSHA = commit.SHA
+		current = append(current, *evidence)
+	}
+	return current
 }
 
 func (a *Assembler) buildEvidence(investigationID uuid.UUID, project domain.Project, events []domain.LogEvent) ([]domain.Evidence, error) {

@@ -159,9 +159,16 @@ func TestRedactKeepsNormalMentionsWithoutValues(t *testing.T) {
 func TestRedactAndLimitPreservesUTF8AndMaximumBytes(t *testing.T) {
 	t.Parallel()
 	input := "TOKEN='secret value' " + strings.Repeat("á", 80) + string([]byte{0xff, 0xfe})
-	redacted := RedactAndLimit(input, 64)
+	result := RedactAndLimitWithReport(input, 64)
+	redacted := result.Value
 	if len(redacted) > 64 {
 		t.Fatalf("redacted output exceeded deterministic byte limit: %d", len(redacted))
+	}
+	if !result.Redacted {
+		t.Fatal("result must report that redaction happened")
+	}
+	if !result.Truncated {
+		t.Fatal("result must report that truncation happened")
 	}
 	if !utf8.ValidString(redacted) {
 		t.Fatal("redacted output must remain valid UTF-8")
@@ -171,5 +178,14 @@ func TestRedactAndLimitPreservesUTF8AndMaximumBytes(t *testing.T) {
 	}
 	if !strings.Contains(redacted, "[TRUNCATED]") {
 		t.Fatal("bounded redaction should mark truncation")
+	}
+}
+
+func TestRedactWithReportIsTruthfulWhenNoSecretMatches(t *testing.T) {
+	t.Parallel()
+
+	result := RedactWithReport("ordinary build output\nok")
+	if result.Value != "ordinary build output\nok" || result.Redacted {
+		t.Fatalf("unexpected redaction result: %+v", result)
 	}
 }

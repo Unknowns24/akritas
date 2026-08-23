@@ -85,7 +85,7 @@ func TestExecuteRemediationValidationsAllStepsRunRegardlessOfEarlierFailures(t *
 	startedRemediation(t, remediations, id, incidentID)
 
 	runner := newFakeValidationRunner()
-	runner.results[portsout.ValidationCommandGoBuild] = portsout.ExecutionResult{Outcome: portsout.ExecutionOutcomeCompleted, ExitCode: 1, Stdout: "build failed"}
+	runner.results[portsout.ValidationCommandGoBuild] = portsout.ExecutionResult{Outcome: portsout.ExecutionOutcomeCompleted, ExitCode: 1, Stdout: "build failed TOKEN=secret-value"}
 	runner.results[portsout.ValidationCommandGoVet] = portsout.ExecutionResult{Outcome: portsout.ExecutionOutcomeCompleted, ExitCode: 0}
 	runner.results[portsout.ValidationCommandGoTest] = portsout.ExecutionResult{Outcome: portsout.ExecutionOutcomeCompleted, ExitCode: 0}
 
@@ -114,15 +114,18 @@ func TestExecuteRemediationValidationsAllStepsRunRegardlessOfEarlierFailures(t *
 		default:
 			t.Fatalf("unexpected terminal status %v", r.Status)
 		}
-		if !r.OutputRedacted {
-			t.Fatal("expected OutputRedacted to always be true")
+		if r.OutputRedacted && r.Status != domain.ValidationStatusFailed {
+			t.Fatal("only the secret-bearing failed validation should be marked redacted")
 		}
+	}
+	if !resultsOut[0].OutputRedacted || strings.Contains(resultsOut[0].OutputExcerpt, "secret-value") {
+		t.Fatalf("failed validation output was not truthfully redacted: %+v", resultsOut[0])
 	}
 	if passed != 2 || failed != 1 {
 		t.Fatalf("expected 2 passed and 1 failed, got %d passed, %d failed", passed, failed)
 	}
-	if remediationOut.Status != domain.RemediationStatusInProgress {
-		t.Fatalf("expected Remediation.Status to remain in_progress (no AKR-55 decision here), got %v", remediationOut.Status)
+	if remediationOut.Status != domain.RemediationStatusFailed || len(remediations.updated) != 1 {
+		t.Fatalf("expected Remediation to fail after failed validation, got remediation=%+v updates=%d", remediationOut, len(remediations.updated))
 	}
 }
 

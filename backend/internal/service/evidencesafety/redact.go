@@ -6,6 +6,12 @@ import (
 	"unicode/utf8"
 )
 
+type RedactionResult struct {
+	Value     string
+	Redacted  bool
+	Truncated bool
+}
+
 var secretPatterns = []struct {
 	pattern *regexp.Regexp
 	replace string
@@ -25,26 +31,44 @@ var secretPatterns = []struct {
 }
 
 func Redact(value string) string {
+	return RedactWithReport(value).Value
+}
+
+func RedactWithReport(value string) RedactionResult {
 	value = strings.ToValidUTF8(value, "\uFFFD")
+	redacted := false
 	for _, candidate := range secretPatterns {
-		value = candidate.pattern.ReplaceAllString(value, candidate.replace)
+		next := candidate.pattern.ReplaceAllString(value, candidate.replace)
+		if next != value {
+			redacted = true
+		}
+		value = next
 	}
-	return value
+	return RedactionResult{Value: value, Redacted: redacted}
 }
 
 func RedactAndLimit(value string, maximumBytes int) string {
-	value = Redact(value)
+	return RedactAndLimitWithReport(value, maximumBytes).Value
+}
+
+func RedactAndLimitWithReport(value string, maximumBytes int) RedactionResult {
+	result := RedactWithReport(value)
+	value = result.Value
 	if maximumBytes <= 0 || len(value) <= maximumBytes {
-		return value
+		return result
 	}
 	const suffix = "\n[TRUNCATED]"
 	limit := maximumBytes - len(suffix)
 	if limit < 0 {
-		return suffix[:maximumBytes]
+		result.Value = suffix[:maximumBytes]
+		result.Truncated = true
+		return result
 	}
 	value = value[:limit]
 	for !utf8.ValidString(value) {
 		value = value[:len(value)-1]
 	}
-	return value + suffix
+	result.Value = value + suffix
+	result.Truncated = true
+	return result
 }

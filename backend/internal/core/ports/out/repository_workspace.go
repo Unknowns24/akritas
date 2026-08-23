@@ -27,13 +27,35 @@ type CreateBranchOutput struct {
 	CreatedAt  time.Time
 }
 
+type CommitAllInput struct {
+	WorkspacePath string
+	BranchName    string
+	Message       string
+}
+
+type CommitAllOutput struct {
+	SHA       string
+	Summary   string
+	CreatedAt time.Time
+}
+
+type PushBranchInput struct {
+	WorkspacePath string
+	BranchName    string
+}
+
+type PushBranchOutput struct {
+	BranchName string
+	PushedAt   time.Time
+}
+
 // RepositoryWorkspace is the minimal, write-capable local-git output port.
 // It is the mutation counterpart to the read-only RepositoryInspector (H3),
 // and follows the same allowlist discipline: it exposes exactly one
-// capability today and MUST NOT grow a Run(command string)-shaped or
-// otherwise unconstrained passthrough. Every future H5 git capability
-// (commit, push, ...) gets its own deliberately narrow method added to a
-// port, never a generic escape hatch.
+// capability per Git mutation and MUST NOT grow a Run(command string)-shaped
+// or otherwise unconstrained passthrough.
 type RepositoryWorkspace interface {
 	CreateBranch(ctx context.Context, input CreateBranchInput) (CreateBranchOutput, error)
+	CommitAll(ctx context.Context, input CommitAllInput) (CommitAllOutput, error)
+	PushBranch(ctx context.Context, input PushBranchInput) (PushBranchOutput, error)
 }

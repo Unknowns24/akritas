@@ -13,6 +13,7 @@ type fakeRepositoryInspector struct {
 	owner, repo, branch string
 	readFileBranch      string
 	calls               []string
+	fileContent         string
 }
 
 func (f *fakeRepositoryInspector) record(owner, repo, branch, call string) {
@@ -26,7 +27,11 @@ func (f *fakeRepositoryInspector) SearchCode(_ context.Context, _ domain.GitHubA
 func (f *fakeRepositoryInspector) ReadFile(_ context.Context, _ domain.GitHubAccount, owner, repo, path, ref string) (portsout.RepositoryFile, error) {
 	f.record(owner, repo, ref, "read_file")
 	f.readFileBranch = ref
-	return portsout.RepositoryFile{Path: path, Ref: ref, Content: "package db"}, nil
+	content := f.fileContent
+	if content == "" {
+		content = "package db"
+	}
+	return portsout.RepositoryFile{Path: path, Ref: ref, Content: content}, nil
 }
 func (f *fakeRepositoryInspector) ListRecentCommits(_ context.Context, _ domain.GitHubAccount, owner, repo, branch string, limit int) ([]portsout.RepositoryCommitSummary, error) {
 	f.record(owner, repo, branch, "list_recent_commits")

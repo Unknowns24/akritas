@@ -24,7 +24,7 @@ import (
 func TestMonitoringPersistenceIsDurableTransactionalAndSerialized(t *testing.T) {
 	db := dbtest.ConnectContainer(t)
 	ctx := context.Background()
-	project := insertProject(t, db, time.Now().UTC())
+	project := insertProject(t, db, time.Now().UTC().Truncate(time.Microsecond))
 	repository, err := monitoringrepo.New(db)
 	if err != nil {
 		t.Fatal(err)

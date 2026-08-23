@@ -9,10 +9,12 @@ import (
 )
 
 type fakeRemediationStore struct {
-	byID       map[uuid.UUID]domain.Remediation
-	createErr  error
-	getErr     error
-	created    []domain.Remediation
+	byID        map[uuid.UUID]domain.Remediation
+	createErr   error
+	updateErr   error
+	getErr      error
+	created     []domain.Remediation
+	updated     []domain.Remediation
 	createCalls int
 }
 
@@ -41,14 +43,47 @@ func (f *fakeRemediationStore) Get(ctx context.Context, id uuid.UUID) (*domain.R
 	return &value, nil
 }
 
+func (f *fakeRemediationStore) FindByInvestigation(ctx context.Context, investigationID uuid.UUID) (*domain.Remediation, error) {
+	for _, value := range f.byID {
+		if value.InvestigationID == investigationID {
+			copyValue := value
+			return &copyValue, nil
+		}
+	}
+	return nil, domain.ErrRemediationNotFound
+}
+
+func (f *fakeRemediationStore) Update(ctx context.Context, value *domain.Remediation) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.byID[value.ID] = *value
+	f.updated = append(f.updated, *value)
+	return nil
+}
+
 type createBranchCall struct {
 	input portsout.CreateBranchInput
 }
 
+type commitAllCall struct {
+	input portsout.CommitAllInput
+}
+
+type pushBranchCall struct {
+	input portsout.PushBranchInput
+}
+
 type fakeRepositoryWorkspace struct {
-	output portsout.CreateBranchOutput
-	err    error
-	calls  []createBranchCall
+	output       portsout.CreateBranchOutput
+	err          error
+	commitOutput portsout.CommitAllOutput
+	commitErr    error
+	pushOutput   portsout.PushBranchOutput
+	pushErr      error
+	calls        []createBranchCall
+	commitCalls  []commitAllCall
+	pushCalls    []pushBranchCall
 }
 
 func (f *fakeRepositoryWorkspace) CreateBranch(ctx context.Context, input portsout.CreateBranchInput) (portsout.CreateBranchOutput, error) {
@@ -65,6 +100,30 @@ func (f *fakeRepositoryWorkspace) CreateBranch(ctx context.Context, input portso
 	}
 	if output.BaseBranch == "" {
 		output.BaseBranch = input.BaseBranch
+	}
+	return output, nil
+}
+
+func (f *fakeRepositoryWorkspace) CommitAll(ctx context.Context, input portsout.CommitAllInput) (portsout.CommitAllOutput, error) {
+	f.commitCalls = append(f.commitCalls, commitAllCall{input: input})
+	if f.commitErr != nil {
+		return portsout.CommitAllOutput{}, f.commitErr
+	}
+	output := f.commitOutput
+	if output.SHA == "" {
+		output.SHA = "deadbeef"
+	}
+	return output, nil
+}
+
+func (f *fakeRepositoryWorkspace) PushBranch(ctx context.Context, input portsout.PushBranchInput) (portsout.PushBranchOutput, error) {
+	f.pushCalls = append(f.pushCalls, pushBranchCall{input: input})
+	if f.pushErr != nil {
+		return portsout.PushBranchOutput{}, f.pushErr
+	}
+	output := f.pushOutput
+	if output.BranchName == "" {
+		output.BranchName = input.BranchName
 	}
 	return output, nil
 }

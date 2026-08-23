@@ -201,3 +201,42 @@ func TestClientCreateBranch(t *testing.T) {
 		}
 	})
 }
+
+func TestClientCommitAll(t *testing.T) {
+	requireGit(t)
+
+	dir, _ := newFixtureRepo(t)
+	client, err := New("git")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	branch := "akritas/remediation/commit-all"
+	if _, err := client.CreateBranch(context.Background(), portsout.CreateBranchInput{
+		WorkspacePath: dir, BaseBranch: "main", BranchName: branch,
+	}); err != nil {
+		t.Fatalf("CreateBranch: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("fixture\nchanged\n"), 0o644); err != nil {
+		t.Fatalf("write change: %v", err)
+	}
+
+	output, err := client.CommitAll(context.Background(), portsout.CommitAllInput{
+		WorkspacePath: dir, BranchName: branch, Message: "AKR-H6 remediation fixture",
+	})
+	if err != nil {
+		t.Fatalf("CommitAll: %v", err)
+	}
+	if output.SHA == "" || output.Summary == "" || output.CreatedAt.IsZero() {
+		t.Fatalf("unexpected output: %+v", output)
+	}
+
+	status := exec.Command("git", "status", "--porcelain")
+	status.Dir = dir
+	out, err := status.Output()
+	if err != nil {
+		t.Fatalf("status: %v", err)
+	}
+	if string(out) != "" {
+		t.Fatalf("expected clean workspace after commit, got %q", string(out))
+	}
+}

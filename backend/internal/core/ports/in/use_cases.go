@@ -22,4 +22,5 @@ type UseCases struct {
 	Investigation InvestigationUseCase
 	Operation     OperationUseCase
 	Evidence      EvidenceUseCase
+	Remediation   RemediationUseCase
 }

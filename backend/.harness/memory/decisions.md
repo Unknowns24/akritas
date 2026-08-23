@@ -59,6 +59,16 @@ Record durable project decisions here.
 - `internal/usecase/remediation.ExecuteRemediationValidations` never calls `Remediation.MarkValidated` or `.Fail`: `MarkValidated` requires `len(Changes) > 0` (AKR-51, not yet implemented), and deciding a Remediation's fate from validation results is AKR-55's responsibility. `Remediation.Status` stays `in_progress` after this task's usecases run.
 - A minimal `remediations` table (Create+Get only, component errors `0x506`) was added now — ahead of AKR-49's trigger and AKR-55's full lifecycle persistence — purely so `validation_results.remediation_id` has a real FK from day one, following the same "build shared infra ahead of its full consumer" precedent as `operations`.
 - Migrations `20260823_06_add_remediations`/`20260823_07_add_validation_results` were added on the same date H4 is expected to add its own — flagged as a probable renumbering point on rebase, not resolved here.
+
+## 2026-08-23 — H6 hardening partial integration
+
+- Historical H4/H5 migration slot conflicts are preserved rather than silently renamed. H6 extends schema with forward migrations after the existing IDs.
+- `validation_results.output_redacted` is truthful: it records whether redaction actually occurred, while output remains bounded and sanitized before persistence.
+- QVAC repository tool output is treated as untrusted content and sanitized before returning to the model or Evidence.
+- Commit correlation is persisted as safe Evidence and worded as potentially related, never as confirmed causality.
+- Remediation now has optional `investigation_id` and persisted Pull Request reference state. A partial unique index enforces one Remediation per linked Investigation where present.
+- Pull Request creation is an explicit stop boundary: the use case commits, pushes, creates or reconciles one PR by repository/base/head, persists the PR reference, and performs no merge, deploy or rollback.
+- This integration is intentionally marked with limitations until REST lifecycle endpoints, automatic fixable Investigation-to-Remediation trigger, full startup recovery and all external-success/local-persistence reconciliation cases are complete.
 ## 2026-08-23 — GitHub Issue publication idempotency
 
 - H4 creates one GitHub Issue per completed `Investigation`, not one per `Incident`.

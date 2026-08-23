@@ -1,9 +1,7 @@
-// Package remediation implements PB-041 (dedicated branch creation) and
-// PB-044/PB-045 (execute + persist validations) as standalone use cases.
-// It deliberately does not implement AKR-49 (triggering Remediation
-// creation from Investigation.resolution_status == fixable): callers
-// supply a RemediationID and IncidentID explicitly, so this package never
-// depends on Investigation, Issue, or IssueReference.
+// Package remediation implements dedicated branch creation, validation
+// execution and explicit pull-request creation as standalone use cases. It
+// deliberately does not implement automatic change generation, merge, deploy
+// or rollback.
 package remediation
 
 import (
@@ -20,6 +18,10 @@ type UseCase struct {
 	runner            portsout.ValidationRunner
 	remediations      portsout.RemediationStore
 	validationResults portsout.ValidationResultStore
+	incidents         portsout.IncidentGetter
+	projects          portsout.ProjectStore
+	githubAccounts    portsout.GitHubAccountReader
+	pullRequests      portsout.PullRequestPublisher
 	policy            *validationpolicy.Policy
 	newID             func() uuid.UUID
 	now               func() time.Time
@@ -38,4 +40,25 @@ func New(
 		workspace: workspace, runner: runner, remediations: remediations, validationResults: validationResults,
 		policy: policy, newID: newID, now: now,
 	}
+}
+
+func NewWithPullRequests(
+	workspace portsout.RepositoryWorkspace,
+	runner portsout.ValidationRunner,
+	remediations portsout.RemediationStore,
+	validationResults portsout.ValidationResultStore,
+	incidents portsout.IncidentGetter,
+	projects portsout.ProjectStore,
+	githubAccounts portsout.GitHubAccountReader,
+	pullRequests portsout.PullRequestPublisher,
+	policy *validationpolicy.Policy,
+	newID func() uuid.UUID,
+	now func() time.Time,
+) portsin.RemediationUseCase {
+	uc := New(workspace, runner, remediations, validationResults, policy, newID, now).(*UseCase)
+	uc.incidents = incidents
+	uc.projects = projects
+	uc.githubAccounts = githubAccounts
+	uc.pullRequests = pullRequests
+	return uc
 }

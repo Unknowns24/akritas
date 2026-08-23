@@ -45,7 +45,11 @@ func seedRemediation(t *testing.T, db *gorm.DB) uuid.UUID {
 	if err != nil {
 		t.Fatalf("NewDokployApplication: %v", err)
 	}
-	project, err := domain.NewProject(uuid.New(), "Fixture "+uuid.NewString(), "demo", repositoryRef, application, domain.DefaultMonitoringConfiguration(), now)
+	source, err := domain.SourceFromApplication(application)
+	if err != nil {
+		t.Fatalf("SourceFromApplication: %v", err)
+	}
+	project, err := domain.NewProject(uuid.New(), "Fixture "+uuid.NewString(), "demo", repositoryRef, source, domain.DefaultMonitoringConfiguration(), now)
 	if err != nil {
 		t.Fatalf("NewProject: %v", err)
 	}

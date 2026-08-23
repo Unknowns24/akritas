@@ -22,3 +22,4 @@
 | AKR-H2-DETECTION-INCIDENTS | complete | backend-api-feature | Ingesta incremental, Detection Engine determinístico, LogEvents e Incidents |
 | AKR-REST-CORS | complete | backend-api-feature | CORS credentialed global mediante middleware oficial de Chi |
 | AKR-H5-WORKSPACE-VALIDATION | complete | backend-service-feature | PB-041/044/045: branch dedicada, ejecución y persistencia de validaciones, aislado de H4 |
+| AKR-H6-BACKEND-HARDENING-DEMO | implemented_with_limitations | backend-service-feature | H6 backend hardening, idempotencia, fallos, correlación de commits y demo E2E |

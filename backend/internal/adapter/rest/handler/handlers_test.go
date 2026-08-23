@@ -179,6 +179,18 @@ func (evidenceStub) ListInvestigationEvidence(context.Context, uuid.UUID, paging
 	return paging.Slice[domain.Evidence]{}, nil
 }
 
+type remediationStub struct{}
+
+func (remediationStub) CreateRemediationBranch(context.Context, portsin.CreateRemediationBranchCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (remediationStub) ExecuteRemediationValidations(context.Context, portsin.ExecuteRemediationValidationsCommand) (*domain.Remediation, []domain.ValidationResult, error) {
+	return &domain.Remediation{}, nil, nil
+}
+func (remediationStub) CreateRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+
 type incidentStub struct{}
 
 func (incidentStub) Get(context.Context, uuid.UUID) (*domain.Incident, error) {
@@ -235,6 +247,7 @@ func completeUseCases() *portsin.UseCases {
 		Investigation: investigationStub{},
 		Operation:     operationStub{},
 		Evidence:      evidenceStub{},
+		Remediation:   remediationStub{},
 	}
 }
 
@@ -291,6 +304,7 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing Investigation", mutate: func(config *HandlersConfig) { config.UseCases.Investigation = nil }},
 		{name: "missing Operation", mutate: func(config *HandlersConfig) { config.UseCases.Operation = nil }},
 		{name: "missing Evidence", mutate: func(config *HandlersConfig) { config.UseCases.Evidence = nil }},
+		{name: "missing Remediation", mutate: func(config *HandlersConfig) { config.UseCases.Remediation = nil }},
 		{name: "missing Incident", mutate: func(config *HandlersConfig) { config.UseCases.Incident = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 		{name: "invalid cookie same-site", mutate: func(config *HandlersConfig) { config.SessionCookieSameSite = "invalid" }},

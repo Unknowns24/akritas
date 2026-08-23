@@ -18,10 +18,14 @@ import (
 	monitoringrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/monitoring"
 	operationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/operation"
 	projectrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/project"
+	remediationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/remediation"
 	timelinerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/timeline"
+	validationresultrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/validationresult"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
+	gitexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/git"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/external/qvac"
+	validationrunnerexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/validationrunner"
 	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
@@ -29,6 +33,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
 	"github.com/Unknowns24/akritas/backend/internal/service/issuecontent"
 	monitoringservice "github.com/Unknowns24/akritas/backend/internal/service/monitoring"
+	"github.com/Unknowns24/akritas/backend/internal/service/validationpolicy"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
@@ -37,6 +42,7 @@ import (
 	investigationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/investigation"
 	operationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/operation"
 	projectusecase "github.com/Unknowns24/akritas/backend/internal/usecase/project"
+	remediationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/remediation"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -146,6 +152,16 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		return nil, err
 	}
 
+	remediations, err := remediationrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
+	validationResults, err := validationresultrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+
 	timeline, err := timelinerepo.New(dependencies.DB)
 	if err != nil {
 		return nil, err
@@ -178,6 +194,16 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	}
 
 	qvacClient, err := qvac.NewClient(qvac.ClientConfig{})
+	if err != nil {
+		return nil, err
+	}
+
+	gitClient, err := gitexternal.New("git")
+	if err != nil {
+		return nil, err
+	}
+
+	validationRunner, err := validationrunnerexternal.New("go")
 	if err != nil {
 		return nil, err
 	}
@@ -260,10 +286,11 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	// Incidents are provided by the real H2 repository.
 	//
 
-	evidenceAssembler := evidenceassembly.New(
+	evidenceAssembler := evidenceassembly.NewWithCommitCorrelation(
 		incidents,
 		projects,
 		githubAccounts,
+		githubClient,
 		uuid.New,
 		time.Now,
 	)
@@ -318,6 +345,20 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 		evidences,
 	)
 
+	remediationUseCase := remediationusecase.NewWithPullRequests(
+		gitClient,
+		validationRunner,
+		remediations,
+		validationResults,
+		incidents,
+		projects,
+		githubAccounts,
+		githubClient,
+		validationpolicy.New(gitClient),
+		uuid.New,
+		time.Now,
+	)
+
 	//
 	// REST composition
 	//
@@ -341,6 +382,7 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	useCases.Investigation = investigationUseCase
 	useCases.Operation = operationUseCase
 	useCases.Evidence = evidenceUseCase
+	useCases.Remediation = remediationUseCase
 
 	handlers, err := resthandler.NewHandlers(
 		resthandler.HandlersConfig{

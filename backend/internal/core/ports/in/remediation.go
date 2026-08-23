@@ -22,10 +22,16 @@ type ExecuteRemediationValidationsCommand struct {
 	WorkspacePath string
 }
 
-// RemediationUseCase intentionally excludes AKR-49's trigger, AKR-51/52's
-// change/test generation and AKR-55's failure-decision logic: those are
-// deferred, and calling this usecase never requires them to exist.
+type CreateRemediationPullRequestCommand struct {
+	RemediationID uuid.UUID
+	WorkspacePath string
+}
+
+// RemediationUseCase intentionally excludes automatic change generation,
+// merge, deploy and rollback. Pull-request creation is an explicit final
+// step and stops after the PR reference is persisted.
 type RemediationUseCase interface {
 	CreateRemediationBranch(context.Context, CreateRemediationBranchCommand) (*domain.Remediation, error)
 	ExecuteRemediationValidations(context.Context, ExecuteRemediationValidationsCommand) (*domain.Remediation, []domain.ValidationResult, error)
+	CreateRemediationPullRequest(context.Context, CreateRemediationPullRequestCommand) (*domain.Remediation, error)
 }

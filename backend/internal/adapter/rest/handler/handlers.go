@@ -124,5 +124,6 @@ func validUseCases(useCases *portsin.UseCases) bool {
 		useCases.Incident != nil &&
 		useCases.Investigation != nil &&
 		useCases.Operation != nil &&
-		useCases.Evidence != nil
+		useCases.Evidence != nil &&
+		useCases.Remediation != nil
 }

@@ -258,6 +258,62 @@ func TestRunnerDeduplicatesRepeatedRepositoryReadsAndEvidence(t *testing.T) {
 	}
 }
 
+func TestRunnerRedactsRepositoryToolOutputBeforeModelAndEvidence(t *testing.T) {
+	t.Parallel()
+	evidenceID := uuid.New()
+	secret := "sentinel-tool-secret"
+	var toolMessage string
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		switch calls.Add(1) {
+		case 1:
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{
+				"role": "assistant", "tool_calls": []map[string]any{{"id": "call_file", "type": "function", "function": map[string]any{"name": "read_file", "arguments": `{"path":"internal/config.go"}`}}},
+			}}}})
+		case 2:
+			encoded, _ := json.Marshal(request.Messages)
+			toolMessage = string(encoded)
+			if strings.Contains(toolMessage, secret) {
+				t.Fatalf("tool output leaked to QVAC: %s", toolMessage)
+			}
+			if !strings.Contains(toolMessage, "Authorization: Bearer [REDACTED]") || !strings.Contains(toolMessage, "UNTRUSTED_DATA_BEGIN") {
+				t.Fatalf("tool output was not redacted/framed: %s", toolMessage)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "ready"}}}})
+		default:
+			payload := strings.Replace(validResultJSON(), `"evidence_ids":[]`, fmt.Sprintf(`"evidence_ids":[%q]`, evidenceID.String()), 1)
+			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": payload}}}})
+		}
+	}))
+	t.Cleanup(server.Close)
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inspector := &fakeRepositoryInspector{fileContent: "Authorization: Bearer " + secret + "\npackage config"}
+	runner, err := NewRunner(client, nil, RunnerConfig{RepositoryInspector: inspector, NewID: func() uuid.UUID { return evidenceID }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	investigation, _ := domain.NewInvestigation(uuid.New(), uuid.New(), time.Now().UTC())
+	result, err := runner.Run(context.Background(), out.InvestigationRunContext{
+		Investigation: *investigation, Repository: out.RepositoryScope{Owner: "acme", Name: "api", Branch: "main"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.DiscoveredEvidence) != 1 || strings.Contains(result.DiscoveredEvidence[0].Content, secret) {
+		t.Fatalf("discovered Evidence leaked tool secret: %+v", result.DiscoveredEvidence)
+	}
+	if toolMessage == "" {
+		t.Fatal("test server did not capture the tool round")
+	}
+}
+
 func mapsClone(value map[string]any) map[string]any {
 	clone := make(map[string]any, len(value))
 	for key, item := range value {

@@ -43,7 +43,11 @@ func (d *startDeps) usecase() *UseCase {
 		next++
 		return value
 	}
-	return New(d.incidents, d.investigations, d.operations, d.dispatcher, d.runner, newID, func() time.Time { return d.now })
+	return New(d.incidents, d.investigations, d.operations, d.dispatcher, newID, func() time.Time { return d.now })
+}
+
+func (d *startDeps) runUseCase() *RunUseCase {
+	return NewRunUseCase(d.investigations, d.operations, d.runner, func() time.Time { return d.now })
 }
 
 func TestStartIncidentInvestigationHappyPathQueuesAndDispatches(t *testing.T) {

@@ -13,7 +13,7 @@ import (
 // then to completed or failed, persisting each transition discretely so no
 // state is lost if the process is interrupted mid-flight. It is invoked by
 // InvestigationDispatcher on its own detached lifetime, never by REST.
-func (uc *UseCase) Execute(ctx context.Context, investigationID, operationID uuid.UUID) error {
+func (uc *RunUseCase) Execute(ctx context.Context, investigationID, operationID uuid.UUID) error {
 	investigation, err := uc.investigations.FindByID(ctx, investigationID)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func (uc *UseCase) Execute(ctx context.Context, investigationID, operationID uui
 	return uc.operations.Update(ctx, operation)
 }
 
-func (uc *UseCase) failInvestigation(ctx context.Context, investigation *domain.Investigation, operation *domain.Operation, at time.Time, cause error) error {
+func (uc *RunUseCase) failInvestigation(ctx context.Context, investigation *domain.Investigation, operation *domain.Operation, at time.Time, cause error) error {
 	message := cause.Error()
 	if err := investigation.Fail(at, message); err != nil {
 		return err

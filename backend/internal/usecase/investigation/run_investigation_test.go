@@ -39,7 +39,7 @@ func TestRunInvestigationCompletesOnRunnerSuccess(t *testing.T) {
 		Confidence: 0.9, Hypotheses: []string{"h1"}, RelevantFiles: []string{"main.go"}, RelevantCommits: []string{"abc123"}, RecommendedActions: []string{"patch it"},
 	}
 
-	if err := deps.usecase().Execute(context.Background(), investigationID, operationID); err != nil {
+	if err := deps.runUseCase().Execute(context.Background(), investigationID, operationID); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -66,7 +66,7 @@ func TestRunInvestigationFailsOnRunnerError(t *testing.T) {
 	deps, investigationID, operationID := newRunFixture(t, now)
 	deps.runner.err = errors.New("qvac: not implemented yet, pending PB-028+")
 
-	if err := deps.usecase().Execute(context.Background(), investigationID, operationID); err != nil {
+	if err := deps.runUseCase().Execute(context.Background(), investigationID, operationID); err != nil {
 		t.Fatalf("a failed investigation is a valid outcome, not a Go error: %v", err)
 	}
 
@@ -87,7 +87,7 @@ func TestRunInvestigationPersistsRunningBeforeInvokingRunner(t *testing.T) {
 	deps, investigationID, operationID := newRunFixture(t, now)
 	deps.runner.err = errors.New("boom")
 
-	if err := deps.usecase().Execute(context.Background(), investigationID, operationID); err != nil {
+	if err := deps.runUseCase().Execute(context.Background(), investigationID, operationID); err != nil {
 		t.Fatal(err)
 	}
 

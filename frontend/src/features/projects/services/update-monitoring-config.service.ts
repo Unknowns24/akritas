@@ -16,12 +16,7 @@ export async function updateMonitoringConfigService(
   });
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock updated monitoring configuration");
-    return { data: config };
-  }
-  */
+  
 
   return { data: data.data };
 }

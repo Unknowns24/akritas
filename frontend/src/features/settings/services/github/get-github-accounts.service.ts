@@ -23,27 +23,7 @@ export async function getGitHubAccountsService(): Promise<{
     if (typeof window === "undefined") return { data: [] };
     return { error: new Error("No data returned") };
   }
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock GitHub accounts");
-    return {
-      data: [
-        {
-          id: "gh-acc-1",
-          account_type: "personal",
-          display_name: "octocat",
-          account_identifier: "octocat",
-          authentication_status: "connected",
-          credential_configured: true,
-          repository_count: 42,
-          authentication_method: "personal_access_token",
-          created_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-          updated_at: new Date(Date.now() - 30 * 86400000).toISOString(),
-        } as GitHubAccount
-      ]
-    };
-  }
-  */
+  
 
   return { data: data?.data };
 }

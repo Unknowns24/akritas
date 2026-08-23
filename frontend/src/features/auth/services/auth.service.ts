@@ -28,18 +28,7 @@ export async function getCurrentSessionService(): Promise<SessionResponse["data"
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    if (typeof window !== "undefined" && localStorage.getItem("mock_auth") === "true") {
-      console.warn("[MOCK] API failed, but mock_auth is set. Returning mock session.");
-      return {
-        administrator: { id: "mock-id", email: "admin@example.com", display_name: "Mock Admin", created_at: "", updated_at: "" },
-        authenticated_at: new Date().toISOString(),
-        idle_expires_at: "",
-        absolute_expires_at: "",
-      };
-    }
-    console.warn("[MOCK] API failed, throwing to simulate no active session");
-    */
+    
     throw e;
   }
 }
@@ -50,15 +39,7 @@ export async function startAdministratorSetupService(body: SetupRequest): Promis
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    console.warn("[MOCK] API failed, returning mock TOTP enrollment");
-    return {
-      enrollment_id: "mock-enrollment-id-123",
-      otpauth_uri: "otpauth://totp/Akritas:admin@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Akritas",
-      manual_entry_key: "JBSWY3DPEHPK3PXP",
-      expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
-    };
-    */
+    
     throw e;
   }
 }
@@ -71,19 +52,7 @@ export async function verifyAdministratorSetupService(totp_code: string, enrollm
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    if (totp_code !== "123456") {
-      throw new Error("Invalid authenticator code. Try 123456 for testing.");
-    }
-    if (typeof window !== "undefined") localStorage.setItem("mock_auth", "true");
-    console.warn("[MOCK] API failed, returning mock session");
-    return {
-      administrator: { id: "mock-id", email: "admin@example.com", display_name: "Mock Admin", created_at: "", updated_at: "" },
-      authenticated_at: new Date().toISOString(),
-      idle_expires_at: "",
-      absolute_expires_at: "",
-    };
-    */
+    
     throw e;
   }
 }
@@ -94,19 +63,7 @@ export async function loginAdministratorService(body: LoginRequest): Promise<Ses
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    if (body.totp_code !== "123456") {
-      throw new Error("Invalid authenticator code. Try 123456 for testing.");
-    }
-    if (typeof window !== "undefined") localStorage.setItem("mock_auth", "true");
-    console.warn("[MOCK] API failed, returning mock session");
-    return {
-      administrator: { id: "mock-id", email: body.email, display_name: "Mock Admin", created_at: "", updated_at: "" },
-      authenticated_at: new Date().toISOString(),
-      idle_expires_at: "",
-      absolute_expires_at: "",
-    };
-    */
+    
     throw e;
   }
 }
@@ -117,15 +74,7 @@ export async function startAdministratorRecoveryService(body: RecoveryRequest): 
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    console.warn("[MOCK] API failed, returning mock TOTP enrollment");
-    return {
-      enrollment_id: "mock-recovery-enrollment-id",
-      otpauth_uri: "otpauth://totp/Akritas:admin@example.com?secret=RECOVERY3DPEHPK3PXP&issuer=Akritas",
-      manual_entry_key: "RECOVERY3DPEHPK3PXP",
-      expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
-    };
-    */
+    
     throw e;
   }
 }
@@ -138,18 +87,7 @@ export async function verifyAdministratorRecoveryService(totp_code: string, enro
     if (error) throw error;
     return data.data;
   } catch (e) {
-    /* [MOCK DOCS]
-    if (totp_code !== "123456") {
-      throw new Error("Invalid authenticator code. Try 123456 for testing.");
-    }
-    console.warn("[MOCK] API failed, returning mock session");
-    return {
-      administrator: { id: "mock-id", email: "admin@example.com", display_name: "Mock Admin", created_at: "", updated_at: "" },
-      authenticated_at: new Date().toISOString(),
-      idle_expires_at: "",
-      absolute_expires_at: "",
-    };
-    */
+    
     throw e;
   }
 }
@@ -159,12 +97,7 @@ export async function logoutAdministratorService(): Promise<void> {
     const { error } = await api.DELETE("/auth/session");
     if (error) throw error;
   } catch (e) {
-    /* [MOCK DOCS]
-    console.warn("[MOCK] API failed, simulating logout by removing mock_auth");
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("mock_auth");
-    }
-    */
+    
     throw e;
   }
 }

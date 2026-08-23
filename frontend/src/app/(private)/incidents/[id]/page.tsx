@@ -3,14 +3,16 @@ import { Suspense } from "react";
 import { Loader2 } from "lucide-react";
 
 interface IncidentDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export default function IncidentDetailPage({
+export default async function IncidentDetailPage({
   params,
 }: IncidentDetailPageProps) {
+  const { id } = await params;
+  
   return (
     <Suspense
       fallback={
@@ -21,7 +23,7 @@ export default function IncidentDetailPage({
         </div>
       }
     >
-      <IncidentDetailView id={params.id} />
+      <IncidentDetailView id={id} />
     </Suspense>
   );
 }

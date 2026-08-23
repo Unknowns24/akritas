@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.5.0
+  version: 2.0.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -619,9 +619,10 @@ paths:
       operationId: startGitHubAppManifestRegistration
       summary: Create a one-time GitHub App Manifest registration handoff
       description: |
-        Returns the GitHub form action, JSON manifest and unpredictable state.
-        The browser submits them directly to GitHub. The registration must be
-        completed within one hour.
+        Returns a GitHub form action that already contains the unpredictable,
+        one-time state required by the Manifest handoff. The browser must POST
+        the manifest field to that URL without adding or reconstructing protocol
+        query parameters. The registration must be completed within one hour.
       requestBody:
         required: true
         content:
@@ -925,6 +926,84 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DokployApplicationListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/composes:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Dokploy]
+      operationId: listDokployComposes
+      summary: Discover Composes available on a configured Dokploy server
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: name_like
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Cursor-paginated Composes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployComposeListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /integrations/dokploy/servers/{server_id}/composes/{compose_id}/services:
+    parameters:
+      - name: server_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: compose_id
+        in: path
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 255
+    get:
+      tags: [Dokploy]
+      operationId: listDokployComposeServices
+      summary: List declared services in a Dokploy Compose
+      parameters:
+        - name: refresh
+          in: query
+          description: When true, Dokploy refreshes the configured source before loading services.
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Declared Compose services, sorted by name.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DokployComposeServiceListResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -1718,8 +1797,9 @@ components:
       in: cookie
       name: akritas_session
       description: |
-        Opaque server-side session cookie. Production uses Secure, HttpOnly,
-        SameSite=Lax and Path=/. The value is never exposed to JavaScript.
+        Opaque server-side session cookie. It uses Secure, HttpOnly, Path=/ and
+        a deployment-configured SameSite mode (Lax by default). The value is
+        never exposed to JavaScript.
 
   headers:
     SessionCookie:
@@ -1880,8 +1960,8 @@ components:
       examples:
         - error:
             code: 1x100001V
-            message: La solicitud contiene datos inválidos.
-            user_message: Revisá los campos e intentá nuevamente.
+            message: The request contains invalid data.
+            user_message: Check the fields and try again.
             request_id: req-01J5P7M5Q1YJ7G6K7B8P9T0W2X
             details:
               - field: grouping_window
@@ -2089,8 +2169,7 @@ components:
     Session:
       type: object
       additionalProperties: false
-      required:
-        [administrator, authenticated_at, idle_expires_at, absolute_expires_at]
+      required: [administrator, authenticated_at, idle_expires_at, absolute_expires_at]
       properties:
         administrator:
           $ref: "#/components/schemas/Administrator"
@@ -2196,8 +2275,7 @@ components:
     CreateGitHubPatAccountRequest:
       type: object
       additionalProperties: false
-      required:
-        [display_name, account_type, account_identifier, personal_access_token]
+      required: [display_name, account_type, account_identifier, personal_access_token]
       properties:
         display_name:
           type: string
@@ -2262,7 +2340,7 @@ components:
         form_action:
           type: string
           format: uri
-          description: github.com settings form endpoint selected for personal or organization ownership.
+          description: Fully formed github.com settings URL for personal or organization ownership, including the one-time state query parameter. Consumers POST manifest to this URL without modifying it.
         manifest:
           type: string
           description: JSON-encoded private GitHub App manifest with minimum permissions and inactive webhooks.
@@ -2270,24 +2348,14 @@ components:
           type: string
           minLength: 32
           maxLength: 512
-          description: One-time unpredictable CSRF/correlation value.
+          description: One-time unpredictable CSRF/correlation value, retained separately for response compatibility; consumers must not use it to rebuild form_action.
         expires_at:
           type: string
           format: date-time
     GitHubRepository:
       type: object
       additionalProperties: false
-      required:
-        [
-          github_account_id,
-          repository_identifier,
-          owner,
-          name,
-          full_name,
-          default_branch,
-          private,
-          html_url,
-        ]
+      required: [github_account_id, repository_identifier, owner, name, full_name, default_branch, private, html_url]
       properties:
         github_account_id:
           type: string
@@ -2355,6 +2423,7 @@ components:
         - connection_status
         - credential_configured
         - application_count
+        - compose_count
         - created_at
         - updated_at
       properties:
@@ -2375,6 +2444,9 @@ components:
         credential_configured:
           type: boolean
         application_count:
+          type: integer
+          minimum: 0
+        compose_count:
           type: integer
           minimum: 0
         last_synced_at:
@@ -2425,13 +2497,7 @@ components:
     DokployApplication:
       type: object
       additionalProperties: false
-      required:
-        [
-          dokploy_server_id,
-          application_identifier,
-          instance_identifier,
-          display_name,
-        ]
+      required: [dokploy_server_id, application_identifier, instance_identifier, display_name]
       properties:
         dokploy_server_id:
           type: string
@@ -2448,6 +2514,138 @@ components:
         status:
           type: string
           enum: [running, stopped, degraded, unknown]
+    DokployCompose:
+      type: object
+      additionalProperties: false
+      required: [dokploy_server_id, compose_identifier, instance_identifier, display_name, status]
+      properties:
+        dokploy_server_id:
+          type: string
+          format: uuid
+        compose_identifier:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment_identifier:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+    DokployComposeService:
+      type: object
+      additionalProperties: false
+      required: [dokploy_server_id, compose_identifier, service_name]
+      properties:
+        dokploy_server_id:
+          type: string
+          format: uuid
+        compose_identifier:
+          type: string
+        service_name:
+          type: string
+    DokploySourceStatus:
+      type: string
+      enum: [running, stopped, degraded, unknown]
+    DokployApplicationSourceSelector:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier]
+      properties:
+        type:
+          type: string
+          const: application
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DokployComposeServiceSourceSelector:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, service_name]
+      properties:
+        type:
+          type: string
+          const: compose_service
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+          minLength: 1
+          maxLength: 255
+        service_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DokploySourceSelector:
+      oneOf:
+        - $ref: "#/components/schemas/DokployApplicationSourceSelector"
+        - $ref: "#/components/schemas/DokployComposeServiceSourceSelector"
+      discriminator:
+        propertyName: type
+        mapping:
+          application: "#/components/schemas/DokployApplicationSourceSelector"
+          compose_service: "#/components/schemas/DokployComposeServiceSourceSelector"
+    DokployApplicationSource:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, instance_identifier, display_name, status]
+      properties:
+        type:
+          type: string
+          const: application
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+    DokployComposeServiceSource:
+      type: object
+      additionalProperties: false
+      required: [type, dokploy_server_id, resource_identifier, service_name, instance_identifier, display_name, status, runtime_type]
+      properties:
+        type:
+          type: string
+          const: compose_service
+        dokploy_server_id:
+          type: string
+          format: uuid
+        resource_identifier:
+          type: string
+        service_name:
+          type: string
+        instance_identifier:
+          type: string
+        display_name:
+          type: string
+        environment:
+          type: string
+        status:
+          $ref: "#/components/schemas/DokploySourceStatus"
+        runtime_type:
+          type: string
+          enum: [docker-compose, stack]
+    DokploySource:
+      oneOf:
+        - $ref: "#/components/schemas/DokployApplicationSource"
+        - $ref: "#/components/schemas/DokployComposeServiceSource"
+      discriminator:
+        propertyName: type
+        mapping:
+          application: "#/components/schemas/DokployApplicationSource"
+          compose_service: "#/components/schemas/DokployComposeServiceSource"
     DokployServerResponse:
       type: object
       additionalProperties: false
@@ -2477,6 +2675,26 @@ components:
             $ref: "#/components/schemas/DokployApplication"
         paging:
           $ref: "#/components/schemas/Paging"
+    DokployComposeListResponse:
+      type: object
+      additionalProperties: false
+      required: [data, paging]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployCompose"
+        paging:
+          $ref: "#/components/schemas/Paging"
+    DokployComposeServiceListResponse:
+      type: object
+      additionalProperties: false
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/DokployComposeService"
 
     QvacAuthenticationType:
       type: string
@@ -2544,14 +2762,7 @@ components:
     QvacConfiguration:
       type: object
       additionalProperties: false
-      required:
-        [
-          endpoint_url,
-          connection_timeout_seconds,
-          authentication_type,
-          credential_configured,
-          updated_at,
-        ]
+      required: [endpoint_url, connection_timeout_seconds, authentication_type, credential_configured, updated_at]
       properties:
         endpoint_url:
           type: string
@@ -2605,15 +2816,7 @@ components:
     MonitoringConfiguration:
       type: object
       additionalProperties: false
-      required:
-        [
-          enabled,
-          error_patterns,
-          ignored_patterns,
-          grouping_window,
-          context_before,
-          context_after,
-        ]
+      required: [enabled, error_patterns, ignored_patterns, grouping_window, context_before, context_after]
       examples:
         - enabled: true
           error_patterns:
@@ -2680,16 +2883,7 @@ components:
       properties:
         code:
           type: string
-          enum:
-            [
-              error_level,
-              fatal_level,
-              panic,
-              stack_trace,
-              http_5xx,
-              process_crash,
-              container_restart,
-            ]
+          enum: [error_level, fatal_level, panic, stack_trace, http_5xx, process_crash, container_restart]
         display_name:
           type: string
         enabled:
@@ -2704,7 +2898,7 @@ components:
         - monitoring_status
         - health_status
         - github_repository
-        - dokploy_application
+        - dokploy_source
         - created_at
         - updated_at
       properties:
@@ -2721,8 +2915,8 @@ components:
           $ref: "#/components/schemas/ProjectHealthStatus"
         github_repository:
           $ref: "#/components/schemas/GitHubRepository"
-        dokploy_application:
-          $ref: "#/components/schemas/DokployApplication"
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySource"
         last_observed_at:
           type: string
           format: date-time
@@ -2753,8 +2947,7 @@ components:
         - github_account_id
         - repository_identifier
         - default_branch
-        - dokploy_server_id
-        - application_identifier
+        - dokploy_source
         - monitoring_configuration
       properties:
         name:
@@ -2775,13 +2968,8 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-        dokploy_server_id:
-          type: string
-          format: uuid
-        application_identifier:
-          type: string
-          minLength: 1
-          maxLength: 255
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySourceSelector"
         monitoring_configuration:
           $ref: "#/components/schemas/MonitoringConfiguration"
         initial_log_ingestion:
@@ -2812,13 +3000,8 @@ components:
           type: string
           minLength: 1
           maxLength: 255
-        dokploy_server_id:
-          type: string
-          format: uuid
-        application_identifier:
-          type: string
-          minLength: 1
-          maxLength: 255
+        dokploy_source:
+          $ref: "#/components/schemas/DokploySourceSelector"
     ProjectResponse:
       type: object
       additionalProperties: false
@@ -2841,8 +3024,7 @@ components:
     AutomationPolicy:
       type: object
       additionalProperties: false
-      required:
-        [automatic_investigation, automatic_remediation, automatic_pull_request]
+      required: [automatic_investigation, automatic_remediation, automatic_pull_request]
       allOf:
         - if:
             properties:
@@ -2893,25 +3075,10 @@ components:
       enum: [fixable, requires_human]
     IncidentPhase:
       type: string
-      enum:
-        [
-          detected,
-          investigating,
-          publishing_issue,
-          remediating,
-          completed,
-          failed,
-        ]
+      enum: [detected, investigating, publishing_issue, remediating, completed, failed]
     TerminalOutcome:
       type: string
-      enum:
-        [
-          pull_request_created,
-          requires_human,
-          remediation_failed,
-          investigation_failed,
-          issue_publication_failed,
-        ]
+      enum: [pull_request_created, requires_human, remediation_failed, investigation_failed, issue_publication_failed]
     InvestigationStatus:
       type: string
       enum: [pending, running, completed, failed]
@@ -3105,17 +3272,7 @@ components:
     LogEvent:
       type: object
       additionalProperties: false
-      required:
-        [
-          id,
-          project_id,
-          timestamp,
-          severity,
-          message,
-          fingerprint,
-          detection_rules,
-          raw_context_redacted,
-        ]
+      required: [id, project_id, timestamp, severity, message, fingerprint, detection_rules, raw_context_redacted]
       properties:
         id:
           type: string
@@ -3163,16 +3320,7 @@ components:
 
     EvidenceType:
       type: string
-      enum:
-        [
-          log_excerpt,
-          stack_trace,
-          code_location,
-          commit,
-          diff,
-          validation_result,
-          deployment_metadata,
-        ]
+      enum: [log_excerpt, stack_trace, code_location, commit, diff, validation_result, deployment_metadata]
     Evidence:
       type: object
       additionalProperties: false
@@ -3221,17 +3369,7 @@ components:
     Investigation:
       type: object
       additionalProperties: false
-      required:
-        [
-          id,
-          incident_id,
-          status,
-          started_at,
-          hypotheses,
-          relevant_files,
-          relevant_commits,
-          recommended_actions,
-        ]
+      required: [id, incident_id, status, created_at, hypotheses, evidence_ids, relevant_files, relevant_commits, recommended_actions]
       properties:
         id:
           type: string
@@ -3241,6 +3379,9 @@ components:
           format: uuid
         status:
           $ref: "#/components/schemas/InvestigationStatus"
+        created_at:
+          type: string
+          format: date-time
         started_at:
           type: string
           format: date-time
@@ -3266,6 +3407,13 @@ components:
           items:
             type: string
             maxLength: 5000
+        evidence_ids:
+          type: array
+          maxItems: 25
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
         relevant_files:
           type: array
           items:
@@ -3375,8 +3523,7 @@ components:
     ValidationResult:
       type: object
       additionalProperties: false
-      required:
-        [id, remediation_id, type, name, status, started_at, output_redacted]
+      required: [id, remediation_id, type, name, status, started_at, output_redacted]
       properties:
         id:
           type: string
@@ -3428,8 +3575,7 @@ components:
     Remediation:
       type: object
       additionalProperties: false
-      required:
-        [id, incident_id, status, created_at, changes, validation_summary]
+      required: [id, incident_id, status, created_at, changes, validation_summary]
       properties:
         id:
           type: string
@@ -3614,17 +3760,7 @@ components:
 
     ActivityType:
       type: string
-      enum:
-        [
-          monitoring,
-          incident,
-          investigation,
-          issue,
-          remediation,
-          pull_request,
-          integration,
-          system,
-        ]
+      enum: [monitoring, incident, investigation, issue, remediation, pull_request, integration, system]
     ActivityEvent:
       type: object
       additionalProperties: false

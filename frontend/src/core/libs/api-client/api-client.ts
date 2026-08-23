@@ -95,10 +95,10 @@ export class ApiClient {
       }
 
       if (error instanceof TypeError && error.message.includes("fetch")) {
-        throw new NetworkError("Error al establecer la conexión con el servidor.", error);
+        throw new NetworkError("Error establishing connection with the server.", error);
       }
 
-      throw new NetworkError((error as Error)?.message || "Error inesperado de red", error as Error);
+      throw new NetworkError((error as Error)?.message || "Unexpected network error", error as Error);
     }
   }
 

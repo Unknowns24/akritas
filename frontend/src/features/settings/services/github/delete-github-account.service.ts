@@ -10,12 +10,7 @@ export async function deleteGitHubAccountService(
   });
 
   if (error) throw error;
-  /* [MOCK DOCS]
-  if (error) {
-    console.warn("API failed, mocking delete success");
-    return {};
-  }
-  */
+  
 
   return {};
 }

@@ -16,25 +16,7 @@ export async function updateGitHubPatService(
   });
 
   if (error || !data) throw error || new Error("No data returned");
-  /* [MOCK DOCS]
-  if (error || !data) {
-    console.warn("API failed, returning mock updated account");
-    return {
-      data: {
-        id: accountId,
-        account_type: "personal",
-        display_name: body.display_name || "updated-account",
-        account_identifier: "octocat",
-        authentication_method: "personal_access_token",
-        authentication_status: "connected",
-        credential_configured: true,
-        repository_count: 42,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as GitHubAccount
-    };
-  }
-  */
+  
 
   return { data: data?.data };
 }

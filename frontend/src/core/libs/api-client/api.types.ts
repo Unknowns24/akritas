@@ -350,9 +350,10 @@ export interface paths {
         put?: never;
         /**
          * Create a one-time GitHub App Manifest registration handoff
-         * @description Returns the GitHub form action, JSON manifest and unpredictable state.
-         *     The browser submits them directly to GitHub. The registration must be
-         *     completed within one hour.
+         * @description Returns a GitHub form action that already contains the unpredictable,
+         *     one-time state required by the Manifest handoff. The browser must POST
+         *     the manifest field to that URL without adding or reconstructing protocol
+         *     query parameters. The registration must be completed within one hour.
          */
         post: operations["startGitHubAppManifestRegistration"];
         delete?: never;
@@ -470,6 +471,45 @@ export interface paths {
         };
         /** Discover applications available on a configured Dokploy server */
         get: operations["listDokployApplications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/dokploy/servers/{server_id}/composes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        /** Discover Composes available on a configured Dokploy server */
+        get: operations["listDokployComposes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/integrations/dokploy/servers/{server_id}/composes/{compose_id}/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                server_id: string;
+                compose_id: string;
+            };
+            cookie?: never;
+        };
+        /** List declared services in a Dokploy Compose */
+        get: operations["listDokployComposeServices"];
         put?: never;
         post?: never;
         delete?: never;
@@ -894,8 +934,8 @@ export interface components {
          * @example {
          *       "error": {
          *         "code": "1x100001V",
-         *         "message": "La solicitud contiene datos inválidos.",
-         *         "user_message": "Revisá los campos e intentá nuevamente.",
+         *         "message": "The request contains invalid data.",
+         *         "user_message": "Check the fields and try again.",
          *         "request_id": "req-01J5P7M5Q1YJ7G6K7B8P9T0W2X",
          *         "details": [
          *           {
@@ -1081,12 +1121,12 @@ export interface components {
             registration_id: string;
             /**
              * Format: uri
-             * @description github.com settings form endpoint selected for personal or organization ownership.
+             * @description Fully formed github.com settings URL for personal or organization ownership, including the one-time state query parameter. Consumers POST manifest to this URL without modifying it.
              */
             form_action: string;
             /** @description JSON-encoded private GitHub App manifest with minimum permissions and inactive webhooks. */
             manifest: string;
-            /** @description One-time unpredictable CSRF/correlation value. */
+            /** @description One-time unpredictable CSRF/correlation value, retained separately for response compatibility; consumers must not use it to rebuild form_action. */
             state: string;
             /** Format: date-time */
             expires_at: string;
@@ -1128,6 +1168,7 @@ export interface components {
             connection_status: components["schemas"]["IntegrationStatus"];
             credential_configured: boolean;
             application_count: number;
+            compose_count: number;
             /** Format: date-time */
             last_synced_at?: string;
             /** Format: date-time */
@@ -1158,6 +1199,77 @@ export interface components {
             /** @enum {string} */
             status?: "running" | "stopped" | "degraded" | "unknown";
         };
+        DokployCompose: {
+            /** Format: uuid */
+            dokploy_server_id: string;
+            compose_identifier: string;
+            instance_identifier: string;
+            display_name: string;
+            environment_identifier?: string;
+            status: components["schemas"]["DokploySourceStatus"];
+        };
+        DokployComposeService: {
+            /** Format: uuid */
+            dokploy_server_id: string;
+            compose_identifier: string;
+            service_name: string;
+        };
+        /** @enum {string} */
+        DokploySourceStatus: "running" | "stopped" | "degraded" | "unknown";
+        DokployApplicationSourceSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "application";
+            /** Format: uuid */
+            dokploy_server_id: string;
+            resource_identifier: string;
+        };
+        DokployComposeServiceSourceSelector: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "compose_service";
+            /** Format: uuid */
+            dokploy_server_id: string;
+            resource_identifier: string;
+            service_name: string;
+        };
+        DokploySourceSelector: components["schemas"]["DokployApplicationSourceSelector"] | components["schemas"]["DokployComposeServiceSourceSelector"];
+        DokployApplicationSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "application";
+            /** Format: uuid */
+            dokploy_server_id: string;
+            resource_identifier: string;
+            instance_identifier: string;
+            display_name: string;
+            environment?: string;
+            status: components["schemas"]["DokploySourceStatus"];
+        };
+        DokployComposeServiceSource: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "compose_service";
+            /** Format: uuid */
+            dokploy_server_id: string;
+            resource_identifier: string;
+            service_name: string;
+            instance_identifier: string;
+            display_name: string;
+            environment?: string;
+            status: components["schemas"]["DokploySourceStatus"];
+            /** @enum {string} */
+            runtime_type: "docker-compose" | "stack";
+        };
+        DokploySource: components["schemas"]["DokployApplicationSource"] | components["schemas"]["DokployComposeServiceSource"];
         DokployServerResponse: {
             data: components["schemas"]["DokployServer"];
         };
@@ -1168,6 +1280,13 @@ export interface components {
         DokployApplicationListResponse: {
             data: components["schemas"]["DokployApplication"][];
             paging: components["schemas"]["Paging"];
+        };
+        DokployComposeListResponse: {
+            data: components["schemas"]["DokployCompose"][];
+            paging: components["schemas"]["Paging"];
+        };
+        DokployComposeServiceListResponse: {
+            data: components["schemas"]["DokployComposeService"][];
         };
         /** @enum {string} */
         QvacAuthenticationType: "none" | "bearer" | "basic";
@@ -1271,7 +1390,7 @@ export interface components {
             monitoring_status: components["schemas"]["MonitoringStatus"];
             health_status: components["schemas"]["ProjectHealthStatus"];
             github_repository: components["schemas"]["GitHubRepository"];
-            dokploy_application: components["schemas"]["DokployApplication"];
+            dokploy_source: components["schemas"]["DokploySource"];
             /** Format: date-time */
             last_observed_at?: string;
             /** Format: date-time */
@@ -1290,9 +1409,7 @@ export interface components {
             github_account_id: string;
             repository_identifier: string;
             default_branch: string;
-            /** Format: uuid */
-            dokploy_server_id: string;
-            application_identifier: string;
+            dokploy_source: components["schemas"]["DokploySourceSelector"];
             monitoring_configuration: components["schemas"]["MonitoringConfiguration"];
             /**
              * @description One-shot initial ingestion policy; it is not returned as Project configuration.
@@ -1308,9 +1425,7 @@ export interface components {
             github_account_id?: string;
             repository_identifier?: string;
             default_branch?: string;
-            /** Format: uuid */
-            dokploy_server_id?: string;
-            application_identifier?: string;
+            dokploy_source?: components["schemas"]["DokploySourceSelector"];
         };
         ProjectResponse: {
             data: components["schemas"]["Project"];
@@ -1494,7 +1609,9 @@ export interface components {
             incident_id: string;
             status: components["schemas"]["InvestigationStatus"];
             /** Format: date-time */
-            started_at: string;
+            created_at: string;
+            /** Format: date-time */
+            started_at?: string;
             /** Format: date-time */
             finished_at?: string;
             summary?: string;
@@ -1503,6 +1620,7 @@ export interface components {
             resolution_status?: components["schemas"]["ResolutionStatus"];
             confidence?: number;
             hypotheses: string[];
+            evidence_ids: string[];
             relevant_files: string[];
             relevant_commits: string[];
             recommended_actions: string[];
@@ -2677,6 +2795,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DokployApplicationListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listDokployComposes: {
+        parameters: {
+            query?: {
+                /** @description Page size for an initial request. Omit when cursor is present. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Signed cursor returned by the API. Send it without filters, sort or limit. */
+                cursor?: components["parameters"]["Cursor"];
+                name_like?: string;
+            };
+            header?: never;
+            path: {
+                server_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cursor-paginated Composes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DokployComposeListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listDokployComposeServices: {
+        parameters: {
+            query?: {
+                /** @description When true, Dokploy refreshes the configured source before loading services. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path: {
+                server_id: string;
+                compose_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Declared Compose services, sorted by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DokployComposeServiceListResponse"];
                 };
             };
             400: components["responses"]["BadRequest"];

@@ -28,7 +28,7 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.code = errorDto.code || "UNKNOWN_ERROR";
-    this.userMessage = errorDto.user_message || "Ocurrió un error al procesar la solicitud.";
+    this.userMessage = errorDto.user_message || "An error occurred while processing the request.";
     this.requestId = errorDto.request_id || "req-unknown";
     this.details = errorDto.details || [];
 

@@ -5,9 +5,9 @@ import Link from "next/link";
 import styles from "./ProjectDetailClient.module.css";
 import { Badge } from "@/core/ui/primitives/Badge";
 import { Button } from "@/core/ui/primitives/Button";
-import { useState } from "react";
-import { updateMonitoringConfigService } from "../../services";
-import { Activity, Clock, Code2, Database, ShieldAlert, GitBranch, Box, Settings, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { updateMonitoringConfigService, getProjectService } from "../../services";
+import { Activity, Clock, Code2, Database, ShieldAlert, GitBranch, Box, Settings, ExternalLink, Loader2 } from "lucide-react";
 import type { components } from "@/core/libs/api-client";
 import { GithubIcon, DokployIcon } from "@/core/ui/icons";
 
@@ -15,6 +15,7 @@ type ProjectResponse = components["schemas"]["ProjectResponse"];
 
 interface ProjectDetailClientProps {
   initialProject: ProjectResponse | undefined;
+  projectId?: string;
 }
 
 function formatRelativeTime(dateString: string) {
@@ -27,8 +28,39 @@ function formatRelativeTime(dateString: string) {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps) {
-  if (!initialProject || !initialProject.data) {
+export function ProjectDetailClient({ initialProject, projectId }: ProjectDetailClientProps) {
+  const [project, setProject] = useState<ProjectResponse["data"] | undefined>(initialProject?.data);
+  const [isLoading, setIsLoading] = useState(!initialProject?.data && !!projectId);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!project && projectId) {
+      setIsLoading(true);
+      getProjectService(projectId)
+        .then((res) => {
+          if (res?.data) {
+            setProject(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load project client-side:", err);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    }
+  }, [projectId]);
+
+  if (isLoading) {
+    return (
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "300px" }}>
+        <Loader2 style={{ animation: "spin 1s linear infinite" }} size={32} />
+      </div>
+    );
+  }
+
+  if (!project) {
     return (
       <div className={styles.emptyState}>
         <ShieldAlert size={48} />
@@ -38,15 +70,9 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
     );
   }
 
-  const [project, setProject] = useState(initialProject.data);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-
-
   const isHealthy = project.health_status === "healthy";
   const repo = project.github_repository;
-  const app = project.dokploy_application;
+  const source = project.dokploy_source;
   const mon = project.monitoring_configuration;
   const rules = project.built_in_detection_rules || [];
 
@@ -119,14 +145,14 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
         </div>
         <div className={styles.badges}>
           <Badge variant={isHealthy ? "success" : "warning"}>
-            HEALTH: {project.health_status.toUpperCase()}
+            HEALTH: {(project.health_status || "UNKNOWN").toUpperCase()}
           </Badge>
           <Badge variant={
             project.monitoring_status === "monitoring" ? "intel" :
             project.monitoring_status === "error" ? "error" :
             project.monitoring_status === "degraded" ? "warning" : "neutral"
           }>
-            MONITORING: {project.monitoring_status.toUpperCase()}
+            MONITORING: {(project.monitoring_status || "UNKNOWN").toUpperCase()}
           </Badge>
         </div>
       </div>
@@ -191,29 +217,30 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
             <DokployIcon size={20} className={styles.cardIcon} />
             <h3 className={styles.cardTitle}>Dokploy Integration</h3>
           </div>
-          {app ? (
+          {source ? (
             <div className={styles.dataList}>
               <div className={styles.dataRow}>
-                <span className={styles.dataLabel}>Application</span>
+                <span className={styles.dataLabel}>{source.type === "application" ? "Application" : "Compose Service"}</span>
                 <span className={styles.dataValue}>
                   <Box size={14} className={styles.cardIcon} />
-                  {app.display_name}
+                  {source.display_name}
+                  {source.type === "compose_service" && <span style={{ marginLeft: 4, color: "var(--text-secondary)" }}>({source.service_name})</span>}
                 </span>
               </div>
               <div className={styles.dataRow}>
                 <span className={styles.dataLabel}>Environment</span>
                 <span className={styles.dataValue}>
-                  <Badge variant={app.environment === "production" ? "intel" : "neutral"}>
-                    {app.environment || "None"}
+                  <Badge variant={source.type === "application" && source.environment === "production" ? "intel" : "neutral"}>
+                    {(source as any).environment || "None"}
                   </Badge>
                 </span>
               </div>
               <div className={styles.dataRow}>
-                <span className={styles.dataLabel}>Container Status</span>
+                <span className={styles.dataLabel}>Status</span>
                 <span className={styles.dataValue}>
-                  {app.status && (
-                    <Badge variant={app.status === "running" ? "success" : app.status === "stopped" ? "neutral" : "error"}>
-                      {app.status}
+                  {source.status && (
+                    <Badge variant={source.status === "running" ? "success" : source.status === "stopped" ? "neutral" : "error"}>
+                      {source.status}
                     </Badge>
                   )}
                 </span>
@@ -222,7 +249,7 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
           ) : (
             <div className={styles.emptyState}>
               <DokployIcon size={24} />
-              <p>No application connected.</p>
+              <p>No source connected.</p>
             </div>
           )}
         </div>

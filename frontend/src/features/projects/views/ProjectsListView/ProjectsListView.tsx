@@ -6,10 +6,10 @@ import { EmptyState, ErrorState } from "@/core/ui/feedback";
 import { FolderGit2 } from "lucide-react";
 
 export const ProjectsListView = async () => {
-  let projectResponse;
-  
+  let initialProjects = [];
   try {
-    projectResponse = await getProjectsService();
+    const projectResponse = await getProjectsService();
+    initialProjects = projectResponse.data || [];
   } catch (error) {
     return (
       <div className={styles.container}>
@@ -23,26 +23,18 @@ export const ProjectsListView = async () => {
     );
   }
 
-  const projects = projectResponse.data || [];
-  const hasProjects = projects.length > 0;
-
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.titleGroup}>
-          <h1 className={styles.pageTitle}>Manage monitored applications and their connection to infrastructure.</h1>
+          <h1 className={styles.pageTitle}>Projects</h1>
+          <p className={styles.pageSubtitle}>
+            Manage monitored applications and their connection to infrastructure.
+          </p>
         </div>
       </div>
 
-      {!hasProjects ? (
-        <EmptyState 
-          icon={<FolderGit2 size={48} />}
-          title="No projects configured"
-          description="You haven't connected any projects yet. Create your first project to start monitoring your infrastructure and deployments."
-        />
-      ) : (
-        <ProjectsListClient initialProjects={projects} />
-      )}
+      <ProjectsListClient initialProjects={initialProjects} />
     </div>
   );
 };

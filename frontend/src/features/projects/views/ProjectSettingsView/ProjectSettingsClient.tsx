@@ -16,11 +16,16 @@ export function ProjectSettingsClient({ projectId }: ProjectSettingsClientProps)
   useEffect(() => {
     const fetchProject = async () => {
       setIsLoading(true);
-      const { data } = await getProjectService(projectId);
-      if (data) {
-        setProject(data);
+      try {
+        const { data } = await getProjectService(projectId);
+        if (data) {
+          setProject(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch project:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchProject();

@@ -28,4 +28,6 @@ type DokployServerUseCase interface {
 	Delete(context.Context, uuid.UUID) error
 	TestConnection(context.Context, uuid.UUID) (ConnectionTestResult, error)
 	ListApplications(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployApplication], error)
+	ListComposes(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.DokployCompose], error)
+	ListComposeServices(context.Context, uuid.UUID, string, bool) ([]domain.DokployComposeService, error)
 }

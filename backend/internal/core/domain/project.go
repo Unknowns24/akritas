@@ -51,7 +51,7 @@ type Project struct {
 	MonitoringStatus        MonitoringStatus        `gorm:"column:monitoring_status"`
 	HealthStatus            ProjectHealthStatus     `gorm:"column:health_status"`
 	GitHubRepository        GitHubRepository        `gorm:"embedded"`
-	DokployApplication      DokployApplication      `gorm:"embedded"`
+	DokploySource           DokploySource           `gorm:"embedded"`
 	MonitoringConfiguration MonitoringConfiguration `gorm:"embedded"`
 	LastObservedAt          *time.Time              `gorm:"column:last_observed_at"`
 	CreatedAt               time.Time               `gorm:"column:created_at"`
@@ -62,7 +62,7 @@ func NewProject(
 	id uuid.UUID,
 	name, description string,
 	githubRepository GitHubRepository,
-	dokployApplication DokployApplication,
+	dokploySource DokploySource,
 	monitoringConfiguration MonitoringConfiguration,
 	createdAt time.Time,
 ) (*Project, error) {
@@ -75,7 +75,7 @@ func NewProject(
 	project := &Project{
 		ID: id, Name: strings.TrimSpace(name), Description: strings.TrimSpace(description),
 		MonitoringStatus: monitoringStatus, HealthStatus: ProjectHealthUnknown,
-		GitHubRepository: githubRepository, DokployApplication: dokployApplication,
+		GitHubRepository: githubRepository, DokploySource: dokploySource,
 		MonitoringConfiguration: monitoringConfiguration,
 		CreatedAt:               createdAt, UpdatedAt: createdAt,
 	}
@@ -93,7 +93,7 @@ func NewProject(
 func (p Project) Validate() error {
 	if p.ID == uuid.Nil || !nonBlank(p.Name) || len(p.Name) > 150 || len(p.Description) > 2000 ||
 		p.MonitoringStatus.Validate() != nil || p.HealthStatus.Validate() != nil ||
-		p.GitHubRepository.Validate() != nil || p.DokployApplication.Validate() != nil ||
+		p.GitHubRepository.Validate() != nil || p.DokploySource.Validate() != nil ||
 		p.MonitoringConfiguration.Validate() != nil || !validTime(p.CreatedAt) || p.UpdatedAt.Before(p.CreatedAt) {
 		return ErrInvalidProject.Wrap(validationCause("project"))
 	}
@@ -110,7 +110,7 @@ func (p Project) ReadyForMonitoringEngine() error {
 	if err := p.GitHubRepository.Validate(); err != nil {
 		return err
 	}
-	if err := p.DokployApplication.Validate(); err != nil {
+	if err := p.DokploySource.Validate(); err != nil {
 		return err
 	}
 	if err := p.MonitoringConfiguration.Validate(); err != nil {
@@ -137,7 +137,7 @@ func (p *Project) Rename(name, description string, updatedAt time.Time) error {
 	return nil
 }
 
-func (p *Project) ReplaceIntegrations(repository GitHubRepository, application DokployApplication, updatedAt time.Time) error {
+func (p *Project) ReplaceIntegrations(repository GitHubRepository, source DokploySource, updatedAt time.Time) error {
 	if p == nil {
 		return ErrInvalidProject
 	}
@@ -146,7 +146,7 @@ func (p *Project) ReplaceIntegrations(repository GitHubRepository, application D
 	}
 	next := *p
 	next.GitHubRepository = repository
-	next.DokployApplication = application
+	next.DokploySource = source
 	next.UpdatedAt = updatedAt
 	if err := next.Validate(); err != nil {
 		return err
@@ -155,16 +155,15 @@ func (p *Project) ReplaceIntegrations(repository GitHubRepository, application D
 	return nil
 }
 
-func (p *Project) RefreshIntegrationSnapshots(repository GitHubRepository, application DokployApplication, updatedAt time.Time) error {
+func (p *Project) RefreshIntegrationSnapshots(repository GitHubRepository, source DokploySource, updatedAt time.Time) error {
 	if p == nil || repository.GitHubAccountID != p.GitHubRepository.GitHubAccountID ||
 		repository.RepositoryIdentifier != p.GitHubRepository.RepositoryIdentifier ||
-		application.DokployServerID != p.DokployApplication.DokployServerID ||
-		application.ApplicationIdentifier != p.DokployApplication.ApplicationIdentifier {
+		source.IdentityKey() != p.DokploySource.IdentityKey() {
 		return ErrInvalidProject.Wrap(validationCause("integration snapshot identity"))
 	}
 	next := *p
 	next.GitHubRepository = repository
-	next.DokployApplication = application
+	next.DokploySource = source
 	next.UpdatedAt = updatedAt
 	if err := next.Validate(); err != nil {
 		return err

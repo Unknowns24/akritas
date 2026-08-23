@@ -13,7 +13,7 @@ type ProjectStore interface {
 	Create(context.Context, *domain.Project) error
 	Get(context.Context, uuid.UUID) (*domain.Project, error)
 	FindByNormalizedName(context.Context, string) (*domain.Project, error)
-	FindByDokployApplication(context.Context, uuid.UUID, string) (*domain.Project, error)
+	FindByDokploySource(context.Context, domain.DokploySourceSelector) (*domain.Project, error)
 	List(context.Context, paging.Params) (paging.Slice[domain.Project], error)
 	Update(context.Context, *domain.Project, time.Time) error
 	Delete(context.Context, uuid.UUID) error
@@ -23,8 +23,10 @@ type GitHubRepositoryResolver interface {
 	GetRepository(context.Context, domain.GitHubAccount, string) (domain.GitHubRepository, error)
 }
 
-type DokployApplicationResolver interface {
+type DokploySourceResolver interface {
 	GetApplication(context.Context, domain.DokployServer, string) (domain.DokployApplication, error)
+	GetCompose(context.Context, domain.DokployServer, string) (domain.DokployCompose, error)
+	ListComposeServices(context.Context, domain.DokployServer, string, bool) ([]domain.DokployComposeService, error)
 }
 
 type GitHubAccountReader interface {

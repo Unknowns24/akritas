@@ -82,6 +82,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrProjectPersistence` | `0x203001I` | Project database | Internal | No se pudo guardar el proyecto. |
 | `ErrInvestigationPersistence` | `0x204001I` | Investigation database | Internal | No se pudo guardar la investigación. |
 | `ErrOperationPersistence` | `0x205001I` | Operation database | Internal | No se pudo guardar la operación. |
+| `ErrEvidencePersistence` | `0x206001I` | Evidence database | Internal | No se pudo guardar la evidencia. |
 | `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
 | `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
 | `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |

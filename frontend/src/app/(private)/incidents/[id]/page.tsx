@@ -8,11 +8,15 @@ interface IncidentDetailPageProps {
   };
 }
 
-export default function IncidentDetailPage({ params }: IncidentDetailPageProps) {
+export default function IncidentDetailPage({
+  params,
+}: IncidentDetailPageProps) {
   return (
     <Suspense
       fallback={
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+        <div
+          style={{ display: "flex", justifyContent: "center", padding: "40px" }}
+        >
           <Loader2 className="animate-spin" size={32} />
         </div>
       }

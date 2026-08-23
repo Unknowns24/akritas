@@ -7,7 +7,9 @@ export async function getOverviewService(): Promise<OverviewResponse> {
   try {
     const { data, error } = await api.GET("/overview");
     if (!error && data) return data;
-  } catch (e) { console.error("OVERVIEW ERROR:", e); }
+  } catch (e) {
+    console.error("OVERVIEW ERROR:", e);
+  }
 
   return {
     data: {

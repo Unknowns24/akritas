@@ -203,18 +203,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/": {
+    "/overview": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Get platform overview metrics
-         * @description Retrieves top-level metrics for the operational dashboard.
-         */
-        get: operations["getOverview"];
+        /** Get dashboard counts and active investigation projections */
+        get: operations["getProductionOverview"];
         put?: never;
         post?: never;
         delete?: never;
@@ -546,7 +543,10 @@ export interface paths {
         /** List monitored project projections */
         get: operations["listProjects"];
         put?: never;
-        /** Create a Project from previously configured integration resources */
+        /**
+         * Create a Project from previously configured integration resources
+         * @description Resolves safe snapshots from GitHub and Dokploy before persistence. A provider failure leaves the database unchanged; an enabled configuration starts in `starting`.
+         */
         post: operations["createProject"];
         delete?: never;
         options?: never;
@@ -567,10 +567,17 @@ export interface paths {
         get: operations["getProject"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete a disabled Project
+         * @description Monitoring must be disabled and dependent records must not reference the Project.
+         */
+        delete: operations["deleteProject"];
         options?: never;
         head?: never;
-        /** Update identity or integration selections */
+        /**
+         * Update identity or integration selections
+         * @description Name and description may change while monitoring is active. Integration selections require monitoring disabled and are resolved from their providers before persistence.
+         */
         patch: operations["updateProject"];
         trace?: never;
     };
@@ -587,7 +594,7 @@ export interface paths {
         get: operations["getProjectMonitoringConfiguration"];
         /**
          * Replace deterministic monitoring configuration
-         * @description Ignored patterns always take precedence over built-in and custom positive rules.
+         * @description Ignored patterns always take precedence over built-in and custom positive rules. Every enabled replacement revalidates both provider snapshots and changes monitoring status to `starting`; disabling does not erase snapshots or history.
          */
         put: operations["putProjectMonitoringConfiguration"];
         post?: never;
@@ -1116,6 +1123,7 @@ export interface components {
             name: string;
             /** Format: uri */
             base_url: string;
+            /** @description SHA-256 fingerprint derived from the normalized Dokploy origin; it is not supplied by the client or Dokploy. */
             server_identifier: string;
             connection_status: components["schemas"]["IntegrationStatus"];
             credential_configured: boolean;
@@ -1286,6 +1294,12 @@ export interface components {
             dokploy_server_id: string;
             application_identifier: string;
             monitoring_configuration: components["schemas"]["MonitoringConfiguration"];
+            /**
+             * @description One-shot initial ingestion policy; it is not returned as Project configuration.
+             * @default from_now
+             * @enum {string}
+             */
+            initial_log_ingestion: "from_now" | "last_10000";
         };
         UpdateProjectRequest: {
             name?: string;
@@ -2002,6 +2016,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -2103,7 +2118,7 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
-    getOverview: {
+    getProductionOverview: {
         parameters: {
             query?: never;
             header?: never;
@@ -2238,6 +2253,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
@@ -2286,6 +2302,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2317,6 +2334,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2343,6 +2361,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };
@@ -2404,6 +2423,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
@@ -2519,6 +2539,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
@@ -2567,6 +2588,7 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2598,6 +2620,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2624,6 +2647,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };
@@ -2813,6 +2837,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2843,6 +2868,31 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    deleteProject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Project deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     updateProject: {
         parameters: {
             query?: never;
@@ -2869,6 +2919,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
@@ -2925,6 +2976,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];

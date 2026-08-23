@@ -17,6 +17,16 @@ interface ProjectDetailClientProps {
   initialProject: ProjectResponse | undefined;
 }
 
+function formatRelativeTime(dateString: string) {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
 export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps) {
   if (!initialProject || !initialProject.data) {
     return (
@@ -70,6 +80,8 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
     setIsUpdating(false);
   };
 
+  const isIngestionWarning = project.monitoring_status === "error" || project.monitoring_status === "degraded" || (!project.last_observed_at && project.monitoring_status !== "disabled");
+
   return (
     <div className={styles.container}>
       {/* HEADER SECTION */}
@@ -92,10 +104,15 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
               <Clock size={14} />
               Created {new Date(project.created_at).toLocaleDateString()}
             </div>
-            {project.last_observed_at && (
+            {project.last_observed_at ? (
               <div className={styles.metaItem}>
                 <Activity size={14} />
-                Last observed {new Date(project.last_observed_at).toLocaleString()}
+                Last log: {formatRelativeTime(project.last_observed_at)} ({new Date(project.last_observed_at).toLocaleString()})
+              </div>
+            ) : (
+              <div className={styles.metaItem} style={{ color: "var(--status-warning)" }}>
+                <Activity size={14} />
+                Awaiting first log
               </div>
             )}
           </div>
@@ -104,11 +121,27 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
           <Badge variant={isHealthy ? "success" : "warning"}>
             HEALTH: {project.health_status.toUpperCase()}
           </Badge>
-          <Badge variant={project.monitoring_status === "monitoring" ? "intel" : "neutral"}>
+          <Badge variant={
+            project.monitoring_status === "monitoring" ? "intel" :
+            project.monitoring_status === "error" ? "error" :
+            project.monitoring_status === "degraded" ? "warning" : "neutral"
+          }>
             MONITORING: {project.monitoring_status.toUpperCase()}
           </Badge>
         </div>
       </div>
+
+      {isIngestionWarning && (
+        <div className={`${styles.ingestionBanner} ${project.monitoring_status === 'error' ? styles.bannerError : styles.bannerWarning}`}>
+          <Activity size={18} />
+          <div className={styles.bannerText}>
+            <strong>Ingestion Status: </strong>
+            {project.monitoring_status === "error" ? "Monitoring connection failed. No logs are being ingested." : 
+             !project.last_observed_at ? "Waiting for logs to arrive from Dokploy. Ensure your container is running." : 
+             "Monitoring is degraded. Some logs might be delayed or dropped."}
+          </div>
+        </div>
+      )}
 
       <div className={styles.grid}>
         {/* GITHUB CONTEXT */}

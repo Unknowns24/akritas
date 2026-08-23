@@ -1,5 +1,5 @@
 import React from "react";
-import { Bot, Terminal, PlayCircle, GitCommit, FileText, CheckCircle2, Search } from "lucide-react";
+import { Bot, Terminal, PlayCircle, GitCommit, FileText, CheckCircle2, Search, AlertCircle } from "lucide-react";
 import type { TimelineEvent } from "../../../services/get-incident-timeline.service";
 import styles from "../IncidentDetailView.module.css";
 
@@ -14,7 +14,7 @@ export function AgentTimeline({ timeline }: AgentTimelineProps) {
 
   // Filter events to only show agent reasoning/tool activity
   const agentEvents = timeline.filter(t => 
-    ["investigation_started", "tool_used", "changes_generated", "root_cause_classified"].includes(t.type)
+    ["investigation_started", "tool_used", "changes_generated", "root_cause_classified", "workflow_failed"].includes(t.type)
   );
 
   if (agentEvents.length === 0) return null;
@@ -23,6 +23,7 @@ export function AgentTimeline({ timeline }: AgentTimelineProps) {
     if (type === "investigation_started") return <PlayCircle size={14} />;
     if (type === "changes_generated") return <CheckCircle2 size={14} />;
     if (type === "root_cause_classified") return <Search size={14} />;
+    if (type === "workflow_failed") return <AlertCircle size={14} />;
     
     // For tool_used, infer icon from summary context
     const s = summary.toLowerCase();
@@ -72,7 +73,8 @@ export function AgentTimeline({ timeline }: AgentTimelineProps) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  color: "var(--text-secondary)",
+                  color: event.type === "workflow_failed" ? "var(--status-error)" : "var(--text-secondary)",
+                  borderColor: event.type === "workflow_failed" ? "var(--status-error)" : "var(--border-strong)",
                   zIndex: 2
                 }}
               >
@@ -81,7 +83,7 @@ export function AgentTimeline({ timeline }: AgentTimelineProps) {
 
               <div style={{ paddingLeft: "var(--space-6)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", marginBottom: "var(--space-1)" }}>
-                  <span style={{ fontSize: "14px", fontWeight: 500, color: "var(--text-primary)" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 500, color: event.type === "workflow_failed" ? "var(--status-error)" : "var(--text-primary)" }}>
                     {event.summary}
                   </span>
                   <span style={{ fontSize: "12px", fontFamily: "var(--font-mono)", color: "var(--text-muted)" }}>

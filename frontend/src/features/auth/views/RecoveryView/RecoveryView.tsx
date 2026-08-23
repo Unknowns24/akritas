@@ -14,6 +14,7 @@ import {
   RecoveryRequest,
   TotpEnrollment,
 } from "../../services/auth.service";
+import { ApiError } from "@/core/errors/api-error";
 import styles from "../SetupView/SetupView.module.css"; // Reuse setup view styling since they are extremely similar
 
 export const RecoveryView = () => {
@@ -54,7 +55,17 @@ export const RecoveryView = () => {
       setEnrollment(result);
       setStep(2);
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Failed to start recovery process"));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError("Invalid bootstrap token or administrator email.");
+        } else if (error.status === 429) {
+          setError("Too many requests. Please try again later.");
+        } else {
+          setError(getErrorMessage(error, "Failed to start recovery process."));
+        }
+      } else {
+        setError(getErrorMessage(error, "Failed to start recovery process."));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -70,7 +81,17 @@ export const RecoveryView = () => {
       await verifyAdministratorRecoveryService(totpCode, enrollment.enrollment_id);
       router.replace(APP_ROUTES.AUTH.LOGIN);
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Invalid authenticator code"));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError("Invalid authenticator code or enrollment expired.");
+        } else if (error.status === 429) {
+          setError("Too many requests. Please try again later.");
+        } else {
+          setError(getErrorMessage(error, "Invalid authenticator code."));
+        }
+      } else {
+        setError(getErrorMessage(error, "Invalid authenticator code."));
+      }
     } finally {
       setIsSubmitting(false);
     }

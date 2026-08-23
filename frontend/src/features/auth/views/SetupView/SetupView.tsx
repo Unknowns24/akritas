@@ -15,6 +15,7 @@ import {
   SetupRequest,
   TotpEnrollment,
 } from "../../services/auth.service";
+import { ApiError } from "@/core/errors/api-error";
 import styles from "./SetupView.module.css";
 
 export const SetupView = () => {
@@ -76,7 +77,17 @@ export const SetupView = () => {
       setEnrollment(result);
       setStep(2);
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Failed to initialize Akritas"));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError("Invalid bootstrap token or unauthorized.");
+        } else if (error.status === 429) {
+          setError("Too many requests. Please try again later.");
+        } else {
+          setError(getErrorMessage(error, "Failed to initialize Akritas."));
+        }
+      } else {
+        setError(getErrorMessage(error, "Failed to initialize Akritas."));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -93,7 +104,17 @@ export const SetupView = () => {
       // Success! Redirect to the authenticated app
       router.replace(APP_ROUTES.OVERVIEW);
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Invalid authenticator code"));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError("Invalid authenticator code or enrollment expired.");
+        } else if (error.status === 429) {
+          setError("Too many requests. Please try again later.");
+        } else {
+          setError(getErrorMessage(error, "Invalid authenticator code."));
+        }
+      } else {
+        setError(getErrorMessage(error, "Invalid authenticator code."));
+      }
     } finally {
       setIsSubmitting(false);
     }

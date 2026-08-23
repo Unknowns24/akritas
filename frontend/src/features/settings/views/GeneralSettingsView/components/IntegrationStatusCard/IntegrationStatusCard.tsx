@@ -1,4 +1,4 @@
-import { Code2, Server, Cpu } from "lucide-react";
+import { Code2, Server, Cpu, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card } from "@/core/ui/primitives/Card";
 import styles from "./IntegrationStatusCard.module.css";
 import type { components } from "@/core/libs/api-client";
@@ -25,7 +25,12 @@ export function IntegrationStatusCard({ status }: IntegrationStatusCardProps) {
           <div className={styles.info}>
             <div className={styles.name}>GitHub</div>
             <div className={styles.details}>
-              {status.github_account_count} account{status.github_account_count !== 1 ? 's' : ''} <span className={styles.dot}>•</span> <span className={styles.connected}>Connected</span>
+              {status.github_account_count} account{status.github_account_count !== 1 ? 's' : ''} <span className={styles.dot}>•</span> 
+              {status.github_account_count > 0 ? (
+                <span className={styles.connected}><CheckCircle2 size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> Connected</span>
+              ) : (
+                <span className={styles.disconnected}><AlertCircle size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> Disconnected</span>
+              )}
             </div>
           </div>
         </div>
@@ -38,7 +43,12 @@ export function IntegrationStatusCard({ status }: IntegrationStatusCardProps) {
           <div className={styles.info}>
             <div className={styles.name}>Dokploy</div>
             <div className={styles.details}>
-              {status.dokploy_server_count} server{status.dokploy_server_count !== 1 ? 's' : ''} <span className={styles.dot}>•</span> <span className={styles.connected}>Connected</span>
+              {status.dokploy_server_count} server{status.dokploy_server_count !== 1 ? 's' : ''} <span className={styles.dot}>•</span> 
+              {status.dokploy_server_count > 0 ? (
+                <span className={styles.connected}><CheckCircle2 size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> Connected</span>
+              ) : (
+                <span className={styles.disconnected}><AlertCircle size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> Disconnected</span>
+              )}
             </div>
           </div>
         </div>

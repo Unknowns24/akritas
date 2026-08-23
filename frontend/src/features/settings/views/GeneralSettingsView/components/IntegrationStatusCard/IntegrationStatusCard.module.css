@@ -71,6 +71,11 @@
   white-space: nowrap;
 }
 
+.disconnected {
+  color: var(--status-error);
+  white-space: nowrap;
+}
+
 .mono {
   font-family: var(--font-mono);
   background-color: var(--surface-2);

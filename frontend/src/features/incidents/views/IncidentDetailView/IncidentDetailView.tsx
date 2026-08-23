@@ -56,17 +56,12 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
         <p>Hard evidence collected from monitoring</p>
       </div>
 
-      <div className={styles.contentGrid}>
-        <div className={styles.leftColumn}>
-          <StackTraceCard incident={incident} />
-          <LogEventsCard incidentId={id} />
-          <TraceabilityChainView incident={incident} />
-          <RemediationReviewPacket incident={incident} />
-        </div>
-
-        <div className={styles.rightColumn}>
-          <ContextCards incident={incident} />
-        </div>
+      <div className={styles.sequentialLayout}>
+        <StackTraceCard incident={incident} />
+        <LogEventsCard incidentId={id} />
+        <ContextCards incident={incident} />
+        <TraceabilityChainView incident={incident} />
+        <RemediationReviewPacket incident={incident} />
       </div>
 
       <div className={styles.sectionHeader}>
@@ -74,18 +69,14 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
         <p>AI-driven analysis and resolution</p>
       </div>
 
-      <div className={styles.contentGrid}>
-        <div className={styles.leftColumn}>
-          <RootCauseCard incident={incident} />
+      <div className={styles.sequentialLayout}>
+        <RootCauseCard incident={incident} />
 
-          {timeline.length > 0 && <AgentTimeline timeline={timeline} />}
-          {evidence.length > 0 && <EvidenceList evidence={evidence} />}
-        </div>
+        {timeline.length > 0 && <AgentTimeline timeline={timeline} />}
+        {evidence.length > 0 && <EvidenceList evidence={evidence} />}
 
-        <div className={styles.rightColumn}>
-          <GitHubIssueCard incident={incident} />
-          <RemediationCard incident={incident} />
-        </div>
+        <GitHubIssueCard incident={incident} />
+        <RemediationCard incident={incident} />
       </div>
     </div>
   );

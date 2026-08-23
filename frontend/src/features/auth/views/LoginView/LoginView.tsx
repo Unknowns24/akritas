@@ -7,6 +7,7 @@ import { AlertCircle } from "lucide-react";
 import { APP_ROUTES } from "@/core/routes/routes.config";
 import { getErrorMessage } from "@/core/errors";
 import { loginAdministratorService, LoginRequest } from "../../services/auth.service";
+import { ApiError } from "@/core/errors/api-error";
 import styles from "./LoginView.module.css";
 
 export const LoginView = () => {
@@ -28,7 +29,17 @@ export const LoginView = () => {
       await loginAdministratorService(formData);
       router.replace(APP_ROUTES.OVERVIEW);
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Email, password, or authenticator code is incorrect"));
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          setError("Email, password, or authenticator code is incorrect.");
+        } else if (error.status === 429) {
+          setError("Too many requests. Please try again later.");
+        } else {
+          setError(getErrorMessage(error, "Email, password, or authenticator code is incorrect."));
+        }
+      } else {
+        setError(getErrorMessage(error, "Email, password, or authenticator code is incorrect."));
+      }
     } finally {
       setIsSubmitting(false);
     }

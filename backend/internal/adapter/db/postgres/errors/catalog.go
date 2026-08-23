@@ -10,6 +10,14 @@ var ErrProjectPersistence = &domain.Error{
 	Code: "0x203001I", Message: "project persistence failure", UserMessage: "No se pudo guardar el proyecto.",
 }
 
+var ErrIncidentPersistence = &domain.Error{
+	Code: "0x204001I", Message: "incident persistence failure", UserMessage: "No se pudo consultar el incidente.",
+}
+
+var ErrMonitoringPersistence = &domain.Error{
+	Code: "0x205001I", Message: "monitoring persistence failure", UserMessage: "No se pudo guardar el estado de monitoreo.",
+}
+
 func Catalog() map[string]*domain.Error {
-	return map[string]*domain.Error{"ErrIntegrationPersistence": ErrIntegrationPersistence, "ErrProjectPersistence": ErrProjectPersistence}
+	return map[string]*domain.Error{"ErrIntegrationPersistence": ErrIntegrationPersistence, "ErrProjectPersistence": ErrProjectPersistence, "ErrIncidentPersistence": ErrIncidentPersistence, "ErrMonitoringPersistence": ErrMonitoringPersistence}
 }

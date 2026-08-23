@@ -6,6 +6,7 @@ import { StackTraceCard } from "./components/StackTraceCard";
 import { ContextCards } from "./components/ContextCards";
 import { LogEventsCard } from "./components/LogEventsCard";
 import { RemediationCard } from "./components/RemediationCard";
+import { TraceabilityChainView } from "./components/TraceabilityChainView";
 import styles from "./IncidentDetailView.module.css";
 
 export const IncidentDetailView = async ({ id }: { id: string }) => {
@@ -27,6 +28,7 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
           <StackTraceCard incident={incident} />
           <ContextCards incident={incident} />
           <LogEventsCard incidentId={id} />
+          <TraceabilityChainView incident={incident} />
         </div>
         
         <div className={styles.rightColumn}>

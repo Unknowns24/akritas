@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import styles from "./ProjectDetailClient.module.css";
 import { Badge } from "@/core/ui/primitives/Badge";
+import { Button } from "@/core/ui/primitives/Button";
 import { Activity, Clock, Code2, Database, ShieldAlert, GitBranch, Box, Settings, ExternalLink } from "lucide-react";
 import type { components } from "@/core/libs/api-client";
 import { GithubIcon, DokployIcon } from "@/core/ui/icons";
@@ -38,6 +40,12 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
         <div className={styles.headerInfo}>
           <div className={styles.titleRow}>
             <h1 className={styles.title}>{project.name}</h1>
+            <Link href={`/projects/${project.id}/settings`}>
+              <Button variant="secondary" style={{ padding: "8px 12px" }}>
+                <Settings size={16} />
+                <span style={{ marginLeft: "8px" }}>Settings</span>
+              </Button>
+            </Link>
           </div>
           {project.description && (
             <p className={styles.description}>{project.description}</p>

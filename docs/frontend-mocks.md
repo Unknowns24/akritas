@@ -31,13 +31,25 @@ This document tracks all temporary mocks, overrides, and hardcoded values inject
   - Catches the API failure and executes `localStorage.removeItem("mock_auth")` to simulate ending the session.
   - *Action needed:* Remove the `catch` block and the local storage clearing logic.
 
-## 2. Incidents Service Mocks
+## 2. Projects Service Mocks
 
-**Files:** 
-- `frontend/src/features/incidents/services/get-incidents.service.ts`
-- `frontend/src/features/incidents/services/get-incident.service.ts`
+**Files:**
+- `src/features/projects/services/get-projects.service.ts`
+- `src/features/projects/services/get-project.service.ts`
+- `src/features/projects/services/create-project.service.ts`
+- `src/features/projects/services/update-project.service.ts`
 
-**Reasoning:** To preview the incident UI components and detail views, the endpoints are mocked since the real backend is unavailable.
+**Reasoning:** To preview the project list and project detail views, endpoints are mocked since the real backend is unavailable.
+
+**Specific Workarounds:**
+- **`/projects` (`getProjectsService`)**:
+  - Returns hardcoded lists of `ProjectSummary`.
+  - *Action needed:* Remove the `catch` block and the mock array.
+- **`/projects/{id}` (`getProjectService`)**:
+  - Returns a hardcoded full `Project` object with mock GitHub, Dokploy, and monitoring configuration.
+  - *Action needed:* Remove the `catch` block and the mock object.
+
+## 3. Incidents Service Mocks
 
 ## 3. Dokploy Service Mocks
 

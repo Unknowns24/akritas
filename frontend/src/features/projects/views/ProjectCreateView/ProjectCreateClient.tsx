@@ -1,4 +1,5 @@
 import React from "react";
+import { ProjectForm } from "@/features/projects/components/ProjectForm/ProjectForm";
 
 export function ProjectCreateClient() {
   return (
@@ -10,11 +11,7 @@ export function ProjectCreateClient() {
         </p>
       </header>
 
-      <div style={{ backgroundColor: "var(--surface-1)", padding: "24px", borderRadius: "8px", border: "1px solid var(--surface-2)" }}>
-        <p style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>
-          The project creation flow will be implemented here soon, integrating the GitHub Repository Selector and Dokploy Application Selector.
-        </p>
-      </div>
+      <ProjectForm />
     </div>
   );
 }

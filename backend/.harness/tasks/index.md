@@ -12,3 +12,4 @@
 | AKR-REST-CHI | complete | backend-api-feature | Migración modular del adaptador REST a Chi |
 | AKR-H1-PROJECTS | complete | backend-api-feature | Project CRUD, snapshots verificados y MonitoringConfiguration |
 | AKR-INVESTIGATION-LIFECYCLE | complete | backend-api-feature | Investigation + Operation (infra genérica async), frontera con H2 |
+| AKR-INVESTIGATION-EVIDENCE | in-progress | backend-api-feature | Evidence real (deployment_metadata) ensamblada en el pipeline async |

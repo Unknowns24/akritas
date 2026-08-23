@@ -83,7 +83,7 @@
 .listContainer {
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--bg-surface);
+  background: var(--surface-1);
   overflow: hidden;
 }
 
@@ -99,9 +99,9 @@
   justify-content: center;
   padding: 32px 16px;
   color: var(--text-secondary);
-  gap: 8px;
-  text-align: center;
   font-size: 14px;
+  text-align: center;
+  gap: 12px;
 }
 
 .emptyIcon {
@@ -110,13 +110,13 @@
 }
 
 .appItem {
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
 }
 
 .appItem:last-child {
@@ -124,7 +124,7 @@
 }
 
 .appItem.selected {
-  background: var(--accent-indigo-subtle);
+  background: var(--surface-3);
 }
 
 .appItem:hover {
@@ -132,7 +132,7 @@
 }
 
 .selected {
-  background: var(--accent-indigo-subtle);
+  background: var(--surface-3);
 }
 
 .appInfo {

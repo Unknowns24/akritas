@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  background-color: var(--background-app);
+  color: var(--text-primary);
+  padding-top: 100px;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  margin-bottom: 48px;
+  text-transform: uppercase;
+}

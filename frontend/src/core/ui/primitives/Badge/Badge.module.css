@@ -1,0 +1,65 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  white-space: nowrap;
+  font-family: var(--font-mono), monospace;
+  letter-spacing: 0.02em;
+}
+
+.size-sm {
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.size-md {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Variants */
+.variant-neutral {
+  background-color: var(--surface-2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.variant-error {
+  background-color: var(--status-error-bg);
+  color: var(--status-error-light);
+  border: 1px solid var(--status-error-border);
+}
+
+.variant-warning {
+  background-color: var(--status-warning-bg);
+  color: var(--status-warning-light);
+  border: 1px solid var(--status-warning-border);
+}
+
+.variant-success {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-light);
+  border: 1px solid var(--status-success-border);
+}
+
+.variant-info {
+  background-color: var(--status-info-bg);
+  color: var(--status-info-light);
+  border: 1px solid var(--status-info-border);
+}
+
+.variant-intel {
+  background-color: var(--accent-indigo-subtle);
+  color: var(--accent-indigo-light);
+  border: 1px solid var(--accent-indigo-border);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: currentColor;
+}

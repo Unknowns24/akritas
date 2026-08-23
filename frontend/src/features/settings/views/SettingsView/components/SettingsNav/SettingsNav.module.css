@@ -1,0 +1,83 @@
+.topNav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0;
+  margin-bottom: var(--space-4);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-6);
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.activeTab {
+  color: var(--text-primary);
+}
+
+.activeTab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--text-primary);
+  border-radius: 2px 2px 0 0;
+}
+
+.topNavActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+}
+
+.iconButton {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.iconButton:hover {
+  color: var(--text-primary);
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

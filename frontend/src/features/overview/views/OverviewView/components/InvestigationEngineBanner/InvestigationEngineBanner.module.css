@@ -1,0 +1,30 @@
+.aiBanner {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.02) 100%);
+  border: 1px solid var(--accent-indigo-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.aiHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.aiTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-indigo-light);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.aiText {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

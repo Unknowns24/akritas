@@ -1,0 +1,124 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pageTitle {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.pageSubtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+  gap: var(--space-3);
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.emptyIcon {
+  color: var(--text-dim);
+}
+
+.emptyTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.emptyText {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+/* Action Bar & Search Input */
+.actionBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.searchWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 400px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 16px 0 38px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background-color: var(--surface-1);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.searchInput::placeholder {
+  color: var(--text-muted);
+}
+
+.searchInput:hover {
+  border-color: var(--border-focus);
+}
+
+.searchInput:focus {
+  background-color: var(--surface-2);
+  border-color: var(--accent-indigo);
+  box-shadow: 0 0 0 3px var(--accent-indigo-subtle);
+}
+
+.searchWrapper:focus-within .searchIcon {
+  color: var(--accent-indigo-light);
+}
+
+.divider {
+  height: 1px;
+  background-color: var(--border-subtle);
+  width: 100%;
+  margin: var(--space-2) 0;
+}

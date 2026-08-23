@@ -1,0 +1,59 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.status-healthy {
+  background-color: var(--status-success);
+  box-shadow: 0 0 0 1px var(--status-success-border);
+}
+
+.status-degraded {
+  background-color: var(--status-warning);
+  box-shadow: 0 0 0 1px var(--status-warning-border);
+}
+
+.status-incident {
+  background-color: var(--status-error);
+  box-shadow: 0 0 0 1px var(--status-error-border);
+}
+
+.status-offline {
+  background-color: var(--text-dim);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+.pulse::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 50%;
+  background-color: inherit;
+  opacity: 0.6;
+  animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono), monospace;
+}
+
+@keyframes ping {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}

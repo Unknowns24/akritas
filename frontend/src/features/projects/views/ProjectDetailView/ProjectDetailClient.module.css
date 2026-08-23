@@ -86,9 +86,21 @@
 .cardHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.cardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.errorMessage {
+  color: var(--error);
+  font-size: 14px;
+  padding: 8px 0;
 }
 
 .cardIcon {

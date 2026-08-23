@@ -2,7 +2,7 @@ import { api } from "@/core/libs/api-client";
 import type { components } from "@/core/libs/api-client";
 
 export type CreateProjectRequest = components["schemas"]["CreateProjectRequest"];
-export type Project = components["schemas"]["Project"];
+type Project = components["schemas"]["Project"];
 
 export async function createProjectService(
   request: CreateProjectRequest

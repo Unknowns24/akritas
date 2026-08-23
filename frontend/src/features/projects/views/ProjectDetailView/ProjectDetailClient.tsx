@@ -5,6 +5,8 @@ import Link from "next/link";
 import styles from "./ProjectDetailClient.module.css";
 import { Badge } from "@/core/ui/primitives/Badge";
 import { Button } from "@/core/ui/primitives/Button";
+import { useState } from "react";
+import { updateMonitoringConfigService } from "../../services";
 import { Activity, Clock, Code2, Database, ShieldAlert, GitBranch, Box, Settings, ExternalLink } from "lucide-react";
 import type { components } from "@/core/libs/api-client";
 import { GithubIcon, DokployIcon } from "@/core/ui/icons";
@@ -26,12 +28,47 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
     );
   }
 
-  const project = initialProject.data;
+  const [project, setProject] = useState(initialProject.data);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+
+
   const isHealthy = project.health_status === "healthy";
   const repo = project.github_repository;
   const app = project.dokploy_application;
   const mon = project.monitoring_configuration;
   const rules = project.built_in_detection_rules || [];
+
+  const handleToggleMonitoring = async () => {
+    if (!mon) return;
+    
+    setIsUpdating(true);
+    setErrorMsg(null);
+    
+    const newConfig = {
+      ...mon,
+      enabled: !mon.enabled
+    };
+    
+    const { data, error } = await updateMonitoringConfigService(project.id, newConfig);
+    
+    if (error) {
+      setErrorMsg("Failed to update monitoring configuration.");
+      setIsUpdating(false);
+      return;
+    }
+    
+    if (data) {
+      setProject({
+        ...project,
+        monitoring_configuration: data,
+        monitoring_status: data.enabled ? "starting" : "disabled" // Optimistic UI update for status
+      });
+    }
+    
+    setIsUpdating(false);
+  };
 
   return (
     <div className={styles.container}>
@@ -160,9 +197,26 @@ export function ProjectDetailClient({ initialProject }: ProjectDetailClientProps
         {/* MONITORING CONFIGURATION */}
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <Activity size={20} className={styles.cardIcon} />
-            <h3 className={styles.cardTitle}>Monitoring Configuration</h3>
+            <div className={styles.cardHeaderLeft}>
+              <Activity size={20} className={styles.cardIcon} />
+              <h3 className={styles.cardTitle}>Monitoring Configuration</h3>
+            </div>
+            {mon && (
+              <Button 
+                variant={mon.enabled ? "secondary" : "primary"} 
+                size="sm" 
+                onClick={handleToggleMonitoring}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "Updating..." : mon.enabled ? "Disable" : "Enable"}
+              </Button>
+            )}
           </div>
+          {errorMsg && (
+            <div className={styles.errorMessage}>
+              {errorMsg}
+            </div>
+          )}
           {mon ? (
             <div className={styles.dataList}>
               <div className={styles.dataRow}>

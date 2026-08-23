@@ -3,6 +3,7 @@ package dokploy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -107,6 +108,36 @@ func TestListApplicationsMapsProviderPayloadAndUnknownStatus(t *testing.T) {
 	}
 	if page.PrevBoundary["provider_offset"] != "20" {
 		t.Fatalf("provider boundary was not translated: %+v", page.PrevBoundary)
+	}
+}
+
+func TestGetApplicationRequiresExactIdentifier(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/application.search" || r.URL.Query().Get("q") != "app-1" {
+			t.Fatalf("request = %s", r.URL.String())
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"items": []map[string]any{{"applicationId": "app-10", "appName": "wrong", "name": "Wrong"}, {"applicationId": "app-1", "appName": "api", "name": "API", "status": "running", "environment": "production"}}})
+	}))
+	defer server.Close()
+	entity := dokployServer(t, server.URL)
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	application, err := client.GetApplication(context.Background(), entity, "app-1")
+	if err != nil || application.ApplicationIdentifier != "app-1" || application.DisplayName != "API" || application.Status != domain.DokployApplicationRunning {
+		t.Fatalf("GetApplication() = %+v, %v", application, err)
+	}
+}
+
+func TestGetApplicationNormalizesCredentialRejection(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "api key must not leak", http.StatusUnauthorized)
+	}))
+	defer server.Close()
+	entity := dokployServer(t, server.URL)
+	client := newDokployTestClientWithCredentials(t, server.URL, resolverFake{ips: []net.IP{net.ParseIP("127.0.0.1")}}, dokployCredentialStoreFake{value: []byte("key")})
+	if _, err := client.GetApplication(context.Background(), entity, "app-1"); !errors.Is(err, domain.ErrDokployCredentialRejected) || strings.Contains(err.Error(), "api key") {
+		t.Fatalf("credential rejection = %v", err)
 	}
 }
 

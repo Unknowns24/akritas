@@ -10,3 +10,4 @@
 | AKR-AUTH-TOTP-VERIFY | complete | backend-api-feature | Enrollment y verificación TOTP: activa al Administrator y abre sesión |
 | AKR-AUTH-LOGIN-SESSION | complete | backend-api-feature | Login, sesión opaca (idle TTL deslizante) y logout |
 | AKR-REST-CHI | complete | backend-api-feature | Migración modular del adaptador REST a Chi |
+| AKR-H1-PROJECTS | complete | backend-api-feature | Project CRUD, snapshots verificados y MonitoringConfiguration |

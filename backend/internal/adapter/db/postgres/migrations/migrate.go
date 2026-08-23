@@ -16,6 +16,7 @@ func All() []*gormigrate.Migration {
 		schema.SCHEMA_20260822_06_AddAdministrators(),
 		schema.SCHEMA_20260822_07_AddPendingEnrollments(),
 		schema.SCHEMA_20260822_08_AddAdministratorSessions(),
+		schema.SCHEMA_20260822_09_AddProjects(),
 	}
 }
 

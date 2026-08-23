@@ -5,7 +5,7 @@ Record durable project decisions here.
 ## 2026-08-22 — API contract v1
 
 - `backend/docs/openapi.yaml` is the canonical frontend/backend contract.
-- The contract uses OpenAPI 3.1.0, API version 1.2.0 and base `/api/v1`. Version 1.2.0 standardizes signed cursor pagination on Uker and changes the default page size from 20 to 25; paths and payloads remain compatible.
+- The contract uses OpenAPI 3.1.0, API version 1.4.0 and base `/api/v1`. Version 1.4.0 completes the Project lifecycle, including hard deletion while monitoring is disabled; existing paths and payloads remain compatible.
 - A GitHub Pull Request is the human-control boundary. The API does not merge, deploy or claim that production is resolved.
 
 ## 2026-08-22 — Single-administrator authentication
@@ -44,3 +44,10 @@ Record durable project decisions here.
 - REST contract types use the `DTO` suffix, one structure per file and packages
   grouped by feature under `rest/dto/<feature>`; shared envelopes live in
   `rest/dto/common`, and mapping responsibilities live in `rest/mapper`.
+
+## 2026-08-22 — Project lifecycle and integration snapshots
+
+- Project names are unique case-insensitively and a Dokploy application can be associated with only one Project.
+- Repository/application snapshots are resolved from the configured providers before create, association updates and monitoring activation; placeholders are not production data.
+- The requested GitHub `default_branch` must match provider metadata.
+- Association changes and deletion require monitoring disabled. Every enabled MonitoringConfiguration replacement revalidates both providers and returns the Project to `starting`.

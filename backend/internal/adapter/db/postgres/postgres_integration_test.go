@@ -50,7 +50,7 @@ func TestMigrationsAndEncryptedCredentialStoreAgainstPostgreSQL(t *testing.T) {
 	if err := migrations.Run(db); err != nil {
 		t.Fatal(err)
 	}
-	allTables := []string{"github_accounts", "dokploy_servers", "credentials", "github_app_registrations", "github_app_bindings", "administrators", "pending_enrollments", "administrator_sessions"}
+	allTables := []string{"github_accounts", "dokploy_servers", "credentials", "github_app_registrations", "github_app_bindings", "administrators", "pending_enrollments", "administrator_sessions", "projects"}
 	for _, table := range allTables {
 		if !db.Migrator().HasTable(table) {
 			t.Fatalf("migration did not create %s", table)

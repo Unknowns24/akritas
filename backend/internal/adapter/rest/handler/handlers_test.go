@@ -125,6 +125,28 @@ func (dokployServerStub) ListApplications(context.Context, uuid.UUID, paging.Par
 	return paging.Slice[domain.DokployApplication]{}, nil
 }
 
+type projectStub struct{}
+
+func (projectStub) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
+	return &portsin.ProjectResult{}, nil
+}
+func (projectStub) Get(context.Context, uuid.UUID) (*portsin.ProjectResult, error) {
+	return &portsin.ProjectResult{}, nil
+}
+func (projectStub) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
+	return paging.Slice[domain.Project]{}, nil
+}
+func (projectStub) Update(context.Context, portsin.UpdateProjectCommand) (*portsin.ProjectResult, error) {
+	return &portsin.ProjectResult{}, nil
+}
+func (projectStub) Delete(context.Context, uuid.UUID) error { return nil }
+func (projectStub) GetMonitoring(context.Context, uuid.UUID) (domain.MonitoringConfiguration, error) {
+	return domain.MonitoringConfiguration{}, nil
+}
+func (projectStub) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringConfiguration) (domain.MonitoringConfiguration, error) {
+	return domain.MonitoringConfiguration{}, nil
+}
+
 func completeUseCases() *portsin.UseCases {
 	return &portsin.UseCases{
 		GetSetupStatus:           getSetupStatusStub{},
@@ -137,6 +159,7 @@ func completeUseCases() *portsin.UseCases {
 		GitHubAccount:            githubAccountStub{},
 		GitHubApp:                githubAppStub{},
 		DokployServer:            dokployServerStub{},
+		Project:                  projectStub{},
 	}
 }
 
@@ -156,7 +179,7 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewHandlers() error = %v", err)
 	}
-	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil {
+	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil || handlers.ProjectHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -177,6 +200,7 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing GitHub account", mutate: func(config *HandlersConfig) { config.UseCases.GitHubAccount = nil }},
 		{name: "missing GitHub app", mutate: func(config *HandlersConfig) { config.UseCases.GitHubApp = nil }},
 		{name: "missing Dokploy server", mutate: func(config *HandlersConfig) { config.UseCases.DokployServer = nil }},
+		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 	}
 

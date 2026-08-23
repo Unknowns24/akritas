@@ -100,6 +100,15 @@ var (
 	ErrManifestStateInvalid              = newDomainError("0x502006V", "invalid GitHub manifest state", "El intento de conexión con GitHub no es válido.")
 	ErrManifestStateConflict             = newDomainError("0x502007C", "GitHub manifest state conflict", "El intento de conexión con GitHub ya fue utilizado o expiró.")
 	ErrIntegrationUnavailable            = newDomainError("0x502008I", "integration unavailable", "No se pudo contactar la integración.")
+	ErrProjectNotFound                   = newDomainError("0x503001N", "project not found", "El proyecto no existe.")
+	ErrProjectRepositoryNotFound         = newDomainError("0x503002N", "project repository not found", "El repositorio seleccionado no existe o no pertenece a la integración.")
+	ErrProjectApplicationNotFound        = newDomainError("0x503003N", "project application not found", "La aplicación seleccionada no existe.")
+	ErrProjectNameConflict               = newDomainError("0x503004C", "project name conflict", "Ya existe un proyecto con ese nombre.")
+	ErrProjectApplicationConflict        = newDomainError("0x503005C", "project application conflict", "La aplicación Dokploy ya está asociada a otro proyecto.")
+	ErrProjectMustBeDisabled             = newDomainError("0x503006C", "project must be disabled", "Desactivá el monitoreo antes de realizar esta operación.")
+	ErrProjectConcurrentModification     = newDomainError("0x503007C", "project changed concurrently", "El proyecto cambió; volvé a intentar la operación.")
+	ErrProjectDefaultBranchMismatch      = newDomainError("0x503008V", "project default branch mismatch", "La rama predeterminada no coincide con GitHub.")
+	ErrProjectHasDependencies            = newDomainError("0x503009C", "project has dependencies", "El proyecto tiene registros asociados y no puede eliminarse.")
 )
 
 // DomainErrors returns the complete stable catalog keyed by sentinel name.
@@ -172,5 +181,19 @@ func IntegrationErrors() map[string]*Error {
 func AuthenticationErrors() map[string]*Error {
 	return map[string]*Error{
 		"ErrAuthenticationRateLimited": ErrAuthenticationRateLimited,
+	}
+}
+
+func ProjectErrors() map[string]*Error {
+	return map[string]*Error{
+		"ErrProjectNotFound":               ErrProjectNotFound,
+		"ErrProjectRepositoryNotFound":     ErrProjectRepositoryNotFound,
+		"ErrProjectApplicationNotFound":    ErrProjectApplicationNotFound,
+		"ErrProjectNameConflict":           ErrProjectNameConflict,
+		"ErrProjectApplicationConflict":    ErrProjectApplicationConflict,
+		"ErrProjectMustBeDisabled":         ErrProjectMustBeDisabled,
+		"ErrProjectConcurrentModification": ErrProjectConcurrentModification,
+		"ErrProjectDefaultBranchMismatch":  ErrProjectDefaultBranchMismatch,
+		"ErrProjectHasDependencies":        ErrProjectHasDependencies,
 	}
 }

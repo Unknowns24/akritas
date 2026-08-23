@@ -45,17 +45,17 @@ func (s ProjectHealthStatus) Validate() error {
 }
 
 type Project struct {
-	ID                      uuid.UUID
-	Name                    string
-	Description             string
-	MonitoringStatus        MonitoringStatus
-	HealthStatus            ProjectHealthStatus
-	GitHubRepository        GitHubRepository
-	DokployApplication      DokployApplication
-	MonitoringConfiguration MonitoringConfiguration
-	LastObservedAt          *time.Time
-	CreatedAt               time.Time
-	UpdatedAt               time.Time
+	ID                      uuid.UUID               `gorm:"column:id;type:uuid;primaryKey"`
+	Name                    string                  `gorm:"column:name"`
+	Description             string                  `gorm:"column:description"`
+	MonitoringStatus        MonitoringStatus        `gorm:"column:monitoring_status"`
+	HealthStatus            ProjectHealthStatus     `gorm:"column:health_status"`
+	GitHubRepository        GitHubRepository        `gorm:"embedded"`
+	DokployApplication      DokployApplication      `gorm:"embedded"`
+	MonitoringConfiguration MonitoringConfiguration `gorm:"embedded"`
+	LastObservedAt          *time.Time              `gorm:"column:last_observed_at"`
+	CreatedAt               time.Time               `gorm:"column:created_at"`
+	UpdatedAt               time.Time               `gorm:"column:updated_at"`
 }
 
 func NewProject(
@@ -82,6 +82,11 @@ func NewProject(
 	if err := project.Validate(); err != nil {
 		return nil, err
 	}
+	if monitoringConfiguration.Enabled {
+		if err := project.ReadyForMonitoringEngine(); err != nil {
+			return nil, err
+		}
+	}
 	return project, nil
 }
 
@@ -95,5 +100,100 @@ func (p Project) Validate() error {
 	if p.LastObservedAt != nil && p.LastObservedAt.Before(p.CreatedAt) {
 		return ErrInvalidProject.Wrap(validationCause("last observed time"))
 	}
+	if p.MonitoringConfiguration.Enabled == (p.MonitoringStatus == MonitoringStatusDisabled) {
+		return ErrInvalidProject.Wrap(validationCause("monitoring state"))
+	}
+	return nil
+}
+
+func (p Project) ReadyForMonitoringEngine() error {
+	if err := p.GitHubRepository.Validate(); err != nil {
+		return err
+	}
+	if err := p.DokployApplication.Validate(); err != nil {
+		return err
+	}
+	if err := p.MonitoringConfiguration.Validate(); err != nil {
+		return err
+	}
+	if !p.MonitoringConfiguration.Enabled {
+		return ErrInvalidMonitoringConfiguration.Wrap(validationCause("monitoring disabled"))
+	}
+	return nil
+}
+
+func (p *Project) Rename(name, description string, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject
+	}
+	next := *p
+	next.Name = strings.TrimSpace(name)
+	next.Description = strings.TrimSpace(description)
+	next.UpdatedAt = updatedAt
+	if err := next.Validate(); err != nil {
+		return err
+	}
+	*p = next
+	return nil
+}
+
+func (p *Project) ReplaceIntegrations(repository GitHubRepository, application DokployApplication, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject
+	}
+	if p.MonitoringConfiguration.Enabled {
+		return ErrProjectMustBeDisabled
+	}
+	next := *p
+	next.GitHubRepository = repository
+	next.DokployApplication = application
+	next.UpdatedAt = updatedAt
+	if err := next.Validate(); err != nil {
+		return err
+	}
+	*p = next
+	return nil
+}
+
+func (p *Project) RefreshIntegrationSnapshots(repository GitHubRepository, application DokployApplication, updatedAt time.Time) error {
+	if p == nil || repository.GitHubAccountID != p.GitHubRepository.GitHubAccountID ||
+		repository.RepositoryIdentifier != p.GitHubRepository.RepositoryIdentifier ||
+		application.DokployServerID != p.DokployApplication.DokployServerID ||
+		application.ApplicationIdentifier != p.DokployApplication.ApplicationIdentifier {
+		return ErrInvalidProject.Wrap(validationCause("integration snapshot identity"))
+	}
+	next := *p
+	next.GitHubRepository = repository
+	next.DokployApplication = application
+	next.UpdatedAt = updatedAt
+	if err := next.Validate(); err != nil {
+		return err
+	}
+	*p = next
+	return nil
+}
+
+func (p *Project) ReplaceMonitoringConfiguration(configuration MonitoringConfiguration, updatedAt time.Time) error {
+	if p == nil {
+		return ErrInvalidProject
+	}
+	if err := configuration.Validate(); err != nil {
+		return err
+	}
+	next := *p
+	next.MonitoringConfiguration = configuration.Clone()
+	next.UpdatedAt = updatedAt
+	if configuration.Enabled {
+		next.MonitoringStatus = MonitoringStatusStarting
+		if err := next.ReadyForMonitoringEngine(); err != nil {
+			return err
+		}
+	} else {
+		next.MonitoringStatus = MonitoringStatusDisabled
+	}
+	if err := next.Validate(); err != nil {
+		return err
+	}
+	*p = next
 	return nil
 }

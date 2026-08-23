@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -195,6 +196,59 @@ func TestListRepositoriesMapsOnlyConfiguredOwner(t *testing.T) {
 	}
 	if page.PrevBoundary["provider_page"] != "2" {
 		t.Fatalf("provider boundary was not translated: %+v", page.PrevBoundary)
+	}
+}
+
+func TestGetRepositoryResolvesOpaqueIDAndRejectsAnotherOwner(t *testing.T) {
+	t.Parallel()
+	owner := "Unknowns24"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repositories/42" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": 42, "name": "akritas", "default_branch": "main", "private": true, "html_url": "https://github.com/" + owner + "/akritas", "owner": map[string]any{"login": owner}})
+	}))
+	defer server.Close()
+	account := githubAccount(t)
+	credentials := credentialStoreFake{values: map[string][]byte{credentialKey(account.ID, portsout.SecretKindGitHubPAT): []byte("secret")}}
+	client := newTestClient(t, server.URL, credentials)
+	repository, err := client.GetRepository(context.Background(), account, "42")
+	if err != nil || repository.RepositoryIdentifier != "42" || repository.DefaultBranch != "main" || !repository.Private {
+		t.Fatalf("GetRepository() = %+v, %v", repository, err)
+	}
+	owner = "another"
+	if _, err := client.GetRepository(context.Background(), account, "42"); !errors.Is(err, domain.ErrIntegrationNotFound) {
+		t.Fatalf("owner mismatch = %v", err)
+	}
+}
+
+func TestGetRepositorySupportsOwnerNameAndNormalizesProviderFailures(t *testing.T) {
+	t.Parallel()
+	status := http.StatusOK
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/Unknowns24/akritas" {
+			t.Fatalf("path = %s", r.URL.Path)
+		}
+		if status != http.StatusOK {
+			http.Error(w, "provider detail must not leak", status)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"id": 42, "name": "akritas", "default_branch": "main", "private": true, "html_url": "https://github.com/Unknowns24/akritas", "owner": map[string]any{"login": "Unknowns24"}})
+	}))
+	defer server.Close()
+	account := githubAccount(t)
+	credentials := credentialStoreFake{values: map[string][]byte{credentialKey(account.ID, portsout.SecretKindGitHubPAT): []byte("secret")}}
+	client := newTestClient(t, server.URL, credentials)
+	if repository, err := client.GetRepository(context.Background(), account, "Unknowns24/akritas"); err != nil || repository.RepositoryIdentifier != "42" {
+		t.Fatalf("owner/name resolution = %+v, %v", repository, err)
+	}
+	status = http.StatusNotFound
+	if _, err := client.GetRepository(context.Background(), account, "Unknowns24/akritas"); !errors.Is(err, domain.ErrIntegrationNotFound) {
+		t.Fatalf("not found = %v", err)
+	}
+	status = http.StatusUnauthorized
+	if _, err := client.GetRepository(context.Background(), account, "Unknowns24/akritas"); !errors.Is(err, domain.ErrGitHubCredentialRejected) || strings.Contains(err.Error(), "provider detail") {
+		t.Fatalf("credential rejection = %v", err)
 	}
 }
 

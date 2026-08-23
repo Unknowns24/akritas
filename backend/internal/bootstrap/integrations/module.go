@@ -9,7 +9,7 @@ import (
 	dokployrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/dokployserver"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
 	githubapprepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubapp"
-	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/integrationusage"
+	projectrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/project"
 	dokployexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/dokploy"
 	githubexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/github"
 	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
@@ -18,6 +18,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubapp"
+	projectusecase "github.com/Unknowns24/akritas/backend/internal/usecase/project"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
@@ -64,9 +65,14 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	if err != nil {
 		return nil, err
 	}
-	usage := integrationusage.UnavailableReader{}
+	projects, err := projectrepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
+	usage := projects
 	githubAccountUseCase := githubaccount.New(githubAccounts, githubClient, usage, uuid.New, time.Now)
 	dokployUseCase := dokployserver.New(dokployServers, dokployClient, usage, uuid.New, time.Now)
+	projectUseCase := projectusecase.New(projects, githubAccounts, dokployServers, githubClient, dokployClient, uuid.New, time.Now)
 	githubAppUseCase, err := githubapp.New(githubApps, githubClient, configuration.PublicURL, uuid.New, time.Now)
 	if err != nil {
 		return nil, err
@@ -79,6 +85,7 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	useCases.GitHubAccount = githubAccountUseCase
 	useCases.GitHubApp = githubAppUseCase
 	useCases.DokployServer = dokployUseCase
+	useCases.Project = projectUseCase
 	handlers, err := resthandler.NewHandlers(resthandler.HandlersConfig{
 		UseCases:            &useCases,
 		Pagination:          pagingConfig,

@@ -9,7 +9,7 @@ import (
 func TestPersistedIntegrationEntitiesExposeOnlyDeclarativeGORMMetadata(t *testing.T) {
 	t.Parallel()
 
-	for _, entity := range []any{GitHubAccount{}, DokployServer{}, Administrator{}, AdministratorSession{}, PendingEnrollment{}} {
+	for _, entity := range []any{GitHubAccount{}, DokployServer{}, Administrator{}, AdministratorSession{}, PendingEnrollment{}, Project{}} {
 		typeOf := reflect.TypeOf(entity)
 		id, ok := typeOf.FieldByName("ID")
 		if !ok || !strings.Contains(id.Tag.Get("gorm"), "primaryKey") {
@@ -17,6 +17,18 @@ func TestPersistedIntegrationEntitiesExposeOnlyDeclarativeGORMMetadata(t *testin
 		}
 		if createdAt, ok := typeOf.FieldByName("CreatedAt"); ok && !strings.Contains(createdAt.Tag.Get("gorm"), "column:created_at") {
 			t.Fatalf("%s.CreatedAt must map the existing schema", typeOf.Name())
+		}
+	}
+}
+
+func TestProjectDomainEntityDoesNotContainSecretMaterial(t *testing.T) {
+	t.Parallel()
+
+	typeOf := reflect.TypeOf(Project{})
+	for index := 0; index < typeOf.NumField(); index++ {
+		name := strings.ToLower(typeOf.Field(index).Name)
+		if strings.Contains(name, "password") || strings.Contains(name, "secret") || strings.Contains(name, "token") || strings.Contains(name, "credential") || strings.Contains(name, "cipher") {
+			t.Fatalf("Project leaks secret field %s", typeOf.Field(index).Name)
 		}
 	}
 }

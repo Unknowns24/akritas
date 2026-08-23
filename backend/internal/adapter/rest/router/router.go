@@ -34,6 +34,7 @@ func New(config Config) (http.Handler, error) {
 		config.Handlers.AuthHandler == nil ||
 		config.Handlers.GitHubHandler == nil ||
 		config.Handlers.DokployHandler == nil ||
+		config.Handlers.ProjectHandler == nil ||
 		config.Authenticate == nil ||
 		len(config.AllowedOrigins) == 0 {
 		return nil, ErrInvalidRouterConfiguration
@@ -57,6 +58,11 @@ func New(config Config) (http.Handler, error) {
 				registerGitHubRoutes(private, config.Handlers.GitHubHandler)
 				registerDokployRoutes(private, config.Handlers.DokployHandler)
 			})
+		})
+		api.Group(func(private chi.Router) {
+			private.Use(config.Admin)
+			private.Use(authmiddleware.RequireAllowedOrigin(config.AllowedOrigins))
+			registerProjectRoutes(private, config.Handlers.ProjectHandler)
 		})
 	})
 	return root, nil

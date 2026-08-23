@@ -12,6 +12,7 @@ func TestMigrationRegistryIsOrderedAndReversible(t *testing.T) {
 		"20260822_06_add_administrators",
 		"20260822_07_add_pending_enrollments",
 		"20260822_08_add_administrator_sessions",
+		"20260822_09_add_projects",
 	}
 	migrations := All()
 	if len(migrations) != len(expected) {

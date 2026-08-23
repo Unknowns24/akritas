@@ -14,6 +14,7 @@ import (
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
+	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
 	restmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
@@ -92,6 +93,31 @@ type fakeDokployServers struct {
 	getID uuid.UUID
 }
 
+type fakeProjects struct {
+	createCalls int
+}
+
+func (f *fakeProjects) Create(context.Context, portsin.CreateProjectCommand) (*portsin.ProjectResult, error) {
+	f.createCalls++
+	return &portsin.ProjectResult{}, nil
+}
+func (*fakeProjects) Get(context.Context, uuid.UUID) (*portsin.ProjectResult, error) {
+	return &portsin.ProjectResult{}, nil
+}
+func (*fakeProjects) List(context.Context, paging.Params) (paging.Slice[domain.Project], error) {
+	return paging.Slice[domain.Project]{}, nil
+}
+func (*fakeProjects) Update(context.Context, portsin.UpdateProjectCommand) (*portsin.ProjectResult, error) {
+	return &portsin.ProjectResult{}, nil
+}
+func (*fakeProjects) Delete(context.Context, uuid.UUID) error { return nil }
+func (*fakeProjects) GetMonitoring(context.Context, uuid.UUID) (domain.MonitoringConfiguration, error) {
+	return domain.MonitoringConfiguration{}, nil
+}
+func (*fakeProjects) PutMonitoring(context.Context, uuid.UUID, domain.MonitoringConfiguration) (domain.MonitoringConfiguration, error) {
+	return domain.MonitoringConfiguration{}, nil
+}
+
 func (f *fakeDokployServers) Create(context.Context, portsin.CreateDokployServerCommand) (*domain.DokployServer, error) {
 	return &domain.DokployServer{}, nil
 }
@@ -125,6 +151,7 @@ type routerFixture struct {
 	accounts     *fakeGitHubAccounts
 	apps         *fakeGitHubApps
 	dokploy      *fakeDokployServers
+	projects     *fakeProjects
 }
 
 func newRouterFixture() *routerFixture {
@@ -141,12 +168,18 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
+	projects := &fakeProjects{}
+	projectHandler, err := projecthandler.New(projects, paging)
+	if err != nil {
+		panic(err)
+	}
 	return &routerFixture{
 		config: Config{
 			Handlers: &resthandler.Handlers{
 				AuthHandler:    &authhandler.Handler{},
 				GitHubHandler:  githubHandler,
 				DokployHandler: dokployHandler,
+				ProjectHandler: projectHandler,
 			},
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
@@ -156,6 +189,7 @@ func newRouterFixture() *routerFixture {
 		accounts:     accounts,
 		apps:         apps,
 		dokploy:      dokploy,
+		projects:     projects,
 	}
 }
 
@@ -202,6 +236,7 @@ func TestRouterFailsClosedWithoutCompleteHandlers(t *testing.T) {
 		{name: "missing auth", mutate: func(config *Config) { config.Handlers.AuthHandler = nil }},
 		{name: "missing GitHub", mutate: func(config *Config) { config.Handlers.GitHubHandler = nil }},
 		{name: "missing Dokploy", mutate: func(config *Config) { config.Handlers.DokployHandler = nil }},
+		{name: "missing Project", mutate: func(config *Config) { config.Handlers.ProjectHandler = nil }},
 	}
 
 	for _, test := range tests {
@@ -236,6 +271,7 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"DELETE /api/v1/auth/session",
 		"DELETE /api/v1/integrations/dokploy/servers/{server_id}",
 		"DELETE /api/v1/integrations/github/accounts/{account_id}",
+		"DELETE /api/v1/projects/{project_id}",
 		"GET /api/v1/auth/session",
 		"GET /api/v1/auth/setup-status",
 		"GET /api/v1/integrations/dokploy/servers",
@@ -246,8 +282,12 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/integrations/github/accounts/{account_id}/repositories",
 		"GET /api/v1/integrations/github/app-installations/callback",
 		"GET /api/v1/integrations/github/app-manifest/callback",
+		"GET /api/v1/projects",
+		"GET /api/v1/projects/{project_id}",
+		"GET /api/v1/projects/{project_id}/monitoring-configuration",
 		"PATCH /api/v1/integrations/dokploy/servers/{server_id}",
 		"PATCH /api/v1/integrations/github/accounts/{account_id}",
+		"PATCH /api/v1/projects/{project_id}",
 		"POST /api/v1/auth/login",
 		"POST /api/v1/auth/setup",
 		"POST /api/v1/auth/setup/verify",
@@ -256,6 +296,8 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"POST /api/v1/integrations/github/accounts",
 		"POST /api/v1/integrations/github/accounts/{account_id}/connection-test",
 		"POST /api/v1/integrations/github/app-manifest/registrations",
+		"POST /api/v1/projects",
+		"PUT /api/v1/projects/{project_id}/monitoring-configuration",
 	}
 	sort.Strings(want)
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {
@@ -314,6 +356,26 @@ func TestRouterProtectsSessionAndIntegrationMutations(t *testing.T) {
 		}
 		if fixture.accounts.createCalls != 0 {
 			t.Fatal("handler must not run when Origin is rejected")
+		}
+	})
+
+	t.Run("Project requires authentication", func(t *testing.T) {
+		fixture := newRouterFixture()
+		fixture.authenticate.err = domain.ErrInactiveAdministratorSession
+		recorder := serve(mustRouter(t, fixture.config), http.MethodGet, "/api/v1/projects")
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", recorder.Code)
+		}
+	})
+
+	t.Run("Project mutation requires allowed Origin", func(t *testing.T) {
+		fixture := newRouterFixture()
+		recorder := serve(mustRouter(t, fixture.config), http.MethodPost, "/api/v1/projects")
+		if recorder.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403", recorder.Code)
+		}
+		if fixture.projects.createCalls != 0 {
+			t.Fatal("Project handler must not run when Origin is rejected")
 		}
 	})
 }

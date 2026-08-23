@@ -13,4 +13,5 @@ type UseCases struct {
 	GitHubAccount            GitHubAccountUseCase
 	GitHubApp                GitHubAppUseCase
 	DokployServer            DokployServerUseCase
+	Project                  ProjectUseCase
 }

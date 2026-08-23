@@ -44,3 +44,24 @@ func (r BuiltInDetectionRule) Validate() error {
 	}
 	return nil
 }
+
+func AllBuiltInDetectionRules() []BuiltInDetectionRule {
+	definitions := []struct {
+		code DetectionRuleCode
+		name string
+	}{
+		{DetectionRuleErrorLevel, "Error level"}, {DetectionRuleFatalLevel, "Fatal level"},
+		{DetectionRulePanic, "Panic"}, {DetectionRuleStackTrace, "Stack trace"},
+		{DetectionRuleHTTP5xx, "HTTP 5xx"}, {DetectionRuleProcessCrash, "Process crash"},
+		{DetectionRuleContainerRestart, "Container restart"},
+	}
+	rules := make([]BuiltInDetectionRule, 0, len(definitions))
+	for _, definition := range definitions {
+		rule, err := NewBuiltInDetectionRule(definition.code, definition.name)
+		if err != nil {
+			panic(err)
+		}
+		rules = append(rules, rule)
+	}
+	return rules
+}

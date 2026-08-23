@@ -9,6 +9,7 @@ import (
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 var (
@@ -48,6 +49,13 @@ func New(config Config) (http.Handler, error) {
 	root := chi.NewRouter()
 	root.Use(chimiddleware.RequestID)
 	root.Use(authmiddleware.RecoverPanics)
+	root.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   config.AllowedOrigins,
+		AllowedMethods:   []string{http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
+		AllowedHeaders:   []string{"Accept", "Content-Type", "Idempotency-Key"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 	root.Use(chimiddleware.GetHead)
 	root.Route("/api/v1", func(api chi.Router) {
 		registerAuthRoutes(api, config.Handlers.AuthHandler, config.Authenticate, config.AllowedOrigins)

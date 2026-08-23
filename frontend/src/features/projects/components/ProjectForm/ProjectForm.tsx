@@ -102,7 +102,7 @@ export function ProjectForm({ initialData }: ProjectFormProps) {
 
         if (createError) throw createError;
         if (data) {
-          router.push(`/projects/${data.id}`);
+          router.push(`/projects`);
         }
       }
     } catch (err: any) {

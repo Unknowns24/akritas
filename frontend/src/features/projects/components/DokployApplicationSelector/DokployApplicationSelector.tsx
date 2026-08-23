@@ -173,7 +173,7 @@ export const DokployApplicationSelector: React.FC<DokployApplicationSelectorProp
                     </div>
                     <span className={styles.appId}>{app.instance_identifier} ({app.application_identifier})</span>
                   </div>
-                  {isSelected && <CheckCircle size={18} color="var(--success)" />}
+                  {isSelected && <CheckCircle size={18} color="var(--status-success)" />}
                 </div>
               );
             })}

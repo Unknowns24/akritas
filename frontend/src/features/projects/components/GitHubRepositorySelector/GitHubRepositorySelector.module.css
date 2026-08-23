@@ -93,7 +93,7 @@
 }
 
 .repoItem.selected {
-  background: var(--bg-primary-subtle);
+  background: var(--accent-indigo-subtle);
 }
 
 .repoInfo {

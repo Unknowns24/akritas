@@ -123,12 +123,16 @@
   border-bottom: none;
 }
 
+.appItem.selected {
+  background: var(--accent-indigo-subtle);
+}
+
 .appItem:hover {
-  background: var(--bg-primary-subtle);
+  background: var(--surface-2);
 }
 
 .selected {
-  background: var(--bg-primary-subtle);
+  background: var(--accent-indigo-subtle);
 }
 
 .appInfo {

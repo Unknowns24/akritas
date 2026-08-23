@@ -191,7 +191,7 @@ export const GitHubRepositorySelector: React.FC<GitHubRepositorySelectorProps> =
                       <span className={styles.repoUrl}>{repo.html_url}</span>
                     )}
                   </div>
-                  {isSelected && <CheckCircle size={18} color="var(--success)" />}
+                  {isSelected && <CheckCircle size={18} color="var(--status-success)" />}
                 </div>
               );
             })}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"testing"
 	"time"
 
@@ -38,6 +39,14 @@ func TestManifestFlowUsesSeparateOneTimeStatesAndVerifiedInstallation(t *testing
 	if string(store.registration.ConversionStateDigest) == started.State {
 		t.Fatal("raw state was persisted")
 	}
+	formURL, err := url.Parse(started.FormAction)
+	if err != nil {
+		t.Fatal(err)
+	}
+	callbackState := formURL.Query().Get("state")
+	if callbackState == "" || callbackState != started.State {
+		t.Fatalf("form action does not hand GitHub the generated state: %q", started.FormAction)
+	}
 	var manifest map[string]any
 	if err := json.Unmarshal([]byte(started.Manifest), &manifest); err != nil {
 		t.Fatal(err)
@@ -45,8 +54,17 @@ func TestManifestFlowUsesSeparateOneTimeStatesAndVerifiedInstallation(t *testing
 	if manifest["public"] != false || manifest["hook_attributes"].(map[string]any)["active"] != false {
 		t.Fatalf("manifest is not private with disabled webhooks: %#v", manifest)
 	}
+	permissions := manifest["default_permissions"].(map[string]any)
+	if len(permissions) != 4 || permissions["metadata"] != "read" || permissions["contents"] != "write" || permissions["issues"] != "write" || permissions["pull_requests"] != "write" {
+		t.Fatalf("manifest permissions changed: %#v", permissions)
+	}
+	for _, secretField := range []string{"private_key", "webhook_secret", "client_secret"} {
+		if _, exists := manifest[secretField]; exists {
+			t.Fatalf("manifest contains secret field %q", secretField)
+		}
+	}
 
-	converted, err := uc.CompleteManifest(context.Background(), "manifest-code-at-least-twenty", started.State)
+	converted, err := uc.CompleteManifest(context.Background(), "manifest-code-at-least-twenty", callbackState)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +74,7 @@ func TestManifestFlowUsesSeparateOneTimeStatesAndVerifiedInstallation(t *testing
 	if len(store.secrets) != 2 || string(store.secrets[0].Plaintext) == "" {
 		t.Fatal("App secrets were not handed to the credential transaction")
 	}
-	if _, err := uc.CompleteManifest(context.Background(), "manifest-code-at-least-twenty", started.State); !errors.Is(err, domain.ErrManifestStateConflict) {
+	if _, err := uc.CompleteManifest(context.Background(), "manifest-code-at-least-twenty", callbackState); !errors.Is(err, domain.ErrManifestStateConflict) {
 		t.Fatalf("expected replay conflict, got %v", err)
 	}
 
@@ -125,11 +143,13 @@ func (s *registrationStoreFake) CompleteInstallation(_ context.Context, registra
 }
 
 type appGatewayFake struct {
-	conversion   portsout.GitHubManifestConversion
-	installation portsout.GitHubInstallation
+	conversion    portsout.GitHubManifestConversion
+	installation  portsout.GitHubInstallation
+	exchangeCalls int
 }
 
 func (g *appGatewayFake) ExchangeManifest(context.Context, string) (portsout.GitHubManifestConversion, error) {
+	g.exchangeCalls++
 	return g.conversion, nil
 }
 func (g *appGatewayFake) VerifyInstallation(context.Context, portsout.GitHubAppRegistration, int64) (portsout.GitHubInstallation, error) {

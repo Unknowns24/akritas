@@ -56,11 +56,18 @@ func (uc *UseCase) StartRegistration(ctx context.Context, command portsin.StartG
 	if err != nil {
 		return portsin.GitHubManifestRegistrationResult{}, domain.ErrIntegrationUnavailable.Wrap(err)
 	}
-	formAction := "https://github.com/settings/apps/new"
+	baseFormAction := "https://github.com/settings/apps/new"
 	if command.OwnerType == domain.GitHubAccountOrganization {
-		formAction = "https://github.com/organizations/" + url.PathEscape(organization) + "/settings/apps/new"
+		baseFormAction = "https://github.com/organizations/" + url.PathEscape(organization) + "/settings/apps/new"
 	}
+	formURL, err := url.Parse(baseFormAction)
+	if err != nil {
+		return portsin.GitHubManifestRegistrationResult{}, domain.ErrIntegrationUnavailable.Wrap(err)
+	}
+	query := formURL.Query()
+	query.Set("state", state)
+	formURL.RawQuery = query.Encode()
 	return portsin.GitHubManifestRegistrationResult{
-		RegistrationID: registration.ID, FormAction: formAction, Manifest: string(manifestJSON), State: state, ExpiresAt: registration.ExpiresAt.Format(time.RFC3339),
+		RegistrationID: registration.ID, FormAction: formURL.String(), Manifest: string(manifestJSON), State: state, ExpiresAt: registration.ExpiresAt.Format(time.RFC3339),
 	}, nil
 }

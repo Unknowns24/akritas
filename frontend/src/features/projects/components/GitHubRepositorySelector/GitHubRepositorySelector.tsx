@@ -122,6 +122,7 @@ export const GitHubRepositorySelector: React.FC<GitHubRepositorySelectorProps> =
         </select>
         
         <Button 
+          type="button"
           variant="secondary" 
           onClick={handleTestConnection}
           disabled={!selectedAccountId || connectionStatus === "testing"}

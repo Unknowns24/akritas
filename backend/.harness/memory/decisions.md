@@ -27,7 +27,7 @@ Record durable project decisions here.
 - The MVP domain starts as one flat `internal/core/domain` package with one file per cohesive concept.
 - Akritas-owned identities use `github.com/google/uuid`; provider identifiers remain strings.
 - Persistible domain entities may contain passive GORM tags under ADR-012, but core never imports GORM or owns repository behavior. Domain/public types never contain integration/authentication secrets.
-- Domain error components reserve `0x401` through `0x406` for auth, integrations, project, incidents, investigations and remediation respectively.
+- Domain error components reserve `0x401` through `0x406` for auth, integrations, project, incidents, investigations and remediation respectively. `0x407` is reserved for `Operation`, the generic async-command entity shared by investigation and future remediation/pull_request flows.
 
 ## 2026-08-22 — PostgreSQL persistence
 

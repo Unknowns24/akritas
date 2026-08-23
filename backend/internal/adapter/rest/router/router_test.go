@@ -13,6 +13,7 @@ import (
 	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
+	evidencehandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/evidence"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
 	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
 	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
@@ -168,6 +169,12 @@ func (*fakeOperations) GetOperation(context.Context, uuid.UUID) (*domain.Operati
 	return &domain.Operation{}, nil
 }
 
+type fakeEvidence struct{}
+
+func (*fakeEvidence) ListInvestigationEvidence(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Evidence], error) {
+	return paging.Slice[domain.Evidence]{}, nil
+}
+
 type routerFixture struct {
 	config         Config
 	authenticate   *fakeAuthenticateSession
@@ -177,6 +184,7 @@ type routerFixture struct {
 	projects       *fakeProjects
 	investigations *fakeInvestigations
 	operations     *fakeOperations
+	evidence       *fakeEvidence
 }
 
 func newRouterFixture() *routerFixture {
@@ -208,6 +216,11 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
+	evidence := &fakeEvidence{}
+	evidenceHandler, err := evidencehandler.New(evidence, paging)
+	if err != nil {
+		panic(err)
+	}
 	return &routerFixture{
 		config: Config{
 			Handlers: &resthandler.Handlers{
@@ -217,6 +230,7 @@ func newRouterFixture() *routerFixture {
 				ProjectHandler:       projectHandler,
 				InvestigationHandler: investigationHandler,
 				OperationHandler:     operationHandler,
+				EvidenceHandler:      evidenceHandler,
 			},
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
@@ -229,6 +243,7 @@ func newRouterFixture() *routerFixture {
 		projects:       projects,
 		investigations: investigations,
 		operations:     operations,
+		evidence:       evidence,
 	}
 }
 
@@ -278,6 +293,7 @@ func TestRouterFailsClosedWithoutCompleteHandlers(t *testing.T) {
 		{name: "missing Project", mutate: func(config *Config) { config.Handlers.ProjectHandler = nil }},
 		{name: "missing Investigation", mutate: func(config *Config) { config.Handlers.InvestigationHandler = nil }},
 		{name: "missing Operation", mutate: func(config *Config) { config.Handlers.OperationHandler = nil }},
+		{name: "missing Evidence", mutate: func(config *Config) { config.Handlers.EvidenceHandler = nil }},
 	}
 
 	for _, test := range tests {
@@ -325,6 +341,7 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/integrations/github/app-manifest/callback",
 		"GET /api/v1/incidents/{incident_id}/investigations",
 		"GET /api/v1/investigations/{investigation_id}",
+		"GET /api/v1/investigations/{investigation_id}/evidence",
 		"GET /api/v1/operations/{operation_id}",
 		"GET /api/v1/projects",
 		"GET /api/v1/projects/{project_id}",
@@ -451,6 +468,15 @@ func TestRouterProtectsSessionAndIntegrationMutations(t *testing.T) {
 		fixture := newRouterFixture()
 		fixture.authenticate.err = domain.ErrInactiveAdministratorSession
 		recorder := serve(mustRouter(t, fixture.config), http.MethodGet, "/api/v1/operations/"+uuid.NewString())
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", recorder.Code)
+		}
+	})
+
+	t.Run("Evidence requires authentication", func(t *testing.T) {
+		fixture := newRouterFixture()
+		fixture.authenticate.err = domain.ErrInactiveAdministratorSession
+		recorder := serve(mustRouter(t, fixture.config), http.MethodGet, "/api/v1/investigations/"+uuid.NewString()+"/evidence")
 		if recorder.Code != http.StatusUnauthorized {
 			t.Fatalf("status = %d, want 401", recorder.Code)
 		}

@@ -7,6 +7,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/config"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/credentialstore"
 	dokployrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/dokployserver"
+	evidencerepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/evidence"
 	githubrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubaccount"
 	githubapprepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/githubapp"
 	investigationrepo "github.com/Unknowns24/akritas/backend/internal/adapter/db/postgres/repository/investigation"
@@ -19,8 +20,10 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/router"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/stub"
+	"github.com/Unknowns24/akritas/backend/internal/service/evidenceassembly"
 	"github.com/Unknowns24/akritas/backend/internal/service/investigationdispatch"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/dokployserver"
+	evidenceusecase "github.com/Unknowns24/akritas/backend/internal/usecase/evidence"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubaccount"
 	"github.com/Unknowns24/akritas/backend/internal/usecase/githubapp"
 	investigationusecase "github.com/Unknowns24/akritas/backend/internal/usecase/investigation"
@@ -89,17 +92,24 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	if err != nil {
 		return nil, err
 	}
+	evidences, err := evidencerepo.New(dependencies.DB)
+	if err != nil {
+		return nil, err
+	}
 	usage := projects
 	githubAccountUseCase := githubaccount.New(githubAccounts, githubClient, usage, uuid.New, time.Now)
 	dokployUseCase := dokployserver.New(dokployServers, dokployClient, usage, uuid.New, time.Now)
 	projectUseCase := projectusecase.New(projects, githubAccounts, dokployServers, githubClient, dokployClient, uuid.New, time.Now)
 
-	runInvestigation := investigationusecase.NewRunUseCase(investigations, operations, qvac.NewStubRunner(), time.Now)
+	incidentReader := stub.NewDenyAllIncidentReader()
+	evidenceAssembler := evidenceassembly.New(incidentReader, projects, uuid.New, time.Now)
+	runInvestigation := investigationusecase.NewRunUseCase(investigations, operations, evidences, evidenceAssembler, qvac.NewStubRunner(), time.Now)
 	investigationDispatcher := investigationdispatch.New(runInvestigation, investigationRunTimeout)
 	investigationUseCase := investigationusecase.New(
-		stub.NewDenyAllIncidentReader(), investigations, operations, investigationDispatcher, uuid.New, time.Now,
+		incidentReader, investigations, operations, investigationDispatcher, uuid.New, time.Now,
 	)
 	operationUseCase := operationusecase.New(operations)
+	evidenceUseCase := evidenceusecase.New(investigations, evidences)
 	githubAppUseCase, err := githubapp.New(githubApps, githubClient, configuration.PublicURL, uuid.New, time.Now)
 	if err != nil {
 		return nil, err
@@ -115,6 +125,7 @@ func Build(configuration config.Config, dependencies Dependencies) (http.Handler
 	useCases.Project = projectUseCase
 	useCases.Investigation = investigationUseCase
 	useCases.Operation = operationUseCase
+	useCases.Evidence = evidenceUseCase
 	handlers, err := resthandler.NewHandlers(resthandler.HandlersConfig{
 		UseCases:            &useCases,
 		Pagination:          pagingConfig,

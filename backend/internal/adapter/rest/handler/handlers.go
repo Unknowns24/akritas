@@ -5,6 +5,7 @@ import (
 
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
+	evidencehandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/evidence"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
 	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
 	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
@@ -22,6 +23,7 @@ type Handlers struct {
 	ProjectHandler       *projecthandler.Handler
 	InvestigationHandler *investigationhandler.Handler
 	OperationHandler     *operationhandler.Handler
+	EvidenceHandler      *evidencehandler.Handler
 }
 
 type HandlersConfig struct {
@@ -59,6 +61,10 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
+	evidenceHandler, err := evidencehandler.New(config.UseCases.Evidence, config.Pagination)
+	if err != nil {
+		return nil, ErrInvalidHandlersConfiguration
+	}
 
 	return &Handlers{
 		AuthHandler: authhandler.NewHandler(
@@ -75,6 +81,7 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 		ProjectHandler:       projectHandler,
 		InvestigationHandler: investigationHandler,
 		OperationHandler:     operationHandler,
+		EvidenceHandler:      evidenceHandler,
 	}, nil
 }
 
@@ -92,5 +99,6 @@ func validUseCases(useCases *portsin.UseCases) bool {
 		useCases.DokployServer != nil &&
 		useCases.Project != nil &&
 		useCases.Investigation != nil &&
-		useCases.Operation != nil
+		useCases.Operation != nil &&
+		useCases.Evidence != nil
 }

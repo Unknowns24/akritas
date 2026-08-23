@@ -37,6 +37,7 @@ func New(config Config) (http.Handler, error) {
 		config.Handlers.ProjectHandler == nil ||
 		config.Handlers.InvestigationHandler == nil ||
 		config.Handlers.OperationHandler == nil ||
+		config.Handlers.EvidenceHandler == nil ||
 		config.Authenticate == nil ||
 		len(config.AllowedOrigins) == 0 {
 		return nil, ErrInvalidRouterConfiguration
@@ -67,6 +68,7 @@ func New(config Config) (http.Handler, error) {
 			registerProjectRoutes(private, config.Handlers.ProjectHandler)
 			registerInvestigationRoutes(private, config.Handlers.InvestigationHandler)
 			registerOperationRoutes(private, config.Handlers.OperationHandler)
+			registerEvidenceRoutes(private, config.Handlers.EvidenceHandler)
 		})
 	})
 	return root, nil

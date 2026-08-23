@@ -165,6 +165,12 @@ func (operationStub) GetOperation(context.Context, uuid.UUID) (*domain.Operation
 	return &domain.Operation{}, nil
 }
 
+type evidenceStub struct{}
+
+func (evidenceStub) ListInvestigationEvidence(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.Evidence], error) {
+	return paging.Slice[domain.Evidence]{}, nil
+}
+
 func completeUseCases() *portsin.UseCases {
 	return &portsin.UseCases{
 		GetSetupStatus:           getSetupStatusStub{},
@@ -180,6 +186,7 @@ func completeUseCases() *portsin.UseCases {
 		Project:                  projectStub{},
 		Investigation:            investigationStub{},
 		Operation:                operationStub{},
+		Evidence:                 evidenceStub{},
 	}
 }
 
@@ -200,7 +207,8 @@ func TestNewHandlersBuildsEveryFeatureHandler(t *testing.T) {
 		t.Fatalf("NewHandlers() error = %v", err)
 	}
 	if handlers == nil || handlers.AuthHandler == nil || handlers.GitHubHandler == nil || handlers.DokployHandler == nil ||
-		handlers.ProjectHandler == nil || handlers.InvestigationHandler == nil || handlers.OperationHandler == nil {
+		handlers.ProjectHandler == nil || handlers.InvestigationHandler == nil || handlers.OperationHandler == nil ||
+		handlers.EvidenceHandler == nil {
 		t.Fatalf("NewHandlers() = %+v, want every handler", handlers)
 	}
 }
@@ -224,6 +232,7 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
 		{name: "missing Investigation", mutate: func(config *HandlersConfig) { config.UseCases.Investigation = nil }},
 		{name: "missing Operation", mutate: func(config *HandlersConfig) { config.UseCases.Operation = nil }},
+		{name: "missing Evidence", mutate: func(config *HandlersConfig) { config.UseCases.Evidence = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
 	}
 

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Akritas API
-  version: 1.0.0
+  version: 1.4.0
   summary: Contract between the Akritas Go backend and its web frontend.
   description: |
     Public HTTP contract for the Akritas hackathon MVP.
@@ -227,6 +227,8 @@ paths:
                 type: string
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -466,6 +468,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "500":
@@ -518,6 +522,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -534,6 +540,8 @@ paths:
           description: Account and encrypted credentials removed.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -562,6 +570,8 @@ paths:
                 $ref: "#/components/schemas/ConnectionTestResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -632,6 +642,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "429":
@@ -773,6 +785,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
         "500":
@@ -824,6 +838,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -840,6 +856,8 @@ paths:
           description: Server and encrypted credential removed.
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -868,6 +886,8 @@ paths:
                 $ref: "#/components/schemas/ConnectionTestResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -1034,6 +1054,7 @@ paths:
       tags: [Projects]
       operationId: createProject
       summary: Create a Project from previously configured integration resources
+      description: Resolves safe snapshots from GitHub and Dokploy before persistence. A provider failure leaves the database unchanged; an enabled configuration starts in `starting`.
       requestBody:
         required: true
         content:
@@ -1051,6 +1072,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -1087,6 +1110,7 @@ paths:
       tags: [Projects]
       operationId: updateProject
       summary: Update identity or integration selections
+      description: Name and description may change while monitoring is active. Integration selections require monitoring disabled and are resolved from their providers before persistence.
       requestBody:
         required: true
         content:
@@ -1104,6 +1128,26 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Projects]
+      operationId: deleteProject
+      summary: Delete a disabled Project
+      description: Monitoring must be disabled and dependent records must not reference the Project.
+      responses:
+        "204":
+          description: Project deleted.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -1140,7 +1184,7 @@ paths:
       tags: [Projects]
       operationId: putProjectMonitoringConfiguration
       summary: Replace deterministic monitoring configuration
-      description: Ignored patterns always take precedence over built-in and custom positive rules.
+      description: Ignored patterns always take precedence over built-in and custom positive rules. Every enabled replacement revalidates both provider snapshots and changes monitoring status to `starting`; disabling does not erase snapshots or history.
       requestBody:
         required: true
         content:
@@ -1158,6 +1202,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
@@ -1707,7 +1753,7 @@ components:
         type: integer
         minimum: 1
         maximum: 100
-        default: 20
+        default: 25
     Cursor:
       name: cursor
       in: query
@@ -1792,7 +1838,7 @@ components:
   schemas:
     ErrorCode:
       type: string
-      pattern: "^[0-9A-F]x[0-9A-F]{6}[VUFNCI]$"
+      pattern: "^[0-9A-F]x[0-9A-F]{6}[VUFNCIR]$"
       example: 1x100001V
     ErrorDetail:
       type: object
@@ -2310,6 +2356,8 @@ components:
           format: uri
         server_identifier:
           type: string
+          pattern: "^[0-9a-f]{64}$"
+          description: SHA-256 fingerprint derived from the normalized Dokploy origin; it is not supplied by the client or Dokploy.
         connection_status:
           $ref: "#/components/schemas/IntegrationStatus"
         credential_configured:
@@ -2568,7 +2616,7 @@ components:
           type: string
           format: duration
           default: PT30M
-          pattern: "^P(?!$).+$"
+          pattern: "^P(?=.*[1-9])(?:(?:[0-9]+)D)?(?:T(?:(?:[0-9]+)H)?(?:(?:[0-9]+)M)?(?:(?:[0-9]+)S)?)?$"
         context_before:
           type: integer
           minimum: 0

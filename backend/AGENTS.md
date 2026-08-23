@@ -336,3 +336,10 @@ La fuente de verdad del harness es:
 ```
 
 Este archivo solo define cómo resolver y aplicar el harness. Las reglas técnicas detalladas deben vivir en policies.
+
+## Git commit attribution
+
+- Commits MUST use only the configured Git author.
+- Do NOT add `Co-authored-by`, `Signed-off-by`, or AI/tool attribution trailers.
+- Do NOT mention Codex, Claude, OpenAI, Anthropic, or any AI agent in commit messages.
+- Preserve the repository's configured `user.name` and `user.email`.

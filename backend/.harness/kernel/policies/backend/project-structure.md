@@ -15,11 +15,15 @@ adapter/rest|db|external → usecase → core(domain + ports)
 ## Forbidden dependencies
 
 - `internal/core/**` importing `internal/adapter/**`.
-- `internal/core/**` importing HTTP, Chi, GORM, SQL drivers or external SDKs.
+- `internal/core/**` importing HTTP, Chi, GORM packages, SQL drivers or external SDKs.
 - `internal/usecase/**` importing concrete adapters.
 - REST handlers using GORM or concrete repositories directly.
 - HTTP DTOs leaking into domain/usecase contracts.
 - GORM models being returned as REST responses.
+
+Domain structs MAY contain declarative `gorm` tags when an accepted ADR defines
+that convention. Tags do not authorize GORM imports, hooks, queries or
+persistence behavior in core.
 
 ## Expected structure
 
@@ -43,6 +47,8 @@ Expected substructure:
 
 ```text
 internal/adapter/rest/dto/
+  common/
+  <feature>/
 internal/adapter/rest/handler/
 internal/adapter/rest/middleware/
 internal/adapter/rest/router/
@@ -57,6 +63,11 @@ REST rules:
 - Call usecases through ports/interfaces.
 - Map domain errors to HTTP through the existing mapper/middleware.
 - Never put business rules in handlers.
+- REST transport structs MUST use the `DTO` suffix and one DTO struct per file.
+- DTO files MUST be grouped under `dto/<feature>/` or `dto/common/`; transport
+  structs MUST NOT live directly in the `dto/` root.
+- DTO/domain/usecase conversion MUST live under `internal/adapter/rest/mapper/`;
+  mapping files must have one conversion responsibility.
 
 ## Feature implementation order
 

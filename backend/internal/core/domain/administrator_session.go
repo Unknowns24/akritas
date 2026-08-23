@@ -7,12 +7,12 @@ import (
 )
 
 type AdministratorSession struct {
-	ID                uuid.UUID
-	AdministratorID   uuid.UUID
-	AuthenticatedAt   time.Time
-	IdleExpiresAt     time.Time
-	AbsoluteExpiresAt time.Time
-	RevokedAt         *time.Time
+	ID                uuid.UUID  `gorm:"column:id;type:uuid;primaryKey"`
+	AdministratorID   uuid.UUID  `gorm:"column:administrator_id;type:uuid"`
+	AuthenticatedAt   time.Time  `gorm:"column:authenticated_at"`
+	IdleExpiresAt     time.Time  `gorm:"column:idle_expires_at"`
+	AbsoluteExpiresAt time.Time  `gorm:"column:absolute_expires_at"`
+	RevokedAt         *time.Time `gorm:"column:revoked_at"`
 }
 
 func NewAdministratorSession(id, administratorID uuid.UUID, authenticatedAt, idleExpiresAt, absoluteExpiresAt time.Time) (*AdministratorSession, error) {
@@ -51,5 +51,19 @@ func (s *AdministratorSession) Revoke(at time.Time) error {
 		return nil
 	}
 	s.RevokedAt = &at
+	return nil
+}
+
+// ExtendIdle slides the idle expiration forward on an active session,
+// capped so it never exceeds AbsoluteExpiresAt.
+func (s *AdministratorSession) ExtendIdle(now time.Time, idleTTL time.Duration) error {
+	if s == nil || !s.IsActive(now) {
+		return ErrAdministratorSessionTransition.Wrap(validationCause("idle extension"))
+	}
+	newIdle := now.Add(idleTTL)
+	if newIdle.After(s.AbsoluteExpiresAt) {
+		newIdle = s.AbsoluteExpiresAt
+	}
+	s.IdleExpiresAt = newIdle
 	return nil
 }

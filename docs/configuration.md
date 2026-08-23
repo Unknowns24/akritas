@@ -8,6 +8,12 @@ the deployment secret mechanism and never committed.
 
 ## Required values
 
+### `AKRITAS_DATABASE_URL`
+
+PostgreSQL connection URL for domain metadata, GitHub App registration attempts and the encrypted Credential Store. PostgreSQL is the only persistent engine; schema changes run exclusively through the ordered gormigrate registry.
+
+The URL is secret deployment configuration and must never be logged.
+
 ### `AKRITAS_PUBLIC_URL`
 
 Canonical HTTPS origin used for redirects, Origin validation and GitHub manifest
@@ -26,6 +32,8 @@ The value must not include credentials, query parameters or fragments.
 High-entropy encryption root for the Credential Store and encrypted TOTP seeds.
 It is never persisted by Akritas or exposed through API/diagnostics.
 
+The value must be standard Base64 encoding of exactly 32 bytes. Startup fails closed when it is missing or malformed.
+
 Losing this key makes stored integration and TOTP secrets inaccessible. Replacing
 it requires an explicit secret-rotation migration, which is outside the MVP.
 
@@ -42,6 +50,22 @@ and never stored or logged.
 High-entropy key used to sign cursor pagination payloads. Rotating it invalidates
 outstanding cursors but does not alter persisted application data.
 
+### Optional configuration file and defaults
+
+Runtime configuration is loaded centrally through Viper. An optional `app.env`
+file may provide local defaults; environment variables always take precedence.
+Secret values are never printed when validation fails.
+
+```text
+AKRITAS_PAGINATION_TTL=15m
+AKRITAS_DB_MAX_OPEN_CONNECTIONS=10
+AKRITAS_DB_MAX_IDLE_CONNECTIONS=5
+AKRITAS_DB_CONNECTION_MAX_LIFETIME=30m
+```
+
+`AKRITAS_PAGINATION_TTL` limits signed cursor lifetime. Database pool values must
+be positive and the idle limit cannot exceed the open-connection limit.
+
 ## Session defaults
 
 ```text
@@ -56,8 +80,8 @@ Production cookie attributes:
 HttpOnly; Secure; SameSite=Lax; Path=/
 ```
 
-Local HTTP development may disable `Secure`, but production validation must reject
-that configuration when `AKRITAS_PUBLIC_URL` uses HTTPS.
+Startup fails closed when `Secure` is disabled. Local development must use HTTPS
+or an equivalent secure reverse proxy.
 
 ## Browser origins
 

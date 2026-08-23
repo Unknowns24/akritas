@@ -25,12 +25,12 @@ func (s DokployApplicationStatus) Validate() error {
 }
 
 type DokployApplication struct {
-	DokployServerID       uuid.UUID
-	ApplicationIdentifier string
-	InstanceIdentifier    string
-	DisplayName           string
-	Environment           string
-	Status                DokployApplicationStatus
+	DokployServerID       uuid.UUID                `gorm:"column:dokploy_server_id;type:uuid"`
+	ApplicationIdentifier string                   `gorm:"column:application_identifier"`
+	InstanceIdentifier    string                   `gorm:"column:instance_identifier"`
+	DisplayName           string                   `gorm:"column:application_display_name"`
+	Environment           string                   `gorm:"column:application_environment"`
+	Status                DokployApplicationStatus `gorm:"column:application_status"`
 }
 
 func NewDokployApplication(

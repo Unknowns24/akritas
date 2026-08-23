@@ -30,8 +30,8 @@ if not isinstance(data, dict):
     raise SystemExit('OpenAPI YAML is not an object')
 if data.get('openapi') != '3.1.0':
     raise SystemExit('openapi must be 3.1.0')
-if data.get('info', {}).get('version') != '1.0.0':
-    raise SystemExit('info.version must be 1.0.0')
+if data.get('info', {}).get('version') != '1.4.0':
+    raise SystemExit('info.version must be 1.4.0')
 if data.get('security') != [{'cookieAuth': []}]:
     raise SystemExit('cookieAuth must be the default security requirement')
 

@@ -8,6 +8,11 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrInvalidAdministratorSession` | `0x401002V` | Auth | Validation | La sesión no es válida. |
 | `ErrInactiveAdministratorSession` | `0x401003U` | Auth | Unauthorized | La sesión no está activa. |
 | `ErrAdministratorSessionTransition` | `0x401004C` | Auth | Conflict | No se pudo actualizar la sesión. |
+| `ErrInvalidBootstrapToken` | `0x401005V` | Auth | Validation | El token de instalación no es válido. |
+| `ErrInvalidPendingEnrollment` | `0x401006V` | Auth | Validation | Los datos de inscripción no son válidos. |
+| `ErrAdministratorAlreadyExists` | `0x401007C` | Auth | Conflict | El registro inicial ya no está disponible. |
+| `ErrInvalidTotpEnrollmentVerification` | `0x401008V` | Auth | Validation | El código o la inscripción no son válidos. |
+| `ErrInvalidCredentials` | `0x401009U` | Auth | Unauthorized | Las credenciales no son válidas. |
 | `ErrInvalidIntegrationStatus` | `0x402001V` | Integrations | Validation | El estado de la integración no es válido. |
 | `ErrInvalidGitHubAccount` | `0x402002V` | Integrations | Validation | La cuenta de GitHub no es válida. |
 | `ErrInvalidGitHubRepository` | `0x402003V` | Integrations | Validation | El repositorio de GitHub no es válido. |
@@ -46,5 +51,36 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrValidationTransition` | `0x406008C` | Remediation | Conflict | La validación no puede cambiar a ese estado. |
 | `ErrInvalidCodeChange` | `0x406009V` | Remediation | Validation | El cambio de código no es válido. |
 | `ErrInvalidPullRequestReference` | `0x40600AV` | Remediation | Validation | La referencia a la Pull Request no es válida. |
+| `ErrIntegrationNotFound` | `0x502001N` | Integrations usecase | Not found | La integración solicitada no existe. |
+| `ErrIntegrationConflict` | `0x502002C` | Integrations usecase | Conflict | La integración entra en conflicto con una configuración existente. |
+| `ErrIntegrationInUse` | `0x502003C` | Integrations usecase | Conflict | La integración está asociada a un Project y no puede eliminarse. |
+| `ErrGitHubCredentialRejected` | `0x502004V` | Integrations usecase | Validation | GitHub rechazó la credencial o la cuenta configurada. |
+| `ErrDokployCredentialRejected` | `0x502005V` | Integrations usecase | Validation | Dokploy rechazó la credencial configurada. |
+| `ErrManifestStateInvalid` | `0x502006V` | Integrations usecase | Validation | El intento de conexión con GitHub no es válido. |
+| `ErrManifestStateConflict` | `0x502007C` | Integrations usecase | Conflict | El intento de conexión con GitHub ya fue utilizado o expiró. |
+| `ErrIntegrationUnavailable` | `0x502008I` | Integrations usecase | Internal | No se pudo contactar la integración. |
+| `ErrProjectNotFound` | `0x503001N` | Project usecase | Not found | El proyecto no existe. |
+| `ErrProjectRepositoryNotFound` | `0x503002N` | Project usecase | Not found | El repositorio seleccionado no existe o no pertenece a la integración. |
+| `ErrProjectApplicationNotFound` | `0x503003N` | Project usecase | Not found | La aplicación seleccionada no existe. |
+| `ErrProjectNameConflict` | `0x503004C` | Project usecase | Conflict | Ya existe un proyecto con ese nombre. |
+| `ErrProjectApplicationConflict` | `0x503005C` | Project usecase | Conflict | La aplicación Dokploy ya está asociada a otro proyecto. |
+| `ErrProjectMustBeDisabled` | `0x503006C` | Project usecase | Conflict | El monitoreo debe desactivarse antes de la operación. |
+| `ErrProjectConcurrentModification` | `0x503007C` | Project usecase | Conflict | El proyecto cambió durante la operación. |
+| `ErrProjectDefaultBranchMismatch` | `0x503008V` | Project usecase | Validation | La rama predeterminada no coincide con GitHub. |
+| `ErrProjectHasDependencies` | `0x503009C` | Project usecase | Conflict | El proyecto tiene registros asociados y no puede eliminarse. |
+| `ErrAuthenticationRateLimited` | `0x501001R` | Auth usecase | Rate limited | Alcanzaste el límite de intentos. Probá nuevamente más tarde. |
+| `ErrIntegrationPersistence` | `0x202001I` | Integrations database | Internal | No se pudo guardar la integración. |
+| `ErrProjectPersistence` | `0x203001I` | Project database | Internal | No se pudo guardar el proyecto. |
+| `ErrInvalidRequest` | `0x102001V` | REST request | Validation | La solicitud contiene datos inválidos. |
+| `ErrRequestFailed` | `0x102002I` | REST request | Internal | No se pudo completar la solicitud. |
+| `ErrRateLimited` | `0x102003R` | REST request | Rate limited | Alcanzaste el límite de solicitudes. Probá nuevamente más tarde. |
+| `ErrOriginForbidden` | `0x102004F` | REST request | Forbidden | El origen de la solicitud no está permitido. |
+| `ErrInvalidGitHubAppPrivateKey` | `0x302001I` | GitHub adapter | Internal | La clave privada de la GitHub App no pudo utilizarse. |
 
-Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401 y `C` a 409.
+Los adapters deben mapear el tipo final del código a HTTP sin exponer la causa envuelta: `V` a 400, `U` a 401, `F` a 403, `N` a 404, `C` a 409, `R` a 429 e `I` a 500.
+
+Cada sentinel se declara en la capa que representa: errores REST bajo
+`internal/adapter/rest/errors`, errores PostgreSQL bajo
+`internal/adapter/db/postgres/errors` y errores internos de proveedor dentro del
+adapter correspondiente. `internal/core/domain` conserva sólo errores de dominio
+y casos de uso mediante el contrato común `domain.Error`.

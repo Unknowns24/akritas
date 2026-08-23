@@ -60,6 +60,8 @@ Las credenciales y secretos utilizados para autenticarse contra GitHub deben man
 
 Las API keys, tokens y secretos utilizados para conectarse a Dokploy deben mantenerse fuera del modelo de dominio.
 
+Las pruebas explícitas de conexión y el descubrimiento de repositorios/aplicaciones forman parte de este alcance P0. No son extensiones opcionales: validan la integración antes de que un Project pueda referenciar sus recursos.
+
 ### Project Management
 
 - crear/configurar un `Project`;
@@ -250,10 +252,6 @@ Dashboard mínimo para administrar y visualizar:
 - actualización automática de la Issue cuando falla una Remediation;
 - actualización automática de la Issue cuando se crea una Pull Request;
 - configuración de patrones custom por Project;
-- prueba manual de conexión para `GitHubAccount`;
-- prueba manual de conexión para `DokployServer`;
-- descubrimiento automático de repositorios disponibles;
-- descubrimiento automático de aplicaciones Dokploy disponibles.
 
 ## Explicitly Not in MVP
 

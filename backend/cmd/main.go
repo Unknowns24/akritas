@@ -27,15 +27,13 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/adapter/security/totp"
 	integrationbootstrap "github.com/Unknowns24/akritas/backend/internal/bootstrap/integrations"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
+	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
 	authusecase "github.com/Unknowns24/akritas/backend/internal/usecase/auth"
 )
 
 const (
-	listenAddr             = ":8080"
-	setupRateLimitAttempts = 5
-	setupRateLimitWindow   = 15 * time.Minute
-	loginRateLimitAttempts = 5
-	loginRateLimitWindow   = 15 * time.Minute
+	listenAddr                  = ":8080"
+	dummyAuthenticationPassword = "akritas-dummy-authentication-work-factor"
 )
 
 func main() {
@@ -72,10 +70,19 @@ func main() {
 	transactor := postgres.NewTransactor(db)
 	now := time.Now
 
-	setupLimiter := ratelimit.New(setupRateLimitAttempts, setupRateLimitWindow)
-	verifyLimiter := ratelimit.New(setupRateLimitAttempts, setupRateLimitWindow)
-	loginLimiter := ratelimit.New(loginRateLimitAttempts, loginRateLimitWindow)
+	newAuthLimiter := func() portsout.RateLimiter {
+		return ratelimit.New(configuration.AuthRateLimitAttempts, configuration.AuthRateLimitWindow, configuration.AuthRateLimitMaxKeys)
+	}
+	setupLimiter := newAuthLimiter()
+	verifyLimiter := newAuthLimiter()
+	loginLimiter := newAuthLimiter()
+	recoveryLimiter := newAuthLimiter()
+	recoveryVerifyLimiter := newAuthLimiter()
 	passwordHasher := password.New()
+	dummyPasswordHash, err := passwordHasher.Hash(dummyAuthenticationPassword)
+	if err != nil {
+		log.Fatalf("initialize authentication work factor: %v", err)
+	}
 	totpGenerator := totp.NewGenerator()
 	totpVerifier := totp.NewVerifier()
 	sessionTokens := sessiontoken.New()
@@ -90,22 +97,35 @@ func main() {
 		sessionTokens, administratorSessions, transactor, now,
 		configuration.SessionIdleTTL, configuration.SessionAbsoluteTTL,
 	)
+	bootstrapVerifier := bootstrap.New(configuration.BootstrapToken)
+	startRecovery := authusecase.NewStartAdministratorRecoveryUseCase(
+		administrators, pendingEnrollments, credentials, totpGenerator, passwordHasher,
+		bootstrapVerifier, recoveryLimiter, transactor, now, dummyPasswordHash,
+	)
+	verifyRecovery := authusecase.NewVerifyAdministratorRecoveryUseCase(
+		recoveryVerifyLimiter, pendingEnrollments, credentials, totpVerifier, administrators,
+		sessionTokens, administratorSessions, transactor, now,
+		configuration.SessionIdleTTL, configuration.SessionAbsoluteTTL,
+	)
 	loginAdministrator := authusecase.NewLoginAdministratorUseCase(
 		loginLimiter, administrators, passwordHasher, credentials, totpVerifier,
 		sessionTokens, administratorSessions, transactor, now,
 		configuration.SessionIdleTTL, configuration.SessionAbsoluteTTL,
+		dummyPasswordHash,
 	)
 	authenticateSession := authusecase.NewAuthenticateSessionUseCase(
 		administratorSessions, sessionTokens, now, configuration.SessionIdleTTL,
 	)
 	useCases := &portsin.UseCases{
-		GetSetupStatus:           getSetupStatus,
-		StartAdministratorSetup:  startSetup,
-		VerifyAdministratorSetup: verifySetup,
-		LoginAdministrator:       loginAdministrator,
-		AuthenticateSession:      authenticateSession,
-		GetCurrentSession:        authusecase.NewGetCurrentSessionUseCase(administrators),
-		LogoutAdministrator:      authusecase.NewLogoutAdministratorUseCase(administratorSessions, now),
+		GetSetupStatus:              getSetupStatus,
+		StartAdministratorSetup:     startSetup,
+		VerifyAdministratorSetup:    verifySetup,
+		LoginAdministrator:          loginAdministrator,
+		StartAdministratorRecovery:  startRecovery,
+		VerifyAdministratorRecovery: verifyRecovery,
+		AuthenticateSession:         authenticateSession,
+		GetCurrentSession:           authusecase.NewGetCurrentSessionUseCase(administrators),
+		LogoutAdministrator:         authusecase.NewLogoutAdministratorUseCase(administratorSessions, now),
 	}
 
 	runtime, err := integrationbootstrap.BuildRuntime(configuration, integrationbootstrap.Dependencies{

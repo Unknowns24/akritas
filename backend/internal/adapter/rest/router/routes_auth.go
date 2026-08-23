@@ -18,6 +18,8 @@ func registerAuthRoutes(
 		auth.Post("/setup", handler.StartAdministratorSetup)
 		auth.Post("/setup/verify", handler.VerifyAdministratorSetup)
 		auth.Post("/login", handler.Login)
+		auth.Post("/recovery", handler.StartAdministratorRecovery)
+		auth.Post("/recovery/verify", handler.VerifyAdministratorRecovery)
 
 		requireSession := middleware.RequireSession(authenticate)
 		auth.With(requireSession).Get("/session", handler.GetCurrentSession)

@@ -311,6 +311,8 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"PATCH /api/v1/integrations/github/accounts/{account_id}",
 		"PATCH /api/v1/projects/{project_id}",
 		"POST /api/v1/auth/login",
+		"POST /api/v1/auth/recovery",
+		"POST /api/v1/auth/recovery/verify",
 		"POST /api/v1/auth/setup",
 		"POST /api/v1/auth/setup/verify",
 		"POST /api/v1/integrations/dokploy/servers",

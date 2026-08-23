@@ -19,6 +19,7 @@ type rateLimiterEntry struct {
 type windowRateLimiter struct {
 	maxAttempts int
 	window      time.Duration
+	maxKeys     int
 	now         func() time.Time
 
 	mu      sync.Mutex
@@ -27,14 +28,15 @@ type windowRateLimiter struct {
 
 const cleanupEvery = 128
 
-func New(maxAttempts int, window time.Duration) out.RateLimiter {
-	return newRateLimiterWithClock(maxAttempts, window, time.Now)
+func New(maxAttempts int, window time.Duration, maxKeys int) out.RateLimiter {
+	return newRateLimiterWithClock(maxAttempts, window, maxKeys, time.Now)
 }
 
-func newRateLimiterWithClock(maxAttempts int, window time.Duration, now func() time.Time) out.RateLimiter {
+func newRateLimiterWithClock(maxAttempts int, window time.Duration, maxKeys int, now func() time.Time) out.RateLimiter {
 	return &windowRateLimiter{
 		maxAttempts: maxAttempts,
 		window:      window,
+		maxKeys:     maxKeys,
 		now:         now,
 		entries:     make(map[string]*rateLimiterEntry),
 	}
@@ -45,7 +47,7 @@ func (l *windowRateLimiter) Allow(ctx context.Context, key string) (bool, error)
 	defer l.mu.Unlock()
 
 	now := l.now()
-	if len(l.entries) >= cleanupEvery {
+	if len(l.entries) >= cleanupEvery || len(l.entries) >= l.maxKeys {
 		for entryKey, candidate := range l.entries {
 			if now.Sub(candidate.windowStart) >= l.window {
 				delete(l.entries, entryKey)
@@ -53,6 +55,9 @@ func (l *windowRateLimiter) Allow(ctx context.Context, key string) (bool, error)
 		}
 	}
 	entry, exists := l.entries[key]
+	if !exists && len(l.entries) >= l.maxKeys {
+		return false, nil
+	}
 	if !exists || now.Sub(entry.windowStart) >= l.window {
 		l.entries[key] = &rateLimiterEntry{windowStart: now, attempts: 1}
 		return true, nil

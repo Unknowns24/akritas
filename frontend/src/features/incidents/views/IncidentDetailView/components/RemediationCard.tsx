@@ -4,7 +4,6 @@ import {
   GitBranch,
   ExternalLink,
   ShieldCheck,
-  AlertTriangle,
   Clock,
   Loader2,
   FileSearch,
@@ -13,6 +12,7 @@ import type { Incident } from "../../../services/get-incident.service";
 import { isRemediationFixable, isRequiresHuman } from "../../../utils/remediation.utils";
 import { RemediationStatusBadge } from "./RemediationStatusBadge";
 import { ValidationSummaryView } from "./ValidationSummaryView";
+import { ValidationResultsViewer } from "./ValidationResultsViewer";
 import { CodeChangesDiffViewer } from "./CodeChangesDiffViewer";
 import { RequiresHumanCard } from "./RequiresHumanCard";
 import styles from "./RemediationCard.module.css";
@@ -115,30 +115,24 @@ export function RemediationCard({ incident }: RemediationCardProps) {
           </div>
         )}
 
-        {/* Status: Failed */}
-        {status === "failed" && (
-          <div className={styles.failureAlert}>
-            <div className={styles.failureAlertHeader}>
-              <AlertTriangle size={16} />
-              <span>Remediation Failed</span>
-            </div>
-            <div>{failureMessage || "Validation checks failed during the remediation process."}</div>
-            <div className={styles.failureNote}>
-              In accordance with safety policies (ADR-004), no Pull Request was opened for unvalidated changes.
-            </div>
-          </div>
-        )}
-
         {/* Multi-file Code Changes Diff Viewer */}
         {remediation?.changes && remediation.changes.length > 0 && (
           <div className={styles.metaRow}>
-            <span className={styles.metaLabel}>Proposed Code Changes ({remediation.changes.length} file{remediation.changes.length > 1 ? "s" : ""})</span>
+            <span className={styles.metaLabel}>
+              Proposed Code Changes ({remediation.changes.length} file{remediation.changes.length > 1 ? "s" : ""})
+            </span>
             <CodeChangesDiffViewer changes={remediation.changes} />
           </div>
         )}
 
-        {/* Automated Validation Summary */}
+        {/* Validation Summary (Metric Tags) */}
         <ValidationSummaryView summary={remediation?.validation_summary} />
+
+        {/* Detailed Validation Results Viewer with failure alerts & execution traces */}
+        <ValidationResultsViewer
+          remediationStatus={status}
+          failureUserMessage={failureMessage}
+        />
 
         {/* Pull Request section if created */}
         {prRef && (

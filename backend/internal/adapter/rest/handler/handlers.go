@@ -23,13 +23,18 @@ type Handlers struct {
 }
 
 type HandlersConfig struct {
-	UseCases            *portsin.UseCases
-	Pagination          pagination.Config
-	SessionCookieSecure bool
+	UseCases              *portsin.UseCases
+	Pagination            pagination.Config
+	SessionCookieSecure   bool
+	SessionCookieSameSite string
 }
 
 func NewHandlers(config HandlersConfig) (*Handlers, error) {
 	if !validUseCases(config.UseCases) {
+		return nil, ErrInvalidHandlersConfiguration
+	}
+	sessionCookieSameSite, err := authhandler.ParseSessionCookieSameSite(config.SessionCookieSameSite)
+	if err != nil {
 		return nil, ErrInvalidHandlersConfiguration
 	}
 
@@ -65,6 +70,7 @@ func NewHandlers(config HandlersConfig) (*Handlers, error) {
 			config.UseCases.GetCurrentSession,
 			config.UseCases.LogoutAdministrator,
 			config.SessionCookieSecure,
+			sessionCookieSameSite,
 		),
 		GitHubHandler:   githubHandler,
 		DokployHandler:  dokployHandler,

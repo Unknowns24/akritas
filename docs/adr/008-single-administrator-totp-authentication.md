@@ -72,7 +72,7 @@ cookie con:
 ```text
 HttpOnly
 Secure en producción
-SameSite=Lax
+SameSite configurable (`Lax` por defecto; `Strict` y `None` permitidos)
 Path=/
 ```
 

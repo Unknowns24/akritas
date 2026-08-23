@@ -197,7 +197,8 @@ func validHandlersConfig() HandlersConfig {
 			Secret: []byte("01234567890123456789012345678901"),
 			TTL:    time.Hour,
 		},
-		SessionCookieSecure: true,
+		SessionCookieSecure:   true,
+		SessionCookieSameSite: "lax",
 	}
 }
 
@@ -232,6 +233,7 @@ func TestNewHandlersRejectsIncompleteConfiguration(t *testing.T) {
 		{name: "missing Project", mutate: func(config *HandlersConfig) { config.UseCases.Project = nil }},
 		{name: "missing Incident", mutate: func(config *HandlersConfig) { config.UseCases.Incident = nil }},
 		{name: "invalid pagination", mutate: func(config *HandlersConfig) { config.Pagination = pagination.Config{} }},
+		{name: "invalid cookie same-site", mutate: func(config *HandlersConfig) { config.SessionCookieSameSite = "invalid" }},
 	}
 
 	for _, test := range tests {

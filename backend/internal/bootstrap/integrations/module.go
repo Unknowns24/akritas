@@ -124,9 +124,10 @@ func BuildRuntime(configuration config.Config, dependencies Dependencies) (*Runt
 	useCases.Project = projectUseCase
 	useCases.Incident = incidentUseCase
 	handlers, err := resthandler.NewHandlers(resthandler.HandlersConfig{
-		UseCases:            &useCases,
-		Pagination:          pagingConfig,
-		SessionCookieSecure: configuration.SessionCookieSecure,
+		UseCases:              &useCases,
+		Pagination:            pagingConfig,
+		SessionCookieSecure:   configuration.SessionCookieSecure,
+		SessionCookieSameSite: configuration.SessionCookieSameSite,
 	})
 	if err != nil {
 		return nil, err

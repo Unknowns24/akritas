@@ -29,7 +29,7 @@ func TestLoadFromViperAppliesDefaultsAndValidatesSecurityValues(t *testing.T) {
 	if configuration.DatabaseMaxOpenConnections != 10 || configuration.DatabaseMaxIdleConnections != 5 {
 		t.Fatalf("unexpected pool defaults: %+v", configuration)
 	}
-	if configuration.SessionIdleTTL != 12*time.Hour || configuration.SessionAbsoluteTTL != 7*24*time.Hour || !configuration.SessionCookieSecure {
+	if configuration.SessionIdleTTL != 12*time.Hour || configuration.SessionAbsoluteTTL != 7*24*time.Hour || !configuration.SessionCookieSecure || configuration.SessionCookieSameSite != "lax" {
 		t.Fatalf("unexpected session defaults: %+v", configuration)
 	}
 	if configuration.AuthRateLimitAttempts != 5 || configuration.AuthRateLimitWindow != 15*time.Minute || configuration.AuthRateLimitMaxKeys != 4096 {
@@ -59,6 +59,7 @@ func TestLoadFromViperRejectsUnsafeSessionAndOrigins(t *testing.T) {
 	}
 	cases := map[string]func(*viper.Viper){
 		"insecure cookie":            func(v *viper.Viper) { v.Set("AKRITAS_SESSION_COOKIE_SECURE", false) },
+		"invalid cookie same-site":   func(v *viper.Viper) { v.Set("AKRITAS_SESSION_COOKIE_SAME_SITE", "invalid") },
 		"idle exceeds max":           func(v *viper.Viper) { v.Set("AKRITAS_SESSION_IDLE_TTL", 8*24*time.Hour) },
 		"wildcard origin":            func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "*") },
 		"origin with path":           func(v *viper.Viper) { v.Set("AKRITAS_ALLOWED_ORIGINS", "https://app.example.com/path") },
@@ -79,6 +80,32 @@ func TestLoadFromViperRejectsUnsafeSessionAndOrigins(t *testing.T) {
 			mutate(v)
 			if _, err := loadFromViper(v); err == nil {
 				t.Fatal("unsafe configuration accepted")
+			}
+		})
+	}
+}
+
+func TestLoadFromViperAcceptsCookieSameSiteModes(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{"lax", "Strict", " NONE "} {
+		value := value
+		t.Run(value, func(t *testing.T) {
+			t.Parallel()
+			v := viper.New()
+			v.Set("AKRITAS_DATABASE_URL", "postgres://user:password@db:5432/akritas")
+			v.Set("AKRITAS_PUBLIC_URL", "https://akritas.example.com")
+			v.Set("AKRITAS_MASTER_KEY", base64.StdEncoding.EncodeToString(make([]byte, 32)))
+			v.Set("AKRITAS_PAGINATION_SECRET", "01234567890123456789012345678901")
+			v.Set("AKRITAS_BOOTSTRAP_TOKEN", "01234567890123456789012345678901")
+			v.Set("AKRITAS_SESSION_COOKIE_SAME_SITE", value)
+
+			configuration, err := loadFromViper(v)
+			if err != nil {
+				t.Fatalf("loadFromViper() error = %v", err)
+			}
+			if configuration.SessionCookieSameSite != strings.ToLower(strings.TrimSpace(value)) {
+				t.Fatalf("SessionCookieSameSite = %q", configuration.SessionCookieSameSite)
 			}
 		})
 	}

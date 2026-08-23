@@ -72,6 +72,7 @@ be positive and the idle limit cannot exceed the open-connection limit.
 AKRITAS_SESSION_IDLE_TTL=12h
 AKRITAS_SESSION_ABSOLUTE_TTL=168h
 AKRITAS_SESSION_COOKIE_SECURE=true
+AKRITAS_SESSION_COOKIE_SAME_SITE=lax
 AKRITAS_AUTH_RATE_LIMIT_ATTEMPTS=5
 AKRITAS_AUTH_RATE_LIMIT_WINDOW=15m
 AKRITAS_AUTH_RATE_LIMIT_MAX_KEYS=4096
@@ -83,8 +84,11 @@ Production cookie attributes:
 HttpOnly; Secure; SameSite=Lax; Path=/
 ```
 
-Startup fails closed when `Secure` is disabled. Local development must use HTTPS
-or an equivalent secure reverse proxy.
+`AKRITAS_SESSION_COOKIE_SAME_SITE` accepts `lax`, `strict` or `none` (case
+insensitive) and defaults to `lax`. The selected mode is used both when issuing
+and expiring the session cookie. Startup fails closed for any other value or
+when `Secure` is disabled; therefore `none` still requires HTTPS. Local
+development must use HTTPS or an equivalent secure reverse proxy.
 
 Authentication entry points use separate in-memory fixed-window limiters for
 setup, enrollment verification, login and recovery. The MVP runtime is a single

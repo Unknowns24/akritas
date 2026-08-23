@@ -8,14 +8,14 @@ import (
 )
 
 type ProjectSummaryDTO struct {
-	ID                 string                           `json:"id"`
-	Name               string                           `json:"name"`
-	Description        string                           `json:"description"`
-	MonitoringStatus   string                           `json:"monitoring_status"`
-	HealthStatus       string                           `json:"health_status"`
-	GitHubRepository   githubdto.GitHubRepositoryDTO    `json:"github_repository"`
-	DokployApplication dokploydto.DokployApplicationDTO `json:"dokploy_application"`
-	LastObservedAt     *time.Time                       `json:"last_observed_at,omitempty"`
-	CreatedAt          time.Time                        `json:"created_at"`
-	UpdatedAt          time.Time                        `json:"updated_at"`
+	ID               string                        `json:"id"`
+	Name             string                        `json:"name"`
+	Description      string                        `json:"description"`
+	MonitoringStatus string                        `json:"monitoring_status"`
+	HealthStatus     string                        `json:"health_status"`
+	GitHubRepository githubdto.GitHubRepositoryDTO `json:"github_repository"`
+	DokploySource    dokploydto.DokploySourceDTO   `json:"dokploy_source"`
+	LastObservedAt   *time.Time                    `json:"last_observed_at,omitempty"`
+	CreatedAt        time.Time                     `json:"created_at"`
+	UpdatedAt        time.Time                     `json:"updated_at"`
 }

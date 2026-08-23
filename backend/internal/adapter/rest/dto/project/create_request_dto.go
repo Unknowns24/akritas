@@ -8,8 +8,7 @@ type CreateProjectRequestDTO struct {
 	GitHubAccountID         uuid.UUID                          `json:"github_account_id"`
 	RepositoryIdentifier    string                             `json:"repository_identifier"`
 	DefaultBranch           string                             `json:"default_branch"`
-	DokployServerID         uuid.UUID                          `json:"dokploy_server_id"`
-	ApplicationIdentifier   string                             `json:"application_identifier"`
+	DokploySource           DokploySourceRequestDTO            `json:"dokploy_source"`
 	MonitoringConfiguration *MonitoringConfigurationRequestDTO `json:"monitoring_configuration"`
 	InitialLogIngestion     string                             `json:"initial_log_ingestion,omitempty"`
 }

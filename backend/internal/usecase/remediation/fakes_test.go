@@ -53,6 +53,16 @@ func (f *fakeRemediationStore) FindByInvestigation(ctx context.Context, investig
 	return nil, domain.ErrRemediationNotFound
 }
 
+func (f *fakeRemediationStore) FindByIncident(ctx context.Context, incidentID uuid.UUID) (*domain.Remediation, error) {
+	for _, value := range f.byID {
+		if value.IncidentID == incidentID {
+			copyValue := value
+			return &copyValue, nil
+		}
+	}
+	return nil, domain.ErrRemediationNotFound
+}
+
 func (f *fakeRemediationStore) Update(ctx context.Context, value *domain.Remediation) error {
 	if f.updateErr != nil {
 		return f.updateErr

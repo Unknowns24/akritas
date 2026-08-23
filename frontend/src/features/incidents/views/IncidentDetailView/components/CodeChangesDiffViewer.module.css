@@ -1,0 +1,96 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.fileBlock {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.fileHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--surface-2);
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.filePath {
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.changeTypeTag {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.changeModified {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.changeAdded {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--status-success-light);
+  border: 1px solid var(--status-success-border);
+}
+
+.changeDeleted {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--status-error-light);
+  border: 1px solid var(--status-error-border);
+}
+
+.diffContent {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.diffLine {
+  display: flex;
+  padding: 0 var(--space-3);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diffMeta {
+  color: var(--text-dim);
+  background-color: var(--surface-1);
+  padding: 2px var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.diffAdded {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: var(--status-success-light);
+}
+
+.diffRemoved {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--status-error-light);
+}
+
+.diffUnchanged {
+  color: var(--text-secondary);
+}

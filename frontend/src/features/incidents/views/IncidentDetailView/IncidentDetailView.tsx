@@ -12,16 +12,22 @@ import { StackTraceCard } from "./components/StackTraceCard";
 import { ContextCards } from "./components/ContextCards";
 import { LogEventsCard } from "./components/LogEventsCard";
 import { RemediationCard } from "./components/RemediationCard";
+import { TraceabilityChainView } from "./components/TraceabilityChainView";
+import { RemediationReviewPacket } from "./components/RemediationReviewPacket";
 import { GitHubIssueCard } from "./components/GitHubIssueCard";
 import styles from "./IncidentDetailView.module.css";
 
 export const IncidentDetailView = async ({ id }: { id: string }) => {
   let incident;
+
   try {
     incident = await getIncidentService(id);
   } catch {
-    // Basic error handling for now
-    return <div className={styles.container}><h1>Error loading incident {id}</h1></div>;
+    return (
+      <div className={styles.container}>
+        <h1>Error loading incident {id}</h1>
+      </div>
+    );
   }
 
   let evidence: Evidence[] = [];
@@ -31,8 +37,9 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
     try {
       const [evidenceRes, timelineRes] = await Promise.all([
         getInvestigationEvidenceService(incident.latest_investigation.id),
-        getIncidentTimelineService(id)
+        getIncidentTimelineService(id),
       ]);
+
       evidence = evidenceRes.data || [];
       timeline = timelineRes.data || [];
     } catch (error) {
@@ -48,11 +55,13 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
         <h2>Deterministic Detection</h2>
         <p>Hard evidence collected from monitoring</p>
       </div>
-      
+
       <div className={styles.sequentialLayout}>
         <StackTraceCard incident={incident} />
         <LogEventsCard incidentId={id} />
         <ContextCards incident={incident} />
+        <TraceabilityChainView incident={incident} />
+        <RemediationReviewPacket incident={incident} />
       </div>
 
       <div className={styles.sectionHeader}>
@@ -62,8 +71,10 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
 
       <div className={styles.sequentialLayout}>
         <RootCauseCard incident={incident} />
+
         {timeline.length > 0 && <AgentTimeline timeline={timeline} />}
         {evidence.length > 0 && <EvidenceList evidence={evidence} />}
+
         <GitHubIssueCard incident={incident} />
         <RemediationCard incident={incident} />
       </div>

@@ -1,0 +1,29 @@
+---
+description: Fuente de verdad del harness Akritas. Leer políticas vivas antes de implementar.
+alwaysApply: true
+---
+
+# Akritas — harness
+
+Antes de implementar, lee las políticas relevantes en `akritas/backend/.harness/` (espejo en `frontend/.harness` para policies de backend compartidas). No inventes arquitectura ni endpoints.
+
+## Producto
+
+Loop: `Dokploy logs → detección → Incident → QVAC local → GitHub Issue (siempre) → si es fixable: remediación + PR`. El PR es el límite de autonomía: no merge, no deploy, no afirmar que producción quedó resuelta. QVAC solo local.
+
+## Fuentes (en este orden)
+
+1. ADRs en `akritas/docs/adr/` y decisiones en `akritas/backend/.harness/memory/decisions.md`
+2. OpenAPI canónico: `akritas/backend/docs/openapi.yaml` (`/api/v1`, snake_case, cursores)
+3. Políticas: `akritas/backend/.harness/kernel/policies/`
+4. Dominio: `akritas/docs/domain.md`, arquitectura: `akritas/docs/backend-architecture.md`
+5. Código existente
+
+Un RFC no es alcance aprobado. Si un ADR contradice la tarea, parar y proponer el cambio; no contradecir en silencio.
+
+## Invariantes
+
+- Un administrador; sesión opaca server-side; bootstrap token ≠ TOTP ≠ master key.
+- Secretos de GitHub/Dokploy/QVAC/TOTP nunca en DTOs, logs, frontend ni dominio.
+- Errores `DxAAABBBT` (`domain.Error`); catálogo `akritas/backend/docs/errors/aaa-map.md`. HTTP: V400 U401 F403 N404 C409 I500. Mensajes públicos en español.
+- Preferir comportamiento determinista documentado sobre abstracciones nuevas.

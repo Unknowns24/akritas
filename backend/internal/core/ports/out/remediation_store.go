@@ -13,6 +13,7 @@ import (
 type RemediationStore interface {
 	Create(ctx context.Context, value *domain.Remediation) error
 	Get(ctx context.Context, id uuid.UUID) (*domain.Remediation, error)
+	FindByIncident(ctx context.Context, incidentID uuid.UUID) (*domain.Remediation, error)
 	FindByInvestigation(ctx context.Context, investigationID uuid.UUID) (*domain.Remediation, error)
 	Update(ctx context.Context, value *domain.Remediation) error
 }

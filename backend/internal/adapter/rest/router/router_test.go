@@ -12,6 +12,8 @@ import (
 
 	resthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler"
 	authhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/auth"
+	automationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/automation"
+	dashboardhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dashboard"
 	dokployhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/dokploy"
 	evidencehandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/evidence"
 	githubhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/github"
@@ -19,6 +21,9 @@ import (
 	investigationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/investigation"
 	operationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/operation"
 	projecthandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/project"
+	qvachandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/qvac"
+	remediationhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/remediation"
+	systemhandler "github.com/Unknowns24/akritas/backend/internal/adapter/rest/handler/system"
 	restmiddleware "github.com/Unknowns24/akritas/backend/internal/adapter/rest/middleware"
 	"github.com/Unknowns24/akritas/backend/internal/adapter/rest/pagination"
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
@@ -197,6 +202,81 @@ func (*fakeEvidence) ListInvestigationEvidence(context.Context, uuid.UUID, pagin
 	return paging.Slice[domain.Evidence]{}, nil
 }
 
+type fakeSystem struct{}
+
+func (*fakeSystem) GetStatus(context.Context) (domain.SystemStatus, error) {
+	return domain.SystemStatus{}, nil
+}
+func (*fakeSystem) RunDiagnostics(context.Context, uuid.UUID) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+
+type fakeDashboard struct{}
+
+func (*fakeDashboard) GetOverview(context.Context) (domain.Overview, error) {
+	return domain.Overview{}, nil
+}
+func (*fakeDashboard) ListActivity(context.Context, paging.Params) (paging.Slice[domain.ActivityEvent], error) {
+	return paging.Slice[domain.ActivityEvent]{}, nil
+}
+
+type fakeQvac struct{}
+
+func (*fakeQvac) GetConfiguration(context.Context) (domain.QvacConfiguration, error) {
+	return domain.DefaultQvacConfiguration(time.Now().UTC()), nil
+}
+func (*fakeQvac) PutConfiguration(context.Context, portsin.PutQvacConfigurationCommand) (domain.QvacConfiguration, error) {
+	return domain.DefaultQvacConfiguration(time.Now().UTC()), nil
+}
+func (*fakeQvac) TestConnection(context.Context) (portsin.ConnectionTestResult, error) {
+	return portsin.ConnectionTestResult{}, nil
+}
+func (*fakeQvac) GetStatus(context.Context) (portsin.QvacRuntimeStatus, error) {
+	return portsin.QvacRuntimeStatus{}, nil
+}
+
+type fakeAutomation struct{}
+
+func (*fakeAutomation) GetPolicy(context.Context) (domain.AutomationPolicy, error) {
+	return domain.DefaultAutomationPolicy(), nil
+}
+func (*fakeAutomation) PutPolicy(context.Context, domain.AutomationPolicy) (domain.AutomationPolicy, error) {
+	return domain.DefaultAutomationPolicy(), nil
+}
+
+type fakeRemediations struct{}
+
+func (*fakeRemediations) StartIncidentRemediation(context.Context, portsin.StartIncidentRemediationCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+func (*fakeRemediations) GetIncidentRemediation(context.Context, uuid.UUID) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (*fakeRemediations) GetRemediation(context.Context, uuid.UUID) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (*fakeRemediations) ListValidationResults(context.Context, uuid.UUID, paging.Params) (paging.Slice[domain.ValidationResult], error) {
+	return paging.Slice[domain.ValidationResult]{}, nil
+}
+func (*fakeRemediations) CreateRemediationBranch(context.Context, portsin.CreateRemediationBranchCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (*fakeRemediations) ExecuteRemediationValidations(context.Context, portsin.ExecuteRemediationValidationsCommand) (*domain.Remediation, []domain.ValidationResult, error) {
+	return &domain.Remediation{}, nil, nil
+}
+func (*fakeRemediations) QueueRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Operation, error) {
+	return &domain.Operation{}, nil
+}
+func (*fakeRemediations) CreateRemediationPullRequest(context.Context, portsin.CreateRemediationPullRequestCommand) (*domain.Remediation, error) {
+	return &domain.Remediation{}, nil
+}
+func (*fakeRemediations) ListPullRequests(context.Context, paging.Params) (paging.Slice[domain.PullRequestProjection], error) {
+	return paging.Slice[domain.PullRequestProjection]{}, nil
+}
+func (*fakeRemediations) GetPullRequest(context.Context, uuid.UUID) (*domain.PullRequestProjection, error) {
+	return &domain.PullRequestProjection{}, nil
+}
+
 type routerFixture struct {
 	config         Config
 	authenticate   *fakeAuthenticateSession
@@ -251,6 +331,26 @@ func newRouterFixture() *routerFixture {
 	if err != nil {
 		panic(err)
 	}
+	systemHandler, err := systemhandler.New(&fakeSystem{})
+	if err != nil {
+		panic(err)
+	}
+	dashboardHandler, err := dashboardhandler.New(&fakeDashboard{}, paging)
+	if err != nil {
+		panic(err)
+	}
+	qvacHandler, err := qvachandler.New(&fakeQvac{})
+	if err != nil {
+		panic(err)
+	}
+	automationHandler, err := automationhandler.New(&fakeAutomation{})
+	if err != nil {
+		panic(err)
+	}
+	remediationHandler, err := remediationhandler.New(&fakeRemediations{}, paging, "")
+	if err != nil {
+		panic(err)
+	}
 
 	return &routerFixture{
 		config: Config{
@@ -263,6 +363,11 @@ func newRouterFixture() *routerFixture {
 				InvestigationHandler: investigationHandler,
 				OperationHandler:     operationHandler,
 				EvidenceHandler:      evidenceHandler,
+				SystemHandler:        systemHandler,
+				DashboardHandler:     dashboardHandler,
+				QvacHandler:          qvacHandler,
+				AutomationHandler:    automationHandler,
+				RemediationHandler:   remediationHandler,
 			},
 			Admin:          restmiddleware.RequireSession(authenticate),
 			Authenticate:   authenticate,
@@ -327,6 +432,11 @@ func TestRouterFailsClosedWithoutCompleteHandlers(t *testing.T) {
 		{name: "missing Operation", mutate: func(config *Config) { config.Handlers.OperationHandler = nil }},
 		{name: "missing Evidence", mutate: func(config *Config) { config.Handlers.EvidenceHandler = nil }},
 		{name: "missing Incident", mutate: func(config *Config) { config.Handlers.IncidentHandler = nil }},
+		{name: "missing System", mutate: func(config *Config) { config.Handlers.SystemHandler = nil }},
+		{name: "missing Dashboard", mutate: func(config *Config) { config.Handlers.DashboardHandler = nil }},
+		{name: "missing QVAC", mutate: func(config *Config) { config.Handlers.QvacHandler = nil }},
+		{name: "missing Automation", mutate: func(config *Config) { config.Handlers.AutomationHandler = nil }},
+		{name: "missing Remediation", mutate: func(config *Config) { config.Handlers.RemediationHandler = nil }},
 	}
 
 	for _, test := range tests {
@@ -364,9 +474,12 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"DELETE /api/v1/projects/{project_id}",
 		"GET /api/v1/auth/session",
 		"GET /api/v1/auth/setup-status",
+		"GET /api/v1/activity",
+		"GET /api/v1/health",
 		"GET /api/v1/incidents",
 		"GET /api/v1/incidents/{incident_id}",
 		"GET /api/v1/incidents/{incident_id}/log-events",
+		"GET /api/v1/incidents/{incident_id}/remediation",
 		"GET /api/v1/incidents/{incident_id}/timeline",
 		"GET /api/v1/integrations/dokploy/servers",
 		"GET /api/v1/integrations/dokploy/servers/{server_id}",
@@ -378,13 +491,23 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"GET /api/v1/integrations/github/accounts/{account_id}/repositories",
 		"GET /api/v1/integrations/github/app-installations/callback",
 		"GET /api/v1/integrations/github/app-manifest/callback",
+		"GET /api/v1/integrations/qvac/configuration",
+		"GET /api/v1/integrations/qvac/status",
 		"GET /api/v1/incidents/{incident_id}/investigations",
 		"GET /api/v1/investigations/{investigation_id}",
 		"GET /api/v1/investigations/{investigation_id}/evidence",
 		"GET /api/v1/operations/{operation_id}",
+		"GET /api/v1/overview",
+		"GET /api/v1/pull-requests",
+		"GET /api/v1/pull-requests/{pull_request_id}",
 		"GET /api/v1/projects",
 		"GET /api/v1/projects/{project_id}",
 		"GET /api/v1/projects/{project_id}/monitoring-configuration",
+		"GET /api/v1/readiness",
+		"GET /api/v1/remediations/{remediation_id}",
+		"GET /api/v1/remediations/{remediation_id}/validation-results",
+		"GET /api/v1/settings/automation",
+		"GET /api/v1/system/status",
 		"PATCH /api/v1/integrations/dokploy/servers/{server_id}",
 		"PATCH /api/v1/integrations/github/accounts/{account_id}",
 		"PATCH /api/v1/projects/{project_id}",
@@ -394,13 +517,19 @@ func TestRouterExposesExactChiRouteInventory(t *testing.T) {
 		"POST /api/v1/auth/setup",
 		"POST /api/v1/auth/setup/verify",
 		"POST /api/v1/incidents/{incident_id}/investigations",
+		"POST /api/v1/incidents/{incident_id}/remediation",
 		"POST /api/v1/integrations/dokploy/servers",
 		"POST /api/v1/integrations/dokploy/servers/{server_id}/connection-test",
 		"POST /api/v1/integrations/github/accounts",
 		"POST /api/v1/integrations/github/accounts/{account_id}/connection-test",
 		"POST /api/v1/integrations/github/app-manifest/registrations",
+		"POST /api/v1/integrations/qvac/connection-test",
 		"POST /api/v1/projects",
+		"POST /api/v1/remediations/{remediation_id}/pull-request",
+		"POST /api/v1/system/diagnostics",
+		"PUT /api/v1/integrations/qvac/configuration",
 		"PUT /api/v1/projects/{project_id}/monitoring-configuration",
+		"PUT /api/v1/settings/automation",
 	}
 	sort.Strings(want)
 	if strings.Join(got, "\n") != strings.Join(want, "\n") {

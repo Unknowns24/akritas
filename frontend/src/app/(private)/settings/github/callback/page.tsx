@@ -1,51 +1,85 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { RefreshCw, AlertCircle } from "lucide-react";
 import { env } from "@/core/config/env.config";
-import { RefreshCw } from "lucide-react";
 import styles from "./CallbackPage.module.css";
 
-export default function GitHubCallbackPage() {
+function GitHubCallbackContent() {
   const searchParams = useSearchParams();
-  const hasValidCallback = useMemo(() => {
-    return Boolean(
-      (searchParams.get("code") && searchParams.get("state")) ||
-        searchParams.get("installation_id"),
-    );
-  }, [searchParams]);
+
+  const errorParam =
+    searchParams.get("error_description") ?? searchParams.get("error");
+
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const installationId = searchParams.get("installation_id");
+  const setupAction = searchParams.get("setup_action");
+
+  const isManifest = Boolean(code && state);
+  const isInstallation = Boolean(installationId);
+  const hasValidCallback = isManifest || isInstallation;
+
+  const error = errorParam
+    ? errorParam
+    : !hasValidCallback
+      ? "No valid callback parameters found in URL."
+      : null;
 
   useEffect(() => {
-    // We are on the client, let's process the URL
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
-    const installation_id = searchParams.get("installation_id");
-    const setup_action = searchParams.get("setup_action");
+    if (error) return;
 
-    if (code && state) {
-      // 1. Return from App Manifest Creation
-      // Redirect to backend callback to exchange code and redirect to GitHub installation
-      const url = new URL(`${env.apiUrl}/integrations/github/app-manifest/callback`);
+    if (isManifest && code && state) {
+      const url = new URL(
+        `${env.apiUrl}/integrations/github/app-manifest/callback`,
+      );
+
       url.searchParams.set("code", code);
       url.searchParams.set("state", state);
-      window.location.href = url.toString();
-    } else if (installation_id) {
-      // 2. Return from App Installation
-      // Redirect to backend callback to save installation and redirect back to Settings
-      const url = new URL(`${env.apiUrl}/integrations/github/app-installations/callback`);
-      url.searchParams.set("installation_id", installation_id);
-      if (setup_action) url.searchParams.set("setup_action", setup_action);
-      if (state) url.searchParams.set("state", state);
-      window.location.href = url.toString();
-    }
-  }, [searchParams]);
 
-  if (!hasValidCallback) {
+      window.location.assign(url.toString());
+      return;
+    }
+
+    if (isInstallation && installationId) {
+      const url = new URL(
+        `${env.apiUrl}/integrations/github/app-installations/callback`,
+      );
+
+      url.searchParams.set("installation_id", installationId);
+
+      if (setupAction) {
+        url.searchParams.set("setup_action", setupAction);
+      }
+
+      if (state) {
+        url.searchParams.set("state", state);
+      }
+
+      window.location.assign(url.toString());
+    }
+  }, [
+    error,
+    isManifest,
+    isInstallation,
+    code,
+    state,
+    installationId,
+    setupAction,
+  ]);
+
+  if (error) {
     return (
       <div className={styles.container}>
+        <AlertCircle size={48} className={styles.error} />
         <h2>Error in GitHub Integration</h2>
-        <p className={styles.error}>No valid callback parameters found in URL.</p>
-        <a href="/settings/github" className={styles.link}>Return to GitHub Settings</a>
+        <p className={styles.error}>{error}</p>
+
+        <Link href="/settings/github" className={styles.link}>
+          Return to GitHub Settings
+        </Link>
       </div>
     );
   }
@@ -54,7 +88,24 @@ export default function GitHubCallbackPage() {
     <div className={styles.container}>
       <RefreshCw size={48} className={styles.spin} />
       <h2>Connecting to GitHub...</h2>
-      <p>Please wait while we complete the setup. You will be redirected shortly.</p>
+      <p>
+        Please wait while we complete the setup. You will be redirected shortly.
+      </p>
     </div>
+  );
+}
+
+export default function GitHubCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className={styles.container}>
+          <RefreshCw size={48} className={styles.spin} />
+          <h2>Loading...</h2>
+        </div>
+      }
+    >
+      <GitHubCallbackContent />
+    </Suspense>
   );
 }

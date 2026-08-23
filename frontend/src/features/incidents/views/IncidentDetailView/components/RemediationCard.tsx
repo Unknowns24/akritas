@@ -1,13 +1,42 @@
 import React from "react";
-import { Wrench, CheckCircle2, ShieldCheck, User, AlertCircle } from "lucide-react";
+import {
+  AlertCircle,
+  Clock,
+  ExternalLink,
+  FileSearch,
+  GitBranch,
+  Loader2,
+  ShieldCheck,
+  Wrench,
+} from "lucide-react";
 import type { Incident } from "../../../services/get-incident.service";
-import styles from "../IncidentDetailView.module.css";
+import {
+  isRemediationFixable,
+  isRequiresHuman,
+} from "../../../utils/remediation.utils";
+import { RemediationStatusBadge } from "./RemediationStatusBadge";
+import { ValidationSummaryView } from "./ValidationSummaryView";
+import { ValidationResultsViewer } from "./ValidationResultsViewer";
+import { CodeChangesDiffViewer } from "./CodeChangesDiffViewer";
+import { RequiresHumanCard } from "./RequiresHumanCard";
+import { AutonomyBoundaryBanner } from "./AutonomyBoundaryBanner";
+import styles from "./RemediationCard.module.css";
 
-export function RemediationCard({ incident }: { incident: Incident }) {
-  const requiresHuman =
-    incident.latest_investigation?.resolution_status === "requires_human" || incident.terminal_outcome === "requires_human";
+interface RemediationCardProps {
+  incident: Incident;
+}
+
+export function RemediationCard({ incident }: RemediationCardProps) {
+  const resolutionStatus =
+    incident.resolution_status ??
+    incident.latest_investigation?.resolution_status;
+
   const remediationFailed =
     incident.terminal_outcome === "remediation_failed";
+
+  const requiresHuman =
+    isRequiresHuman(resolutionStatus) ||
+    incident.terminal_outcome === "requires_human";
 
   if (remediationFailed) {
     return (
@@ -35,27 +64,29 @@ export function RemediationCard({ incident }: { incident: Incident }) {
         >
           <AlertCircle size={24} />
         </div>
+
         <div>
           <h3
             style={{
               fontSize: "16px",
-              fontWeight: "600",
-              marginBottom: "8px",
+              fontWeight: 600,
+              margin: "0 0 8px",
               color: "var(--status-error)",
-              margin: "0 0 8px 0",
             }}
           >
             Remediation Failed
           </h3>
+
           <p
             style={{
               fontSize: "14px",
               color: "var(--text-secondary)",
-              lineHeight: "1.5",
+              lineHeight: 1.5,
               margin: 0,
             }}
           >
-            The automated agent was unable to generate a valid patch that passes validation. Intervention is required.
+            The automated agent was unable to generate a valid patch that
+            passes validation. Intervention is required.
           </p>
         </div>
       </div>
@@ -63,155 +94,185 @@ export function RemediationCard({ incident }: { incident: Incident }) {
   }
 
   if (requiresHuman) {
+    return <RequiresHumanCard incident={incident} />;
+  }
+
+  if (!isRemediationFixable(resolutionStatus)) {
     return (
-      <div
-        className={styles.card}
-        style={{
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          textAlign: "center",
-          gap: "16px",
-          padding: "32px 16px",
-          backgroundColor: "var(--bg-secondary)",
-          border: "1px dashed var(--border-color)",
-        }}
-      >
-        <div
-          style={{
-            padding: "12px",
-            borderRadius: "50%",
-            backgroundColor: "var(--bg-tertiary)",
-            color: "var(--text-secondary)",
-          }}
-        >
-          <User size={24} />
-        </div>
+      <div className={styles.pendingCard}>
+        <FileSearch size={28} style={{ color: "var(--text-dim)" }} />
+
         <div>
-          <h3
+          <div
             style={{
-              fontSize: "16px",
-              fontWeight: "600",
-              marginBottom: "8px",
+              fontWeight: 600,
               color: "var(--text-primary)",
-              margin: "0 0 8px 0",
+              marginBottom: "4px",
             }}
           >
-            Human Action Required
-          </h3>
-          <p
-            style={{
-              fontSize: "14px",
-              color: "var(--text-secondary)",
-              lineHeight: "1.5",
-              margin: 0,
-            }}
-          >
-            The automatic flow ended after creating the GitHub Issue. QVAC
-            determined that this incident requires human intervention. No pull
-            request will be created.
-          </p>
+            Remediation Pending
+          </div>
+
+          <div>
+            Remediation evaluation will start once the incident investigation
+            completes.
+          </div>
         </div>
       </div>
     );
   }
 
   const remediation = incident.remediation;
-  if (!remediation) return null;
+  const status = remediation?.status || "planned";
 
-  const diffLines = remediation.changes?.[0]?.patch?.split("\n") || [];
+  const branchName =
+    remediation?.branch_name ||
+    incident.pull_request_reference?.branch ||
+    `akritas/fix-${incident.key.toLowerCase()}`;
+
+  const prRef =
+    incident.pull_request_reference ||
+    remediation?.pull_request_reference;
+
+  const relevantFiles =
+    incident.latest_investigation?.relevant_files || [];
+
+  const failureMessage = remediation?.failure_user_message;
 
   return (
-    <div
-      className={styles.card}
-      style={{ height: "100%", justifyContent: "space-between" }}
-    >
-      <div>
-        <div className={styles.cardHeader}>
-          <Wrench size={16} />
-          Repository Analysis & Remediation
-        </div>
-
-        <div className={styles.remediationMeta} style={{ marginTop: "16px" }}>
-          Files inspected:{" "}
-          {incident.latest_investigation?.relevant_files?.join(", ")}
-        </div>
-
-        {diffLines.length > 0 && (
-          <div className={styles.diffViewer}>
-            {diffLines.map((line: string, i: number) => {
-              const isMeta = line.startsWith("@@");
-              const isAdded = line.startsWith("+");
-
-              let lineClass = styles.diffLine;
-              if (isMeta) lineClass += ` ${styles.diffMeta}`;
-              else if (isAdded) lineClass += ` ${styles.diffAdded}`;
-              else lineClass += ` ${styles.diffUnchanged}`;
-
-              return (
-                <div key={i} className={lineClass}>
-                  {line}
-                </div>
-              );
-            })}
+    <div className={styles.card}>
+      <div className={styles.content}>
+        <div className={styles.header}>
+          <div className={styles.titleGroup}>
+            <Wrench size={18} style={{ color: "#60a5fa" }} />
+            <span>Autonomous Remediation</span>
           </div>
+
+          <RemediationStatusBadge status={status} />
+        </div>
+
+        <div className={styles.metaRow}>
+          <span className={styles.metaLabel}>
+            Target Remediation Branch
+          </span>
+
+          <div className={styles.branchBox}>
+            <GitBranch size={14} className={styles.branchIcon} />
+            <span>{branchName}</span>
+          </div>
+        </div>
+
+        {relevantFiles.length > 0 && (
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Relevant Files</span>
+            <span className={styles.metaValue}>
+              {relevantFiles.join(", ")}
+            </span>
+          </div>
+        )}
+
+        {remediation?.changes_summary && (
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>Changes Summary</span>
+
+            <span
+              style={{
+                fontSize: "13px",
+                color: "var(--text-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
+              {remediation.changes_summary}
+            </span>
+          </div>
+        )}
+
+        {status === "planned" &&
+          (!remediation?.changes || remediation.changes.length === 0) && (
+            <div className={styles.plannedBox}>
+              <Clock
+                size={16}
+                style={{
+                  color: "var(--text-dim)",
+                  flexShrink: 0,
+                }}
+              />
+
+              <span>
+                Remediation workspace is queued. Code fixes and regression tests
+                will be generated automatically.
+              </span>
+            </div>
+          )}
+
+        {status === "in_progress" && (
+          <div className={styles.inProgressBox}>
+            <Loader2
+              size={16}
+              className={styles.spin}
+              style={{
+                color: "#60a5fa",
+                flexShrink: 0,
+              }}
+            />
+
+            <span>
+              Generating patch, regression tests, and executing build validation
+              checks...
+            </span>
+          </div>
+        )}
+
+        {remediation?.changes && remediation.changes.length > 0 && (
+          <div className={styles.metaRow}>
+            <span className={styles.metaLabel}>
+              Proposed Code Changes ({remediation.changes.length}{" "}
+              {remediation.changes.length === 1 ? "file" : "files"})
+            </span>
+
+            <CodeChangesDiffViewer changes={remediation.changes} />
+          </div>
+        )}
+
+        <ValidationSummaryView
+          summary={remediation?.validation_summary}
+        />
+
+        <ValidationResultsViewer
+          remediationStatus={status}
+          failureUserMessage={failureMessage}
+        />
+
+        {prRef && (
+          <div className={styles.prSection}>
+            <div className={styles.prDetails}>
+              <span>GitHub Pull Request</span>
+              <span className={styles.prNumber}>PR #{prRef.number}</span>
+            </div>
+
+            <a
+              href={prRef.url}
+              target="_blank"
+              rel="noreferrer"
+              className={styles.prButton}
+            >
+              <span>View Pull Request #{prRef.number}</span>
+              <ExternalLink size={14} />
+            </a>
+          </div>
+        )}
+
+        {(status === "pull_request_created" || Boolean(prRef)) && (
+          <AutonomyBoundaryBanner />
         )}
       </div>
 
-      <div>
-        <div className={styles.validationArea}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "12px",
-                color: "var(--text-secondary)",
-              }}
-            >
-              <GitMergeIcon /> akritas/fix-incident-184
-            </span>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-          {remediation.validation_summary &&
-            remediation.validation_summary.passed > 0 &&
-            remediation.validation_summary.failed === 0 && (
-              <div className={styles.validationTag}>
-                <CheckCircle2 size={12} />
-                Validation Passed
-              </div>
-            )}
-        </div>
-
-        <button className={styles.prButton}>Open Pull Request</button>
-        <div className={styles.prDisclaimer}>
-          <ShieldCheck size={12} />
-          Akritas never merges changes automatically.
-        </div>
+      <div className={styles.footer}>
+        <ShieldCheck size={14} />
+        <span>
+          Akritas never merges changes automatically. Human review is required.
+        </span>
       </div>
     </div>
-  );
-}
-
-function GitMergeIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ verticalAlign: "middle", marginRight: "4px" }}
-    >
-      <circle cx="18" cy="18" r="3"></circle>
-      <circle cx="6" cy="6" r="3"></circle>
-      <path d="M6 21V9a9 9 0 0 0 9 9"></path>
-    </svg>
   );
 }

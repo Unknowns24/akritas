@@ -1,0 +1,16 @@
+---
+description: Seguridad, secretos y límites de autonomía del MVP Akritas.
+alwaysApply: true
+---
+
+# Seguridad y autonomía
+
+- Nunca loguear ni commitear `AKRITAS_MASTER_KEY`, bootstrap token, PAT, private keys, TOTP seeds, session tokens ni DSN con password.
+- `AKRITAS_PAGINATION_SECRET` ≠ master key. Cursores firmados; rotar cursores no borra datos.
+- Sesión: cookie HttpOnly; token opaco; persistir solo hash no reversible.
+- Validar input en el borde HTTP; reglas de negocio en dominio/usecase.
+- No filtrar errores de GitHub/Dokploy/QVAC/SQL al cliente. Envelope de error estable + `request_id`.
+- QVAC: solo loopback/red privada tras validar DNS/IP; sin redirects a IPs públicas.
+- SSRF, path traversal y SQL: parámetros bound; sin concatenar SQL con input.
+- Autonomía: Issue GitHub siempre; PR solo si hay fix validado; jamás merge/deploy desde Akritas.
+- Un administrador; account type GitHub ≠ authentication method.

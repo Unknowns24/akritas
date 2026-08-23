@@ -36,6 +36,9 @@ func New(config Config) (http.Handler, error) {
 		config.Handlers.GitHubHandler == nil ||
 		config.Handlers.DokployHandler == nil ||
 		config.Handlers.ProjectHandler == nil ||
+		config.Handlers.InvestigationHandler == nil ||
+		config.Handlers.OperationHandler == nil ||
+		config.Handlers.EvidenceHandler == nil ||
 		config.Handlers.IncidentHandler == nil ||
 		config.Authenticate == nil ||
 		len(config.AllowedOrigins) == 0 {
@@ -72,6 +75,9 @@ func New(config Config) (http.Handler, error) {
 			private.Use(config.Admin)
 			private.Use(authmiddleware.RequireAllowedOrigin(config.AllowedOrigins))
 			registerProjectRoutes(private, config.Handlers.ProjectHandler)
+			registerInvestigationRoutes(private, config.Handlers.InvestigationHandler)
+			registerOperationRoutes(private, config.Handlers.OperationHandler)
+			registerEvidenceRoutes(private, config.Handlers.EvidenceHandler)
 			registerIncidentRoutes(private, config.Handlers.IncidentHandler)
 		})
 	})

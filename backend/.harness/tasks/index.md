@@ -12,5 +12,10 @@
 | AKR-AUTH-LOGIN-SESSION | complete | backend-api-feature | Login, sesión opaca (idle TTL deslizante) y logout |
 | AKR-REST-CHI | complete | backend-api-feature | Migración modular del adaptador REST a Chi |
 | AKR-H1-PROJECTS | complete | backend-api-feature | Project CRUD, snapshots verificados y MonitoringConfiguration |
+| AKR-INVESTIGATION-LIFECYCLE | complete | backend-api-feature | Investigation + Operation (infra genérica async), frontera con H2 |
+| AKR-INVESTIGATION-EVIDENCE | complete | backend-api-feature | Evidence real (deployment_metadata) ensamblada en el pipeline async |
+| AKR-QVAC-INFERENCE | complete | backend-service-feature | PB-028/032/033/034/035: runner QVAC local + resultado estructurado |
+| AKR-QVAC-TOOL-LOOP | complete | backend-service-feature | PB-029: loop de tool calling allowlisted read-only |
+| AKR-GITHUB-REPO-TOOLS | complete | backend-service-feature | PB-030/031: search_code/read_file/commits/diffs vía adapter GitHub |
 | AKR-H2-DETECTION-INCIDENTS | complete | backend-api-feature | Ingesta incremental, Detection Engine determinístico, LogEvents e Incidents |
 | AKR-REST-CORS | complete | backend-api-feature | CORS credentialed global mediante middleware oficial de Chi |

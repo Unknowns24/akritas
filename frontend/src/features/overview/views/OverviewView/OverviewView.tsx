@@ -47,7 +47,7 @@ export const OverviewView = async () => {
       <div className={styles.contentGrid}>
         {/* Left Column: Recent Incidents / Activity */}
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <ActiveIncidentsCard />
+          <ActiveIncidentsCard investigations={overview.active_investigations} />
         </div>
 
         {/* Right Column: AI Intel & Pipeline Status */}

@@ -1,11 +1,66 @@
 import React from "react";
-import { Wrench, CheckCircle2, ShieldCheck, User } from "lucide-react";
+import { Wrench, CheckCircle2, ShieldCheck, User, AlertCircle } from "lucide-react";
 import type { Incident } from "../../../services/get-incident.service";
 import styles from "../IncidentDetailView.module.css";
 
 export function RemediationCard({ incident }: { incident: Incident }) {
   const requiresHuman =
-    incident.latest_investigation?.resolution_status === "requires_human";
+    incident.latest_investigation?.resolution_status === "requires_human" || incident.terminal_outcome === "requires_human";
+  const remediationFailed =
+    incident.terminal_outcome === "remediation_failed";
+
+  if (remediationFailed) {
+    return (
+      <div
+        className={styles.card}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          textAlign: "center",
+          gap: "16px",
+          padding: "32px 16px",
+          backgroundColor: "rgba(var(--status-error-rgb), 0.1)",
+          border: "1px dashed var(--status-error)",
+        }}
+      >
+        <div
+          style={{
+            padding: "12px",
+            borderRadius: "50%",
+            backgroundColor: "rgba(var(--status-error-rgb), 0.2)",
+            color: "var(--status-error)",
+          }}
+        >
+          <AlertCircle size={24} />
+        </div>
+        <div>
+          <h3
+            style={{
+              fontSize: "16px",
+              fontWeight: "600",
+              marginBottom: "8px",
+              color: "var(--status-error)",
+              margin: "0 0 8px 0",
+            }}
+          >
+            Remediation Failed
+          </h3>
+          <p
+            style={{
+              fontSize: "14px",
+              color: "var(--text-secondary)",
+              lineHeight: "1.5",
+              margin: 0,
+            }}
+          >
+            The automated agent was unable to generate a valid patch that passes validation. Intervention is required.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (requiresHuman) {
     return (

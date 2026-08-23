@@ -49,4 +49,27 @@ This document tracks all temporary mocks, overrides, and hardcoded values inject
 
 ---
 
+## 3. Settings - GitHub Integration Mocks
+
+**Files:** 
+- `frontend/src/features/settings/services/github/*.service.ts`
+
+**Reasoning:** Since the backend API is not yet active, the openapi-fetch client fails with `ECONNREFUSED` or 404 when hitting `/integrations/github/accounts/*`. To allow testing the settings UI, all endpoints in this module have been wrapped in a check that returns fake data if the request fails.
+
+**Specific Workarounds:**
+- **`/integrations/github/accounts` (GET & POST)**:
+  - Return a static list of connected accounts or a fake created account object to simulate PAT setup.
+  - *Action needed:* Remove the `!data || error` condition returning fake objects.
+- **`/integrations/github/accounts/{id}` (PATCH, DELETE)**:
+  - Return fake updated objects or empty success responses instead of throwing.
+  - *Action needed:* Remove fake early returns.
+- **`/integrations/github/accounts/{id}/connection-test`**:
+  - Automatically simulates a successful connection.
+  - *Action needed:* Remove fake return.
+- **`/integrations/github/accounts/{id}/repositories`**:
+  - Generates 42 mock repositories.
+  - *Action needed:* Remove the mock generation block.
+
+---
+
 *Note: Whenever a new mock or local workaround is added for testing in future prompts, it should be appended to this document.*

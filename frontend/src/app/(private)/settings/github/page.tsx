@@ -1,9 +1,10 @@
-export default function GitHubSettingsPage() {
+import { GitHubSettingsClient } from "@/features/settings/views/GitHubSettingsView";
+import { getGitHubAccountsService } from "@/features/settings/services/github/get-github-accounts.service";
+
+export default async function GitHubSettingsPage() {
+  const { data: accounts } = await getGitHubAccountsService();
+  
   return (
-    <div>
-      <p style={{ color: "var(--text-dim)", fontSize: "14px" }}>
-        GitHub integration configuration will be implemented here.
-      </p>
-    </div>
+    <GitHubSettingsClient initialAccounts={accounts || []} />
   );
 }

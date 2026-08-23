@@ -32,6 +32,7 @@ func TestMigrationRegistryIsOrderedAndReversible(t *testing.T) {
 		"20260823_08_add_dokploy_compose_sources",
 		"20260823_09_allow_truthful_validation_output_redacted",
 		"20260823_10_extend_remediation_lifecycle",
+		"20260823_11_add_runtime_settings",
 	}
 	migrations := All()
 	if len(migrations) != len(expected) {

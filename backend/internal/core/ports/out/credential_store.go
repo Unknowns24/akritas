@@ -14,6 +14,8 @@ const (
 	SecretKindGitHubWebhook     SecretKind = "github_app_webhook_secret"
 	SecretKindDokployAPIKey     SecretKind = "dokploy_api_key"
 	SecretKindAdministratorTOTP SecretKind = "administrator_totp"
+	SecretKindQvacBearerToken   SecretKind = "qvac_bearer_token"
+	SecretKindQvacBasicPassword SecretKind = "qvac_basic_password"
 )
 
 const (
@@ -22,6 +24,7 @@ const (
 	CredentialOwnerGitHubManifest    = "github_app_registration"
 	CredentialOwnerPendingEnrollment = "pending_enrollment"
 	CredentialOwnerAdministrator     = "administrator"
+	CredentialOwnerQvacConfiguration = "qvac_configuration"
 )
 
 type SecretValue struct {

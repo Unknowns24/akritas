@@ -40,6 +40,11 @@ func New(config Config) (http.Handler, error) {
 		config.Handlers.OperationHandler == nil ||
 		config.Handlers.EvidenceHandler == nil ||
 		config.Handlers.IncidentHandler == nil ||
+		config.Handlers.SystemHandler == nil ||
+		config.Handlers.DashboardHandler == nil ||
+		config.Handlers.QvacHandler == nil ||
+		config.Handlers.AutomationHandler == nil ||
+		config.Handlers.RemediationHandler == nil ||
 		config.Authenticate == nil ||
 		len(config.AllowedOrigins) == 0 {
 		return nil, ErrInvalidRouterConfiguration
@@ -61,6 +66,7 @@ func New(config Config) (http.Handler, error) {
 	}))
 	root.Use(chimiddleware.GetHead)
 	root.Route("/api/v1", func(api chi.Router) {
+		registerSystemPublicRoutes(api, config.Handlers.SystemHandler)
 		registerAuthRoutes(api, config.Handlers.AuthHandler, config.Authenticate, config.AllowedOrigins)
 		api.Route("/integrations", func(integrations chi.Router) {
 			registerGitHubCallbackRoutes(integrations, config.Handlers.GitHubHandler)
@@ -74,11 +80,16 @@ func New(config Config) (http.Handler, error) {
 		api.Group(func(private chi.Router) {
 			private.Use(config.Admin)
 			private.Use(authmiddleware.RequireAllowedOrigin(config.AllowedOrigins))
+			registerSystemRoutes(private, config.Handlers.SystemHandler)
+			registerDashboardRoutes(private, config.Handlers.DashboardHandler)
+			registerQvacRoutes(private, config.Handlers.QvacHandler)
+			registerAutomationRoutes(private, config.Handlers.AutomationHandler)
 			registerProjectRoutes(private, config.Handlers.ProjectHandler)
 			registerInvestigationRoutes(private, config.Handlers.InvestigationHandler)
 			registerOperationRoutes(private, config.Handlers.OperationHandler)
 			registerEvidenceRoutes(private, config.Handlers.EvidenceHandler)
 			registerIncidentRoutes(private, config.Handlers.IncidentHandler)
+			registerRemediationRoutes(private, config.Handlers.RemediationHandler)
 		})
 	})
 	return root, nil

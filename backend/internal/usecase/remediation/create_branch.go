@@ -7,6 +7,7 @@ import (
 	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 	portsin "github.com/Unknowns24/akritas/backend/internal/core/ports/in"
 	portsout "github.com/Unknowns24/akritas/backend/internal/core/ports/out"
+	"github.com/google/uuid"
 )
 
 // CreateRemediationBranch is idempotent by RemediationID: a replay with the
@@ -38,6 +39,11 @@ func (uc *UseCase) CreateRemediationBranch(ctx context.Context, cmd portsin.Crea
 
 	if err := remediation.Start(output.BranchName, uc.now()); err != nil {
 		return nil, err
+	}
+	if cmd.InvestigationID != uuid.Nil {
+		if err := remediation.AttachInvestigation(cmd.InvestigationID, uc.now()); err != nil {
+			return nil, err
+		}
 	}
 	if err := uc.remediations.Create(ctx, remediation); err != nil {
 		return nil, err

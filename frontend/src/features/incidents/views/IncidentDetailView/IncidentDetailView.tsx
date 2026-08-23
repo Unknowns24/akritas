@@ -12,7 +12,7 @@ export const IncidentDetailView = async ({ id }: { id: string }) => {
   let incident;
   try {
     incident = await getIncidentService(id);
-  } catch (error) {
+  } catch (_error) {
     // Basic error handling for now
     return <div className={styles.container}><h1>Error loading incident {id}</h1></div>;
   }

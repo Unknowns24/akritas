@@ -15,6 +15,8 @@ export async function updateGitHubPatService(
     body,
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock updated account");
     return {
@@ -32,6 +34,7 @@ export async function updateGitHubPatService(
       } as GitHubAccount
     };
   }
+  */
 
   return { data: data?.data };
 }

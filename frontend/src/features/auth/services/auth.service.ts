@@ -14,10 +14,11 @@ export async function getAuthSetupStatusService(): Promise<SetupStatusResponse["
     if (error) throw error;
     return data.data;
   } catch (e) {
-    // If the user wants to test setup again, they can change this to true,
+    // [MOCK DOCS] If the user wants to test setup again, they can change this to true,
     // but false is required to be able to access the Login screen and Dashboard.
-    console.warn("[MOCK] API failed, returning setup_required = false to allow login");
-    return { setup_required: false, registration_open: false };
+    // console.warn("[MOCK] API failed, returning setup_required = false to allow login");
+    // return { setup_required: false, registration_open: false };
+    throw e;
   }
 }
 
@@ -27,6 +28,7 @@ export async function getCurrentSessionService(): Promise<SessionResponse["data"
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     if (typeof window !== "undefined" && localStorage.getItem("mock_auth") === "true") {
       console.warn("[MOCK] API failed, but mock_auth is set. Returning mock session.");
       return {
@@ -37,6 +39,7 @@ export async function getCurrentSessionService(): Promise<SessionResponse["data"
       };
     }
     console.warn("[MOCK] API failed, throwing to simulate no active session");
+    */
     throw e;
   }
 }
@@ -47,6 +50,7 @@ export async function startAdministratorSetupService(body: SetupRequest): Promis
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     console.warn("[MOCK] API failed, returning mock TOTP enrollment");
     return {
       enrollment_id: "mock-enrollment-id-123",
@@ -54,6 +58,8 @@ export async function startAdministratorSetupService(body: SetupRequest): Promis
       manual_entry_key: "JBSWY3DPEHPK3PXP",
       expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
     };
+    */
+    throw e;
   }
 }
 
@@ -65,6 +71,7 @@ export async function verifyAdministratorSetupService(totp_code: string, enrollm
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     if (totp_code !== "123456") {
       throw new Error("Invalid authenticator code. Try 123456 for testing.");
     }
@@ -76,6 +83,8 @@ export async function verifyAdministratorSetupService(totp_code: string, enrollm
       idle_expires_at: "",
       absolute_expires_at: "",
     };
+    */
+    throw e;
   }
 }
 
@@ -85,6 +94,7 @@ export async function loginAdministratorService(body: LoginRequest): Promise<Ses
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     if (body.totp_code !== "123456") {
       throw new Error("Invalid authenticator code. Try 123456 for testing.");
     }
@@ -96,6 +106,8 @@ export async function loginAdministratorService(body: LoginRequest): Promise<Ses
       idle_expires_at: "",
       absolute_expires_at: "",
     };
+    */
+    throw e;
   }
 }
 
@@ -105,6 +117,7 @@ export async function startAdministratorRecoveryService(body: RecoveryRequest): 
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     console.warn("[MOCK] API failed, returning mock TOTP enrollment");
     return {
       enrollment_id: "mock-recovery-enrollment-id",
@@ -112,6 +125,8 @@ export async function startAdministratorRecoveryService(body: RecoveryRequest): 
       manual_entry_key: "RECOVERY3DPEHPK3PXP",
       expires_at: new Date(Date.now() + 1000 * 60 * 10).toISOString(),
     };
+    */
+    throw e;
   }
 }
 
@@ -123,6 +138,7 @@ export async function verifyAdministratorRecoveryService(totp_code: string, enro
     if (error) throw error;
     return data.data;
   } catch (e) {
+    /* [MOCK DOCS]
     if (totp_code !== "123456") {
       throw new Error("Invalid authenticator code. Try 123456 for testing.");
     }
@@ -133,6 +149,8 @@ export async function verifyAdministratorRecoveryService(totp_code: string, enro
       idle_expires_at: "",
       absolute_expires_at: "",
     };
+    */
+    throw e;
   }
 }
 
@@ -141,9 +159,12 @@ export async function logoutAdministratorService(): Promise<void> {
     const { error } = await api.DELETE("/auth/session");
     if (error) throw error;
   } catch (e) {
+    /* [MOCK DOCS]
     console.warn("[MOCK] API failed, simulating logout by removing mock_auth");
     if (typeof window !== "undefined") {
       localStorage.removeItem("mock_auth");
     }
+    */
+    throw e;
   }
 }

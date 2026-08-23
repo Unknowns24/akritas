@@ -9,10 +9,7 @@ export async function deleteDokployServerService(
     },
   });
 
-  if (error) {
-    console.warn("API failed, mocking delete success");
-    return { success: true };
-  }
+  if (error) throw error;
 
   return { success: true };
 }

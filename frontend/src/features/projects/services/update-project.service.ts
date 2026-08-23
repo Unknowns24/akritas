@@ -15,6 +15,8 @@ export async function updateProjectService(
     body: request,
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock updated project");
     const mockProject: Project = {
@@ -71,6 +73,7 @@ export async function updateProjectService(
     };
     return { data: mockProject };
   }
+  */
 
   return { data: data.data };
 }

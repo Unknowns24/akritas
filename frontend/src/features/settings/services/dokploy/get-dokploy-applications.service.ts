@@ -12,6 +12,8 @@ export async function getDokployApplicationsService(
     },
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn(`API failed fetching applications for ${serverId}, returning mock applications`);
     
@@ -44,6 +46,7 @@ export async function getDokployApplicationsService(
       ]
     };
   }
+  */
 
   return { data: data.data };
 }

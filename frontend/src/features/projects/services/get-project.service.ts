@@ -11,6 +11,8 @@ export async function getProjectService(id: string): Promise<ProjectResponse> {
     },
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn(`Failed to fetch project ${id}, returning mock data:`, error);
     return {
@@ -64,6 +66,7 @@ export async function getProjectService(id: string): Promise<ProjectResponse> {
       }
     };
   }
+  */
 
   return data;
 }

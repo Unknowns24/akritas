@@ -6,6 +6,8 @@ export type ProjectListResponse = components["schemas"]["ProjectListResponse"];
 export async function getProjectsService(): Promise<ProjectListResponse> {
   const { data, error } = await api.GET("/projects");
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("Failed to fetch projects, returning mock data:", error);
     return {
@@ -72,6 +74,7 @@ export async function getProjectsService(): Promise<ProjectListResponse> {
       },
     };
   }
+  */
 
   return data;
 }

@@ -21,6 +21,20 @@ export async function getIncidentsService(
     },
   });
 
+  if (error) {
+    if (typeof window === "undefined") {
+      return { data: [], paging: { limit: 10, total: 0, has_more: false, next_cursor: "", prev_cursor: "" } } as unknown as IncidentListResponse;
+    }
+    throw error;
+  }
+
+  if (!data) {
+    if (typeof window === "undefined") {
+      return { data: [], paging: { limit: 10, total: 0, has_more: false, next_cursor: "", prev_cursor: "" } } as unknown as IncidentListResponse;
+    }
+    throw new Error("No data returned");
+  }
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("Failed to fetch incidents, returning mock data:", error);
     return {
@@ -62,6 +76,7 @@ export async function getIncidentsService(
       },
     };
   }
+  */
 
   return data;
 }

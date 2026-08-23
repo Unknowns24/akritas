@@ -12,6 +12,8 @@ export async function testDokployConnectionService(
     },
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn(`API failed testing connection for ${serverId}, returning mock success`);
     
@@ -29,6 +31,7 @@ export async function testDokployConnectionService(
       }
     };
   }
+  */
 
   return { data };
 }

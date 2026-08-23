@@ -10,6 +10,8 @@ export async function getIncidentService(id: string): Promise<Incident> {
     },
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn(`Failed to fetch incident ${id}, returning mock data:`, error);
     
@@ -45,7 +47,7 @@ export async function getIncidentService(id: string): Promise<Incident> {
         stack_traces: [
           {
             id: "trace-1",
-            raw_content: "// internal/users/service.go:81\npanic: runtime error: invalid memory address or nil pointer dereference",
+            raw_content: "// internal/users/service.go:81\n  panic: runtime error: invalid memory address or nil pointer dereference",
             lang: "go"
           }
         ],
@@ -72,6 +74,7 @@ export async function getIncidentService(id: string): Promise<Incident> {
       }
     } as unknown as Incident;
   }
+  */
 
   return data.data;
 }

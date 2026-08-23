@@ -9,6 +9,8 @@ export async function createGitHubPatService(body: CreateRequest): Promise<{ dat
     body,
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock created account");
     return {
@@ -26,6 +28,7 @@ export async function createGitHubPatService(body: CreateRequest): Promise<{ dat
       } as GitHubAccount
     };
   }
+  */
 
   return { data: data?.data };
 }

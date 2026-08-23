@@ -15,6 +15,8 @@ export async function updateDokployServerService(
     body: payload,
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock updated Dokploy server");
     return {
@@ -31,6 +33,7 @@ export async function updateDokployServerService(
       }
     };
   }
+  */
 
   return { data: data.data };
 }

@@ -12,6 +12,8 @@ export async function getGitHubRepositoriesService(
     },
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock repositories");
     return {
@@ -27,6 +29,7 @@ export async function getGitHubRepositoriesService(
       })) as GitHubRepository[]
     };
   }
+  */
 
   return { data: data?.data };
 }

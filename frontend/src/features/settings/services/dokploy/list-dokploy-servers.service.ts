@@ -10,6 +10,8 @@ export async function listDokployServersService(): Promise<{ data?: DokployServe
     }
   });
 
+  if (error || !data) throw error || new Error("No data returned");
+  /* [MOCK DOCS]
   if (error || !data) {
     console.warn("API failed, returning mock Dokploy servers");
     return {
@@ -40,6 +42,7 @@ export async function listDokployServersService(): Promise<{ data?: DokployServe
       ]
     };
   }
+  */
 
   return { data: data.data };
 }

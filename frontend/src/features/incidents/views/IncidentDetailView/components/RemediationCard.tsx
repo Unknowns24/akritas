@@ -15,6 +15,7 @@ import { ValidationSummaryView } from "./ValidationSummaryView";
 import { ValidationResultsViewer } from "./ValidationResultsViewer";
 import { CodeChangesDiffViewer } from "./CodeChangesDiffViewer";
 import { RequiresHumanCard } from "./RequiresHumanCard";
+import { AutonomyBoundaryBanner } from "./AutonomyBoundaryBanner";
 import styles from "./RemediationCard.module.css";
 
 interface RemediationCardProps {
@@ -152,6 +153,9 @@ export function RemediationCard({ incident }: RemediationCardProps) {
             </a>
           </div>
         )}
+
+        {/* Autonomy Boundary Banner (ADR-004) when PR is created */}
+        {(status === "pull_request_created" || Boolean(prRef)) && <AutonomyBoundaryBanner />}
       </div>
 
       <div className={styles.footer}>

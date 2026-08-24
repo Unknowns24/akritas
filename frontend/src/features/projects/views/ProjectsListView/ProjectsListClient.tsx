@@ -9,6 +9,10 @@ import { ProjectGrid } from "./components/ProjectGrid/ProjectGrid";
 import { EmptyState } from "@/core/ui/feedback";
 import type { components } from "@/core/libs/api-client";
 import { getProjectsService } from "../../services/get-projects.service";
+import { getProjectService } from "../../services/get-project.service";
+import { updateMonitoringConfigService } from "../../services/update-monitoring-config.service";
+import { getErrorMessage } from "@/core/errors";
+import { toast } from "sonner";
 import styles from "./ProjectsListView.module.css";
 
 type ProjectSummary = components["schemas"]["ProjectSummary"];
@@ -21,6 +25,7 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
   const [projects, setProjects] = useState<ProjectSummary[]>(initialProjects);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [updatingProjectId, setUpdatingProjectId] = useState<string | null>(null);
 
   const fetchProjects = useCallback(async () => {
     try {
@@ -35,6 +40,28 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
       setIsLoading(false);
     }
   }, []);
+
+  const handleToggleProjectMonitoring = useCallback(async (project: ProjectSummary) => {
+    const shouldEnable = project.monitoring_status === "disabled";
+
+    try {
+      setUpdatingProjectId(project.id);
+      const projectResponse = await getProjectService(project.id);
+      const config = projectResponse.data.monitoring_configuration;
+
+      await updateMonitoringConfigService(project.id, {
+        ...config,
+        enabled: shouldEnable,
+      });
+
+      toast.success(`Project ${shouldEnable ? "activated" : "deactivated"} successfully`);
+      await fetchProjects();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Failed to update project monitoring."));
+    } finally {
+      setUpdatingProjectId(null);
+    }
+  }, [fetchProjects]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -92,7 +119,11 @@ export function ProjectsListClient({ initialProjects }: ProjectsListClientProps)
       <div className={styles.divider} />
 
       {filteredProjects.length > 0 ? (
-        <ProjectGrid projects={filteredProjects} />
+        <ProjectGrid
+          projects={filteredProjects}
+          updatingProjectId={updatingProjectId}
+          onToggleProjectMonitoring={handleToggleProjectMonitoring}
+        />
       ) : projects.length === 0 ? (
         <EmptyState 
           icon={<FolderGit2 size={48} />}

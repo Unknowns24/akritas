@@ -15,6 +15,19 @@
   border-left: 4px solid var(--surface-3);
 }
 
+.cardLink {
+  color: inherit;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 16px;
+  text-decoration: none;
+}
+
+.card:hover {
+  border-color: var(--border-hover);
+}
+
 .cardHealthy {
   border-left-color: var(--green-500);
 }
@@ -147,4 +160,24 @@
 
 .status_inactive {
   background-color: var(--text-tertiary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settingsLink {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.settingsLink:hover {
+  color: var(--text-primary);
 }

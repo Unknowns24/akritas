@@ -29,6 +29,11 @@ function getProxyTarget(): URL {
   return new URL(rawTarget.replace(/\/$/, ""));
 }
 
+function getApiBasePath(target: URL): string {
+  const targetPath = target.pathname.replace(/\/$/, "");
+  return targetPath.endsWith("/api/v1") ? targetPath : `${targetPath}/api/v1`;
+}
+
 function allowsInsecureLocalTLS(url: URL): boolean {
   return (
     url.protocol === "https:" &&
@@ -90,7 +95,7 @@ async function getRequestBody(request: NextRequest): Promise<Buffer | undefined>
 async function proxy(request: NextRequest, context: RouteContext): Promise<Response> {
   const target = getProxyTarget();
   const { path } = await context.params;
-  const destination = new URL(`${target.pathname.replace(/\/$/, "")}/api/v1/${path.join("/")}`, target);
+  const destination = new URL(`${getApiBasePath(target)}/${path.join("/")}`, target);
   destination.search = request.nextUrl.search;
 
   const body = await getRequestBody(request);

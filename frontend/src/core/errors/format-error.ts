@@ -85,3 +85,27 @@ export function isApiNotFoundError(error: unknown): boolean {
   const message = getErrorMessage(error, "").toLowerCase();
   return message.includes("404") || message.includes("page not found") || message.includes("not found");
 }
+
+export function isApiUnauthorizedError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.status === 401;
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+  if (record.status === 401) {
+    return true;
+  }
+
+  const source =
+    typeof record.error === "object" && record.error !== null
+      ? (record.error as Record<string, unknown>)
+      : record;
+  const code = stringFromRecord(source, "code");
+  const message = getErrorMessage(error, "").toLowerCase();
+
+  return code?.endsWith("U") === true || message.includes("unauthorized");
+}

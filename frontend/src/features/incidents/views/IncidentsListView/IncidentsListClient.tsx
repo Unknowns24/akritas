@@ -167,10 +167,9 @@ export function IncidentsListClient({
                     variant="secondary"
                     size="sm"
                     className={styles.actionBtn}
-                    disabled
-                    title="Retry investigation is not wired in this frontend flow yet."
+                    onClick={() => router.push(`/incidents/${inc.id}`)}
                   >
-                    Retry
+                    View Details
                   </Button>
                 )}
               </div>

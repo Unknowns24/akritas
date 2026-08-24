@@ -7,6 +7,10 @@ import { RefreshCw, AlertCircle } from "lucide-react";
 import { env } from "@/core/config/env.config";
 import styles from "./CallbackPage.module.css";
 
+function buildApiUrl(path: string): URL {
+  return new URL(`${env.apiUrl.replace(/\/$/, "")}${path}`, window.location.origin);
+}
+
 function GitHubCallbackContent() {
   const searchParams = useSearchParams();
 
@@ -32,9 +36,7 @@ function GitHubCallbackContent() {
     if (error) return;
 
     if (isManifest && code && state) {
-      const url = new URL(
-        `${env.apiUrl}/integrations/github/app-manifest/callback`,
-      );
+      const url = buildApiUrl("/integrations/github/app-manifest/callback");
 
       url.searchParams.set("code", code);
       url.searchParams.set("state", state);
@@ -44,9 +46,7 @@ function GitHubCallbackContent() {
     }
 
     if (isInstallation && installationId) {
-      const url = new URL(
-        `${env.apiUrl}/integrations/github/app-installations/callback`,
-      );
+      const url = buildApiUrl("/integrations/github/app-installations/callback");
 
       url.searchParams.set("installation_id", installationId);
 

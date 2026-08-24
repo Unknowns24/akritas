@@ -8,6 +8,7 @@ const isServer = typeof window === "undefined";
 const configuredUrl = getEnv("NEXT_PUBLIC_API_URL") || "/api/v1";
 const rawApiUrl = configuredUrl.replace(/^NEXT_PUBLIC_API_URL=/, "").trim();
 const serverProxyUrl = `http://localhost:${process.env.PORT || 3000}/api/v1`;
+const browserProxyUrl = "/api/v1";
 const isLocalHttpsApi =
   rawApiUrl.startsWith("https://localhost") ||
   rawApiUrl.startsWith("https://127.0.0.1") ||
@@ -18,7 +19,9 @@ const apiUrl = isServer
     : isLocalHttpsApi
       ? serverProxyUrl
       : rawApiUrl
-  : rawApiUrl;
+  : isLocalHttpsApi
+    ? browserProxyUrl
+    : rawApiUrl;
 
 export const env = {
   apiUrl,

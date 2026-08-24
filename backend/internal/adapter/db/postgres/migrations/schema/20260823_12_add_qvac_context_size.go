@@ -13,8 +13,8 @@ func SCHEMA_20260823_12_AddQvacContextSize() *gormigrate.Migration {
 				`ALTER TABLE qvac_configurations
 				 ADD COLUMN IF NOT EXISTS context_size integer`,
 				`ALTER TABLE qvac_configurations
-				 ALTER COLUMN context_size SET DEFAULT 32768`,
-				`UPDATE qvac_configurations SET context_size = 32768 WHERE context_size IS NULL OR context_size = 0`,
+				 ALTER COLUMN context_size SET DEFAULT 16384`,
+				`UPDATE qvac_configurations SET context_size = 16384 WHERE context_size IS NULL OR context_size = 0`,
 				`ALTER TABLE qvac_configurations
 				 ALTER COLUMN context_size SET NOT NULL`,
 				`ALTER TABLE qvac_configurations

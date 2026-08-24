@@ -104,6 +104,7 @@ var (
 	ErrManifestStateConflict             = newDomainError("0x502007C", "GitHub manifest state conflict", "El intento de conexión con GitHub ya fue utilizado o expiró.")
 	ErrIntegrationUnavailable            = newDomainError("0x502008I", "integration unavailable", "No se pudo contactar la integración.")
 	ErrDokployContainerUnavailable       = newDomainError("0x502009I", "Dokploy container unavailable", "El servicio no tiene un contenedor activo disponible.")
+	ErrQvacContextOverflow               = newDomainError("0x50200AV", "QVAC context overflow", "El prompt excede la ventana de contexto del modelo QVAC.")
 	ErrProjectNotFound                   = newDomainError("0x503001N", "project not found", "El proyecto no existe.")
 	ErrProjectRepositoryNotFound         = newDomainError("0x503002N", "project repository not found", "El repositorio seleccionado no existe o no pertenece a la integración.")
 	ErrProjectApplicationNotFound        = newDomainError("0x503003N", "project application not found", "La aplicación seleccionada no existe.")
@@ -209,6 +210,7 @@ func IntegrationErrors() map[string]*Error {
 		"ErrManifestStateConflict":       ErrManifestStateConflict,
 		"ErrIntegrationUnavailable":      ErrIntegrationUnavailable,
 		"ErrDokployContainerUnavailable": ErrDokployContainerUnavailable,
+		"ErrQvacContextOverflow":         ErrQvacContextOverflow,
 	}
 }
 

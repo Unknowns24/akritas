@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Unknowns24/akritas/backend/internal/core/domain"
 )
 
 func TestNewClientRejectsPublicEndpoint(t *testing.T) {
@@ -82,6 +84,33 @@ func TestChatCompletionsSendsConfiguredContextSize(t *testing.T) {
 	}
 }
 
+func TestChatCompletionsNormalizesLegacyDefaultContextSize(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.Options == nil || request.Options.NumCtx != domain.DefaultQvacContextSize {
+			t.Fatalf("num_ctx = %+v", request.Options)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": `{"ok":true}`}}},
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client(), ContextSize: legacyDefaultContextSize})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.chatCompletions(context.Background(), chatRequest{
+		Messages: []chatMessage{{Role: "user", Content: "hi"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestChatCompletionsMapsModelMissing(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -96,5 +125,23 @@ func TestChatCompletionsMapsModelMissing(t *testing.T) {
 	_, err = client.chatCompletions(context.Background(), chatRequest{Messages: []chatMessage{{Role: "user", Content: "hi"}}})
 	if err == nil || !errors.Is(err, ErrModelUnavailable) {
 		t.Fatalf("expected ErrModelUnavailable, got %v", err)
+	}
+}
+
+func TestChatCompletionsMapsContextOverflowAsValidation(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`CONTEXT_OVERFLOW: prompt exceeds the model's context window`))
+	}))
+	t.Cleanup(server.Close)
+
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.chatCompletions(context.Background(), chatRequest{Messages: []chatMessage{{Role: "user", Content: "hi"}}})
+	if err == nil || !errors.Is(err, domain.ErrQvacContextOverflow) || !errors.Is(err, ErrContextOverflow) {
+		t.Fatalf("expected QVAC context overflow, got %v", err)
 	}
 }

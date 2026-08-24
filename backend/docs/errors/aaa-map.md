@@ -68,6 +68,7 @@ Los errores siguen `DxAAABBBT`. En esta fundación, `D=0` representa la instalac
 | `ErrManifestStateConflict` | `0x502007C` | Integrations usecase | Conflict | El intento de conexión con GitHub ya fue utilizado o expiró. |
 | `ErrIntegrationUnavailable` | `0x502008I` | Integrations usecase | Internal | No se pudo contactar la integración. |
 | `ErrDokployContainerUnavailable` | `0x502009I` | Integrations usecase | Internal | El servicio no tiene un contenedor activo disponible. |
+| `ErrQvacContextOverflow` | `0x50200AV` | Integrations usecase | Validation | El prompt excede la ventana de contexto del modelo QVAC. |
 | `ErrProjectNotFound` | `0x503001N` | Project usecase | Not found | El proyecto no existe. |
 | `ErrProjectRepositoryNotFound` | `0x503002N` | Project usecase | Not found | El repositorio seleccionado no existe o no pertenece a la integración. |
 | `ErrProjectApplicationNotFound` | `0x503003N` | Project usecase | Not found | La aplicación seleccionada no existe. |

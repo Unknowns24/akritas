@@ -61,7 +61,7 @@ func TestRunnerCompletesWithoutTools(t *testing.T) {
 	}
 }
 
-func TestRunnerInvalidOutputErrors(t *testing.T) {
+func TestRunnerReturnsHumanReviewResultWhenFinalOutputIsInvalid(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -81,9 +81,12 @@ func TestRunnerInvalidOutputErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = runner.Run(context.Background(), out.InvestigationRunContext{Investigation: *investigation})
-	if !errors.Is(err, ErrInvalidModelOutput) {
-		t.Fatalf("expected ErrInvalidModelOutput, got %v", err)
+	result, err := runner.Run(context.Background(), out.InvestigationRunContext{Investigation: *investigation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RootCauseStatus != domain.RootCauseUnknown || result.ResolutionStatus != domain.ResolutionRequiresHuman {
+		t.Fatalf("expected human-review result, got %+v", result)
 	}
 }
 
@@ -200,7 +203,7 @@ func TestRunnerReturnsHumanReviewResultWhenToolRoundFailsAfterEvidence(t *testin
 	}
 }
 
-func TestRunnerRejectsCitationForEvidenceOmittedFromBoundedPrompt(t *testing.T) {
+func TestRunnerDoesNotPersistModelCitationForEvidenceOmittedFromBoundedPrompt(t *testing.T) {
 	t.Parallel()
 	evidenceID := uuid.New()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -220,9 +223,12 @@ func TestRunnerRejectsCitationForEvidenceOmittedFromBoundedPrompt(t *testing.T) 
 	}
 	investigation, _ := domain.NewInvestigation(uuid.New(), uuid.New(), time.Now().UTC())
 	evidence, _ := domain.NewEvidence(evidenceID, investigation.ID, domain.EvidenceLogExcerpt, "real but omitted", "content", time.Now().UTC())
-	_, err = runner.Run(context.Background(), out.InvestigationRunContext{Investigation: *investigation, Evidence: []domain.Evidence{*evidence}})
-	if !errors.Is(err, ErrInvalidModelOutput) {
-		t.Fatalf("expected omitted Evidence citation to fail, got %v", err)
+	result, err := runner.Run(context.Background(), out.InvestigationRunContext{Investigation: *investigation, Evidence: []domain.Evidence{*evidence}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RootCauseStatus != domain.RootCauseUnknown || result.ResolutionStatus != domain.ResolutionRequiresHuman {
+		t.Fatalf("expected human-review result, got %+v", result)
 	}
 }
 

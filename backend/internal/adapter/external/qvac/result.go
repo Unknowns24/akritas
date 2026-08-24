@@ -52,6 +52,7 @@ func parseInvestigationResult(raw string, allowedGroups ...map[uuid.UUID]struct{
 	if raw == "" {
 		return portsout.InvestigationRunResult{}, invalidOutput("empty content")
 	}
+	raw = extractJSONObject(raw)
 	decoder := json.NewDecoder(bytes.NewBufferString(raw))
 	decoder.DisallowUnknownFields()
 	var dto modelResultDTO
@@ -140,4 +141,68 @@ func cloneStrings(values []string) []string {
 		return []string{}
 	}
 	return append([]string(nil), values...)
+}
+
+func extractJSONObject(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "{") {
+		if start, end, ok := firstBalancedJSONObject(raw); ok && start == 0 && strings.TrimSpace(raw[end:]) != "" {
+			return raw[:end]
+		}
+		return raw
+	}
+	if start := strings.Index(raw, "```"); start >= 0 {
+		fenced := raw[start+len("```"):]
+		if newline := strings.IndexByte(fenced, '\n'); newline >= 0 {
+			fenced = fenced[newline+1:]
+		}
+		if end := strings.Index(fenced, "```"); end >= 0 {
+			raw = strings.TrimSpace(fenced[:end])
+			if strings.HasPrefix(raw, "{") {
+				return raw
+			}
+		}
+	}
+	if start, end, ok := firstBalancedJSONObject(raw); ok {
+		return raw[start:end]
+	}
+	return raw
+}
+
+func firstBalancedJSONObject(raw string) (int, int, bool) {
+	start := strings.IndexByte(raw, '{')
+	if start < 0 {
+		return 0, 0, false
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for index := start; index < len(raw); index++ {
+		ch := raw[index]
+		if inString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			switch ch {
+			case '\\':
+				escaped = true
+			case '"':
+				inString = false
+			}
+			continue
+		}
+		switch ch {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return start, index + 1, true
+			}
+		}
+	}
+	return 0, 0, false
 }

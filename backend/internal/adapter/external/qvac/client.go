@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	defaultEndpoint  = "http://127.0.0.1:11434/v1"
-	defaultModel     = "akritas"
-	maximumBodyBytes = 4 << 20
+	defaultEndpoint          = "http://127.0.0.1:11434/v1"
+	defaultModel             = "akritas"
+	legacyDefaultContextSize = 32768
+	maximumBodyBytes         = 4 << 20
 )
 
 type ClientConfig struct {
@@ -64,6 +65,8 @@ func NewClient(config ClientConfig) (*Client, error) {
 	}
 	contextSize := config.ContextSize
 	if contextSize <= 0 {
+		contextSize = domain.DefaultQvacContextSize
+	} else if contextSize == legacyDefaultContextSize {
 		contextSize = domain.DefaultQvacContextSize
 	}
 	return &Client{
@@ -127,12 +130,15 @@ type jsonSchemaSpec struct {
 }
 
 type chatRequest struct {
-	Model          string           `json:"model"`
-	Messages       []chatMessage    `json:"messages"`
-	Tools          []toolDefinition `json:"tools,omitempty"`
-	ResponseFormat *responseFormat  `json:"response_format,omitempty"`
-	Temperature    *float64         `json:"temperature,omitempty"`
-	Options        *chatOptions     `json:"options,omitempty"`
+	Model           string           `json:"model"`
+	Messages        []chatMessage    `json:"messages"`
+	Tools           []toolDefinition `json:"tools,omitempty"`
+	ToolChoice      string           `json:"tool_choice,omitempty"`
+	ResponseFormat  *responseFormat  `json:"response_format,omitempty"`
+	Temperature     *float64         `json:"temperature,omitempty"`
+	MaxTokens       *int             `json:"max_tokens,omitempty"`
+	ReasoningBudget *bool            `json:"reasoning_budget,omitempty"`
+	Options         *chatOptions     `json:"options,omitempty"`
 }
 
 type chatResponse struct {
@@ -185,19 +191,23 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrUnavailable)
 	}
 	var decoded chatResponse
-	if err := json.Unmarshal(payload, &decoded); err != nil {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(err)
-	}
 	if response.StatusCode == http.StatusNotFound {
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrModelUnavailable)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		msg := strings.TrimSpace(string(payload))
-		if decoded.Error != nil && decoded.Error.Message != "" {
+		if err := json.Unmarshal(payload, &decoded); err == nil && decoded.Error != nil && decoded.Error.Message != "" {
 			msg = decoded.Error.Message
+		}
+		if isContextOverflowResponse(msg) {
+			log.Printf("qvac: chat completion context overflow endpoint=%s model=%s context_size=%d status=%d", c.base, request.Model, c.contextSize, response.StatusCode)
+			return chatResponse{}, domain.ErrQvacContextOverflow.Wrap(fmt.Errorf("%w: status %d", ErrContextOverflow, response.StatusCode))
 		}
 		log.Printf("qvac: chat completion unavailable endpoint=%s model=%s context_size=%d status=%d response=%q", c.base, request.Model, c.contextSize, response.StatusCode, msg)
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: status %d: %s", ErrUnavailable, response.StatusCode, msg))
+	}
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(err)
 	}
 	if len(decoded.Choices) == 0 {
 		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrInvalidModelOutput)
@@ -205,8 +215,20 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 	return decoded, nil
 }
 
+func isContextOverflowResponse(message string) bool {
+	normalized := strings.ToLower(message)
+	return strings.Contains(normalized, "context_overflow") ||
+		strings.Contains(normalized, "context overflow") ||
+		strings.Contains(normalized, "prompt exceeds") ||
+		strings.Contains(normalized, "context window")
+}
+
 func (c *Client) Ping(ctx context.Context) (time.Duration, error) {
 	started := time.Now()
-	_, err := c.chatCompletions(ctx, chatRequest{Messages: []chatMessage{{Role: "user", Content: "Return OK."}}})
+	_, err := c.chatCompletions(ctx, chatRequest{
+		Messages:        []chatMessage{{Role: "user", Content: "Return OK."}},
+		MaxTokens:       intPtr(8),
+		ReasoningBudget: boolPtr(false),
+	})
 	return time.Since(started), err
 }

@@ -2761,7 +2761,7 @@ components:
           type: integer
           minimum: 4096
           maximum: 131072
-          default: 32768
+          default: 16384
         authentication:
           $ref: "#/components/schemas/QvacAuthenticationRequest"
     QvacConfiguration:

@@ -33,6 +33,29 @@ func TestParseInvestigationResultAcceptsValidPayload(t *testing.T) {
 	}
 }
 
+func TestParseInvestigationResultExtractsJSONFromModelWrapping(t *testing.T) {
+	t.Parallel()
+	raw := "Here is the result:\n```json\n" + `{
+		"summary":"nil deref in handler",
+		"root_cause":"missing nil check",
+		"root_cause_status":"identified",
+		"resolution_status":"fixable",
+		"confidence":0.81,
+		"hypotheses":["h1"],
+		"evidence_ids":[],
+		"relevant_files":["main.go"],
+		"relevant_commits":["abc"],
+		"recommended_actions":["add guard"]
+	}` + "\n```\nDone."
+	result, err := parseInvestigationResult(raw)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Summary != "nil deref in handler" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+}
+
 func TestParseInvestigationResultAcceptsConfidenceBoundariesAndKnownEvidence(t *testing.T) {
 	t.Parallel()
 	id := uuid.New()

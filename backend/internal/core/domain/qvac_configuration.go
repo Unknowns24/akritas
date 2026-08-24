@@ -12,7 +12,7 @@ const (
 	QvacAuthenticationNone   QvacAuthenticationType = "none"
 	QvacAuthenticationBearer QvacAuthenticationType = "bearer"
 	QvacAuthenticationBasic  QvacAuthenticationType = "basic"
-	DefaultQvacContextSize   int                    = 32768
+	DefaultQvacContextSize   int                    = 16384
 )
 
 func (t QvacAuthenticationType) Validate() error {

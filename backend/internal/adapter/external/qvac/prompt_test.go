@@ -32,7 +32,7 @@ func TestUserPromptContainsActualBoundedRedactedEvidence(t *testing.T) {
 	if strings.Contains(prompt, "super-secret") {
 		t.Fatal("prompt leaked a credential-like value")
 	}
-	if budget := initialEvidenceBudget(10000); budget >= maximumInitialPromptBytes || budget != 7232 {
+	if budget := initialEvidenceBudget(10000); budget >= maximumInitialPromptBytes || budget != 5424 {
 		t.Fatalf("dynamic context budget=%d", budget)
 	}
 	if initialEvidenceBudget(defaultContextSize) != maximumInitialPromptBytes {

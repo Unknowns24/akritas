@@ -32,11 +32,20 @@ func TestUserPromptContainsActualBoundedRedactedEvidence(t *testing.T) {
 	if strings.Contains(prompt, "super-secret") {
 		t.Fatal("prompt leaked a credential-like value")
 	}
-	if budget := initialEvidenceBudget(10000); budget >= maximumInitialPromptBytes || budget != 5424 {
+	if budget := initialEvidenceBudget(10000); budget >= maximumInitialPromptBytes || budget != 3616 {
 		t.Fatalf("dynamic context budget=%d", budget)
 	}
 	if initialEvidenceBudget(defaultContextSize) != maximumInitialPromptBytes {
-		t.Fatal("default context must cap initial Evidence at 24 KiB")
+		t.Fatal("default context must cap initial Evidence at 16 KiB")
+	}
+	if toolDataBudget(defaultContextSize) != maximumAccumulatedToolData {
+		t.Fatal("default context must cap accumulated tool data at 12 KiB")
+	}
+	if toolPayloadBudget(defaultContextSize) != maximumToolPayloadBytes {
+		t.Fatal("default context must cap a single tool payload at 4 KiB")
+	}
+	if budget := promptByteBudget(defaultContextSize); budget > 20<<10 || budget < 16<<10 {
+		t.Fatalf("tool prompt budget should leave room for QVAC chat overhead, got %d", budget)
 	}
 }
 

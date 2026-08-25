@@ -141,6 +141,31 @@ validation and rejects redirects to public addresses.
 The UI receives endpoint, auth type, `credential_configured`, runtime/model/version
 and status. It never receives bearer/basic credentials.
 
+When Akritas runs in Docker and QVAC runs on the Windows host, configure Akritas
+with:
+
+```text
+http://host.docker.internal:11434/v1
+```
+
+QVAC must bind to an address reachable from Docker, not only host loopback. Start
+the OpenAI-compatible server with:
+
+```bash
+qvac serve openai --config qvac.config.json --host 0.0.0.0 --port 11434 --allow-unauthenticated
+```
+
+Before retrying an investigation, verify the connection from inside the backend
+container against `http://host.docker.internal:11434/v1/models` and
+`/chat/completions` with model `akritas`.
+
+The effective token window is stored in `qvac_configurations.context_size` and
+managed through QVAC Settings. Akritas sends that persisted value as
+`options.num_ctx` and budgets investigation prompts below it. Keep the persisted
+value aligned with the real `ctx_size` in `qvac.config.json`; for example, use
+`32768` in QVAC Settings only after QVAC itself is started/configured with a 32k
+context.
+
 ## Logging and diagnostics
 
 Configuration validation may report missing variable names, but must never print

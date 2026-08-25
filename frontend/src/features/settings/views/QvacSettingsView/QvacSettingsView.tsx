@@ -7,14 +7,16 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/core/errors";
 import { getQvacConfigurationService } from "../../services/qvac/get-qvac-configuration.service";
 import { putQvacConfigurationService, PutQvacConfigurationRequest } from "../../services/qvac/put-qvac-configuration.service";
+import { ConnectionTestResult, testQvacConnectionService } from "../../services/qvac/test-qvac-connection.service";
 import { Badge } from "@/core/ui/primitives/Badge";
 
 type AuthType = "none" | "bearer" | "basic";
+const DEFAULT_CONTEXT_SIZE = 16384;
 
 export const QvacSettingsView: React.FC = () => {
   const [endpointUrl, setEndpointUrl] = useState("");
   const [connectionTimeout, setConnectionTimeout] = useState(180);
-  const [contextSize, setContextSize] = useState(32768);
+  const [contextSize, setContextSize] = useState(DEFAULT_CONTEXT_SIZE);
   const [authType, setAuthType] = useState<AuthType>("none");
   
   const [bearerToken, setBearerToken] = useState("");
@@ -24,6 +26,8 @@ export const QvacSettingsView: React.FC = () => {
   const [credentialConfigured, setCredentialConfigured] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<ConnectionTestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadConfig = useCallback(async () => {
@@ -33,12 +37,13 @@ export const QvacSettingsView: React.FC = () => {
       const config = await getQvacConfigurationService();
       setEndpointUrl(config.endpoint_url || "");
       setConnectionTimeout(config.connection_timeout_seconds || 180);
-      setContextSize(config.context_size || 32768);
+      setContextSize(config.context_size || DEFAULT_CONTEXT_SIZE);
       setAuthType(config.authentication_type || "none");
       setCredentialConfigured(config.credential_configured || false);
       setBearerToken("");
       setBasicUsername("");
       setBasicPassword("");
+      setTestResult(null);
     } catch (err: unknown) {
       const message = getErrorMessage(err, "Failed to load QVAC configuration");
       setError(message);
@@ -95,6 +100,27 @@ export const QvacSettingsView: React.FC = () => {
     }
   };
 
+  const handleTestConnection = async () => {
+    setIsTesting(true);
+    setError(null);
+
+    try {
+      const result = await testQvacConnectionService();
+      setTestResult(result);
+      if (result.status === "connected") {
+        toast.success(result.user_message);
+      } else {
+        toast.error(result.user_message);
+      }
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, "Failed to test QVAC connection");
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className={styles.container}>Loading QVAC configuration...</div>;
   }
@@ -110,6 +136,25 @@ export const QvacSettingsView: React.FC = () => {
 
       <div className={styles.card}>
         {error && <div className={styles.errorAlert}>{error}</div>}
+        {testResult && (
+          <div
+            className={
+              testResult.status === "connected"
+                ? styles.successAlert
+                : styles.errorAlert
+            }
+          >
+            <div className={styles.testResultHeader}>
+              <Badge variant={testResult.status === "connected" ? "success" : "error"}>
+                {testResult.status.toUpperCase()}
+              </Badge>
+              {testResult.latency_ms !== undefined && (
+                <span className={styles.testMeta}>{testResult.latency_ms} ms</span>
+              )}
+            </div>
+            <p className={styles.testMessage}>{testResult.user_message}</p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.formGroup}>
@@ -229,6 +274,15 @@ export const QvacSettingsView: React.FC = () => {
           )}
 
           <div className={styles.actions}>
+            <Button
+              type="button"
+              variant="secondary"
+              isLoading={isTesting}
+              disabled={isTesting || isSaving}
+              onClick={handleTestConnection}
+            >
+              Test Connection
+            </Button>
             <Button type="submit" variant="primary" isLoading={isSaving} disabled={isSaving}>
               Save Configuration
             </Button>

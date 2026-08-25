@@ -25,24 +25,6 @@ type modelResultDTO struct {
 	RecommendedActions *[]string `json:"recommended_actions"`
 }
 
-var investigationResultSchema = json.RawMessage(`{
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["summary", "root_cause", "root_cause_status", "resolution_status", "confidence", "hypotheses", "evidence_ids", "relevant_files", "relevant_commits", "recommended_actions"],
-  "properties": {
-    "summary": {"type": "string", "minLength": 1, "maxLength": 10000},
-    "root_cause": {"type": "string", "maxLength": 20000},
-    "root_cause_status": {"type": "string", "enum": ["identified", "suspected", "unknown"]},
-    "resolution_status": {"type": "string", "enum": ["fixable", "requires_human"]},
-    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-    "hypotheses": {"type": "array", "maxItems": 50, "items": {"type": "string", "minLength": 1, "maxLength": 5000}},
-    "evidence_ids": {"type": "array", "maxItems": 25, "uniqueItems": true, "items": {"type": "string", "format": "uuid"}},
-    "relevant_files": {"type": "array", "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 4096}},
-    "relevant_commits": {"type": "array", "maxItems": 100, "items": {"type": "string", "minLength": 1, "maxLength": 64}},
-    "recommended_actions": {"type": "array", "maxItems": 50, "items": {"type": "string", "minLength": 1, "maxLength": 5000}}
-  }
-}`)
-
 func parseInvestigationResult(raw string, allowedGroups ...map[uuid.UUID]struct{}) (portsout.InvestigationRunResult, error) {
 	allowedEvidence := map[uuid.UUID]struct{}{}
 	if len(allowedGroups) > 0 && allowedGroups[0] != nil {

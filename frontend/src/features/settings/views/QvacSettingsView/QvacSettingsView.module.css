@@ -71,6 +71,7 @@
 
 .actions {
   display: flex;
+  gap: 12px;
   justify-content: flex-end;
   margin-top: 8px;
 }
@@ -83,4 +84,31 @@
   font-size: 14px;
   margin-bottom: 20px;
   border: 1px solid rgba(var(--status-error-rgb), 0.2);
+}
+
+.successAlert {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-light);
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 20px;
+  border: 1px solid var(--status-success-border);
+}
+
+.testResultHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.testMeta {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.testMessage {
+  margin: 0;
 }

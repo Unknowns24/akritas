@@ -105,6 +105,7 @@ var (
 	ErrIntegrationUnavailable            = newDomainError("0x502008I", "integration unavailable", "No se pudo contactar la integración.")
 	ErrDokployContainerUnavailable       = newDomainError("0x502009I", "Dokploy container unavailable", "El servicio no tiene un contenedor activo disponible.")
 	ErrQvacContextOverflow               = newDomainError("0x50200AV", "QVAC context overflow", "El prompt excede la ventana de contexto del modelo QVAC.")
+	ErrQvacUnavailable                   = newDomainError("0x50200BI", "QVAC unavailable", "QVAC no responde desde el backend en el endpoint configurado.")
 	ErrProjectNotFound                   = newDomainError("0x503001N", "project not found", "El proyecto no existe.")
 	ErrProjectRepositoryNotFound         = newDomainError("0x503002N", "project repository not found", "El repositorio seleccionado no existe o no pertenece a la integración.")
 	ErrProjectApplicationNotFound        = newDomainError("0x503003N", "project application not found", "La aplicación seleccionada no existe.")
@@ -211,6 +212,7 @@ func IntegrationErrors() map[string]*Error {
 		"ErrIntegrationUnavailable":      ErrIntegrationUnavailable,
 		"ErrDokployContainerUnavailable": ErrDokployContainerUnavailable,
 		"ErrQvacContextOverflow":         ErrQvacContextOverflow,
+		"ErrQvacUnavailable":             ErrQvacUnavailable,
 	}
 }
 

@@ -3,6 +3,7 @@ package qvac
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	qvacexternal "github.com/Unknowns24/akritas/backend/internal/adapter/external/qvac"
@@ -115,13 +116,16 @@ func (uc *UseCase) TestConnection(ctx context.Context) (portsin.ConnectionTestRe
 	started := uc.now().UTC()
 	client, err := uc.Client(ctx)
 	if err != nil {
+		log.Printf("qvac: connection test configuration unavailable error=%v", err)
 		return portsin.ConnectionTestResult{Status: domain.ConnectionTestUnavailable, CheckedAt: started.Format(time.RFC3339), UserMessage: "La configuración QVAC no está disponible."}, nil
 	}
 	latencyDuration, err := client.Ping(ctx)
 	if err != nil {
-		return portsin.ConnectionTestResult{Status: domain.ConnectionTestUnavailable, CheckedAt: started.Format(time.RFC3339), UserMessage: "No se pudo conectar con QVAC."}, nil
+		log.Printf("qvac: connection test unavailable endpoint=%s model=%s context_size=%d error=%v", client.Endpoint(), client.Model(), client.ContextSize(), err)
+		return portsin.ConnectionTestResult{Status: domain.ConnectionTestUnavailable, CheckedAt: started.Format(time.RFC3339), UserMessage: "QVAC no responde desde el backend en el endpoint configurado."}, nil
 	}
 	latency := latencyDuration.Milliseconds()
+	log.Printf("qvac: connection test connected endpoint=%s model=%s context_size=%d latency_ms=%d", client.Endpoint(), client.Model(), client.ContextSize(), latency)
 	return portsin.ConnectionTestResult{Status: domain.ConnectionTestConnected, CheckedAt: started.Format(time.RFC3339), LatencyMS: &latency, UserMessage: "QVAC respondió correctamente."}, nil
 }
 

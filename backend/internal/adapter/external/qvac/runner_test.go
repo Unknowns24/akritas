@@ -61,9 +61,12 @@ func TestRunnerCompletesWithoutTools(t *testing.T) {
 	}
 }
 
-func TestRunnerReturnsHumanReviewResultWhenFinalOutputIsInvalid(t *testing.T) {
+func TestRunnerReturnsHumanReviewResultWhenFinalAndRepairOutputAreInvalid(t *testing.T) {
 	t.Parallel()
+	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		assertNoResponseFormat(t, r)
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": `{"summary":""}`}}},
 		})
@@ -88,26 +91,50 @@ func TestRunnerReturnsHumanReviewResultWhenFinalOutputIsInvalid(t *testing.T) {
 	if result.RootCauseStatus != domain.RootCauseUnknown || result.ResolutionStatus != domain.ResolutionRequiresHuman {
 		t.Fatalf("expected human-review result, got %+v", result)
 	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected final attempt plus repair attempt, got %d", calls.Load())
+	}
 }
 
-func TestRunnerRetriesFinalResultWithoutResponseFormat(t *testing.T) {
+func TestRunnerSendsFinalResultWithoutResponseFormat(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var request chatRequest
-		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-			t.Fatal(err)
-		}
+		calls.Add(1)
+		assertNoResponseFormat(t, r)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": validResultJSON()}}},
+		})
+	}))
+	t.Cleanup(server.Close)
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, err := NewRunner(client, nil, RunnerConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	investigation, _ := domain.NewInvestigation(uuid.New(), uuid.New(), time.Now().UTC())
+	result, err := runner.Run(context.Background(), out.InvestigationRunContext{Investigation: *investigation})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.RootCause != "nil map" || calls.Load() != 1 {
+		t.Fatalf("unexpected final result=%+v calls=%d", result, calls.Load())
+	}
+}
+
+func TestRunnerRepairsInvalidFinalResultWithoutResponseFormat(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assertNoResponseFormat(t, r)
 		if calls.Add(1) == 1 {
-			if request.ResponseFormat == nil {
-				t.Fatal("first final request did not use response_format")
-			}
-			w.WriteHeader(http.StatusInternalServerError)
-			_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"message": "schema unsupported"}})
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": "summary: crash in worker\nroot cause: nil map"}}},
+			})
 			return
-		}
-		if request.ResponseFormat != nil {
-			t.Fatal("fallback final request still used response_format")
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": validResultJSON()}}},
@@ -128,11 +155,11 @@ func TestRunnerRetriesFinalResultWithoutResponseFormat(t *testing.T) {
 		t.Fatal(err)
 	}
 	if result.RootCause != "nil map" || calls.Load() != 2 {
-		t.Fatalf("unexpected fallback result=%+v calls=%d", result, calls.Load())
+		t.Fatalf("unexpected repaired result=%+v calls=%d", result, calls.Load())
 	}
 }
 
-func TestRunnerReturnsHumanReviewResultWhenFinalSynthesisUnavailable(t *testing.T) {
+func TestRunnerFailsExplicitlyWhenFinalSynthesisUnavailable(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -150,22 +177,30 @@ func TestRunnerReturnsHumanReviewResultWhenFinalSynthesisUnavailable(t *testing.
 	investigation, _ := domain.NewInvestigation(uuid.New(), uuid.New(), time.Now().UTC())
 	evidenceID := uuid.New()
 	evidence, _ := domain.NewEvidence(evidenceID, investigation.ID, domain.EvidenceLogExcerpt, "database error", "failed to initialize database", time.Now().UTC())
-	result, err := runner.Run(context.Background(), out.InvestigationRunContext{
+	_, err = runner.Run(context.Background(), out.InvestigationRunContext{
 		Investigation: *investigation,
 		Evidence:      []domain.Evidence{*evidence},
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.RootCauseStatus != domain.RootCauseUnknown || result.ResolutionStatus != domain.ResolutionRequiresHuman {
-		t.Fatalf("unexpected degraded status: %+v", result)
-	}
-	if len(result.EvidenceIDs) != 1 || result.EvidenceIDs[0] != evidenceID {
-		t.Fatalf("expected degraded result to cite available evidence: %+v", result.EvidenceIDs)
+	if !errors.Is(err, domain.ErrQvacUnavailable) {
+		t.Fatalf("expected explicit QVAC unavailable error, got %v", err)
 	}
 }
 
-func TestRunnerReturnsHumanReviewResultWhenToolRoundFailsAfterEvidence(t *testing.T) {
+func assertNoResponseFormat(t *testing.T, r *http.Request) {
+	t.Helper()
+	var request map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := request["response_format"]; exists {
+		t.Fatalf("request unexpectedly included response_format: %+v", request["response_format"])
+	}
+	if request["tool_choice"] != "none" {
+		t.Fatalf("tool_choice = %v, want none", request["tool_choice"])
+	}
+}
+
+func TestRunnerFailsExplicitlyWhenToolRoundFailsAfterEvidence(t *testing.T) {
 	t.Parallel()
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -195,11 +230,11 @@ func TestRunnerReturnsHumanReviewResultWhenToolRoundFailsAfterEvidence(t *testin
 		Investigation: *investigation,
 		Repository:    out.RepositoryScope{Owner: "acme", Name: "api", Branch: "main"},
 	})
-	if err != nil {
-		t.Fatal(err)
+	if !errors.Is(err, domain.ErrQvacUnavailable) {
+		t.Fatalf("expected explicit QVAC unavailable error, got %v", err)
 	}
-	if result.RootCauseStatus != domain.RootCauseUnknown || len(result.DiscoveredEvidence) != 1 || result.EvidenceIDs[0] != evidenceID {
-		t.Fatalf("expected human-review result with discovered evidence, got %+v", result)
+	if len(result.DiscoveredEvidence) != 1 || result.DiscoveredEvidence[0].ID != evidenceID {
+		t.Fatalf("expected discovered evidence to survive unavailable QVAC error, got %+v", result)
 	}
 }
 
@@ -241,6 +276,17 @@ func (echoTool) Parameters() json.RawMessage {
 }
 func (echoTool) Execute(ctx context.Context, arguments json.RawMessage) (string, error) {
 	return string(arguments), nil
+}
+
+type largeOutputTool struct{}
+
+func (largeOutputTool) Name() string        { return "large_output" }
+func (largeOutputTool) Description() string { return "returns a large read-only payload" }
+func (largeOutputTool) Parameters() json.RawMessage {
+	return json.RawMessage(`{"type":"object","properties":{"index":{"type":"integer"}}}`)
+}
+func (largeOutputTool) Execute(ctx context.Context, arguments json.RawMessage) (string, error) {
+	return fmt.Sprintf(`{"content":%q}`, strings.Repeat("tool-data ", 2048)), nil
 }
 
 func TestRunnerToolLoopThenStructuredResult(t *testing.T) {
@@ -288,6 +334,54 @@ func TestRunnerToolLoopThenStructuredResult(t *testing.T) {
 	}
 	if calls.Load() < 2 {
 		t.Fatalf("expected tool round + final round, got %d", calls.Load())
+	}
+}
+
+func TestRunnerStopsToolExplorationBeforeDefaultContextOverflow(t *testing.T) {
+	t.Parallel()
+	var toolRequests atomic.Int32
+	var finalRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request chatRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		if request.ToolChoice == "none" {
+			finalRequests.Add(1)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"choices": []map[string]any{{"message": map[string]any{"role": "assistant", "content": validResultJSON()}}},
+			})
+			return
+		}
+		if len(request.Messages) > 8 {
+			t.Fatalf("runner sent an overflow-prone tool round with %d messages", len(request.Messages))
+		}
+		n := toolRequests.Add(1)
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": map[string]any{
+			"role": "assistant", "tool_calls": []map[string]any{{
+				"id": fmt.Sprintf("call_%d", n), "type": "function",
+				"function": map[string]any{"name": "large_output", "arguments": fmt.Sprintf(`{"index":%d}`, n)},
+			}},
+		}}}})
+	}))
+	t.Cleanup(server.Close)
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner, err := NewRunner(client, NewToolRegistry(largeOutputTool{}), RunnerConfig{MaxToolRounds: 10, MaxToolCalls: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := runner.Run(context.Background(), out.InvestigationRunContext{})
+	if err != nil {
+		t.Fatalf("expected final synthesis after tool budget exhaustion, got %v", err)
+	}
+	if result.RootCause != "nil map" {
+		t.Fatalf("unexpected result after prompt budget exhaustion: %+v", result)
+	}
+	if toolRequests.Load() == 0 || finalRequests.Load() != 1 {
+		t.Fatalf("expected tool exploration followed by one final synthesis, tools=%d final=%d", toolRequests.Load(), finalRequests.Load())
 	}
 }
 

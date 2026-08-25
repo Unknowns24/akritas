@@ -84,14 +84,14 @@ func TestChatCompletionsSendsConfiguredContextSize(t *testing.T) {
 	}
 }
 
-func TestChatCompletionsNormalizesLegacyDefaultContextSize(t *testing.T) {
+func TestChatCompletionsSendsPersistedContextSize(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request chatRequest
 		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 			t.Fatal(err)
 		}
-		if request.Options == nil || request.Options.NumCtx != domain.DefaultQvacContextSize {
+		if request.Options == nil || request.Options.NumCtx != 32768 {
 			t.Fatalf("num_ctx = %+v", request.Options)
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -100,7 +100,7 @@ func TestChatCompletionsNormalizesLegacyDefaultContextSize(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client(), ContextSize: legacyDefaultContextSize})
+	client, err := NewClient(ClientConfig{EndpointURL: server.URL + "/v1", HTTPClient: server.Client(), ContextSize: 32768})
 	if err != nil {
 		t.Fatal(err)
 	}

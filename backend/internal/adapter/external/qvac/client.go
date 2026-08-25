@@ -15,10 +15,9 @@ import (
 )
 
 const (
-	defaultEndpoint          = "http://127.0.0.1:11434/v1"
-	defaultModel             = "akritas"
-	legacyDefaultContextSize = 32768
-	maximumBodyBytes         = 4 << 20
+	defaultEndpoint  = "http://127.0.0.1:11434/v1"
+	defaultModel     = "akritas"
+	maximumBodyBytes = 4 << 20
 )
 
 type ClientConfig struct {
@@ -66,8 +65,6 @@ func NewClient(config ClientConfig) (*Client, error) {
 	contextSize := config.ContextSize
 	if contextSize <= 0 {
 		contextSize = domain.DefaultQvacContextSize
-	} else if contextSize == legacyDefaultContextSize {
-		contextSize = domain.DefaultQvacContextSize
 	}
 	return &Client{
 		base:          strings.TrimRight(base.String(), "/"),
@@ -114,19 +111,8 @@ type toolFunctionSchema struct {
 	Parameters  json.RawMessage `json:"parameters,omitempty"`
 }
 
-type responseFormat struct {
-	Type       string          `json:"type"`
-	JSONSchema *jsonSchemaSpec `json:"json_schema,omitempty"`
-}
-
 type chatOptions struct {
 	NumCtx int `json:"num_ctx,omitempty"`
-}
-
-type jsonSchemaSpec struct {
-	Name   string          `json:"name"`
-	Strict bool            `json:"strict"`
-	Schema json.RawMessage `json:"schema"`
 }
 
 type chatRequest struct {
@@ -134,7 +120,6 @@ type chatRequest struct {
 	Messages        []chatMessage    `json:"messages"`
 	Tools           []toolDefinition `json:"tools,omitempty"`
 	ToolChoice      string           `json:"tool_choice,omitempty"`
-	ResponseFormat  *responseFormat  `json:"response_format,omitempty"`
 	Temperature     *float64         `json:"temperature,omitempty"`
 	MaxTokens       *int             `json:"max_tokens,omitempty"`
 	ReasoningBudget *bool            `json:"reasoning_budget,omitempty"`
@@ -177,22 +162,22 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 	if err != nil {
 		if ctx.Err() != nil {
 			log.Printf("qvac: chat completion failed endpoint=%s model=%s context_size=%d error=%v context_error=%v", c.base, request.Model, c.contextSize, err, ctx.Err())
-			return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, ctx.Err()))
+			return chatResponse{}, domain.ErrQvacUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, ctx.Err()))
 		}
 		log.Printf("qvac: chat completion failed endpoint=%s model=%s context_size=%d error=%v", c.base, request.Model, c.contextSize, err)
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, err))
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(fmt.Errorf("%w: %v", ErrUnavailable, err))
 	}
 	defer response.Body.Close()
 	payload, err := io.ReadAll(io.LimitReader(response.Body, maximumBodyBytes+1))
 	if err != nil {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(err)
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(err)
 	}
 	if len(payload) > maximumBodyBytes {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrUnavailable)
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(ErrUnavailable)
 	}
 	var decoded chatResponse
 	if response.StatusCode == http.StatusNotFound {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrModelUnavailable)
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(ErrModelUnavailable)
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		msg := strings.TrimSpace(string(payload))
@@ -204,13 +189,13 @@ func (c *Client) chatCompletions(ctx context.Context, request chatRequest) (chat
 			return chatResponse{}, domain.ErrQvacContextOverflow.Wrap(fmt.Errorf("%w: status %d", ErrContextOverflow, response.StatusCode))
 		}
 		log.Printf("qvac: chat completion unavailable endpoint=%s model=%s context_size=%d status=%d response=%q", c.base, request.Model, c.contextSize, response.StatusCode, msg)
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(fmt.Errorf("%w: status %d: %s", ErrUnavailable, response.StatusCode, msg))
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(fmt.Errorf("%w: status %d: %s", ErrUnavailable, response.StatusCode, msg))
 	}
 	if err := json.Unmarshal(payload, &decoded); err != nil {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(err)
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(err)
 	}
 	if len(decoded.Choices) == 0 {
-		return chatResponse{}, domain.ErrIntegrationUnavailable.Wrap(ErrInvalidModelOutput)
+		return chatResponse{}, domain.ErrQvacUnavailable.Wrap(ErrInvalidModelOutput)
 	}
 	return decoded, nil
 }
